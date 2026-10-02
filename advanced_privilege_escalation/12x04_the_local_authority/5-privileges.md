@@ -13,9 +13,9 @@ SeBackupPrivilege — Disabled in the observed token. This privilege allows read
 
 SeDebugPrivilege — Enabled. This privilege permits debugging processes and may allow access to another process's memory or token, exposing credentials or providing a route to another security context. I did not use it; debugging is not a normal IIS requirement.
 
-SeChangeNotifyPrivilege — Enabled. This privilege bypasses directory traversal checks but does not grant permission to list directories or read files. It was not abused and is not a meaningful escalation route here.
+SeChangeNotify_Privilege — Enabled. This privilege bypasses directory traversal checks but does not grant permission to list directories or read files. It was not abused and is not a meaningful escalation route here.
 
-SeIncreaseWorkingSetPrivilege — Disabled. This allows a process to increase its working set. It does not grant access to another user's files or token, and its risk here is low.
+SeIncrease_Working_Set_Privilege — Disabled. This allows a process to increase its working set. It does not grant access to another user's files or token, and its risk here is low.
 
 Highest-Risk Paths and Remediation
 
