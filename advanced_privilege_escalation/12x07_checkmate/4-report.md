@@ -306,7 +306,11 @@ The following areas were not comprehensively assessed:
 - Disaster-recovery readiness
 - Production-safe validation of `krbtgt` rotation
 
-The assessment proved the ability to obtain durable domain control. It did not attempt destructive actions, ransomware deployment, mass encryption, data deletion, or broad exfiltration.
+The demonstrated results are bounded to the tested path: control of the supplied account on WEB01, root execution on WEB01, access through its internal interface, administrative execution on DC01, replication-secret extraction, and acceptance of a forged administrative ticket. We verified the protected dominance proof, but we did not verify access to every workstation, server, file share, application, or cloud service in Corvid’s estate. We also did not measure how long an unremoved forged ticket would remain usable in production or whether every domain controller would accept it under real replication timing.
+
+The following are plausible consequences, not demonstrated outcomes: theft of business data, ransomware deployment, interruption of actuarial services, compromise of cloud identities, persistence through certificates or Group Policy, and successful return after a real password-reset response. The report does not claim that data was exfiltrated, that production systems were encrypted, or that all enterprise systems were compromised. Those outcomes remain credible because domain-level administrative control can enable them, but they require separate validation, log review, and incident-response investigation.
+
+The assessment did not attempt destructive actions, ransomware deployment, mass encryption, data deletion, or broad exfiltration. It also did not test whether Corvid’s backup and disaster-recovery procedures could restore the domain after `krbtgt` rotation, whether endpoint detection would block the payloads, or whether segmentation controls outside the observed WEB01-to-DC01 route would stop a different pivot.
 
 Because the DCSync cleanup command failed with an MD4 compatibility error, Corvid should not assume that the lab state is clean solely because the forged-ticket demonstration completed. The DCSync ACE, `CorvidAppSvc` executable path, local Administrators membership, changed passwords, and temporary files must be verified before reset or handover.
 
