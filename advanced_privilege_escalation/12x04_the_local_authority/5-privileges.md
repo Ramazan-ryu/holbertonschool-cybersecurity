@@ -7,7 +7,7 @@ The lab notes describe SeBackupPrivilege as enabled, but whoami /priv showed it 
 
 Privileges in the Foothold Token
 
-SeImpersonatePrivilege — Enabled. This privilege allows a process to impersonate a client after authentication. PrintSpoofer leverages the Print Spooler's SYSTEM-level context and SeImpersonatePrivilege to create a privileged token. I attempted the PrintSpoofer route but did not obtain a SYSTEM shell or read the proof file. The escalation was attempted, not confirmed. This is the highest-risk privilege because successful escalation would grant SYSTEM access to the entire web application.
+SeImpersonate_Privilege — Enabled. This privilege allows a process to impersonate a client after authentication. PrintSpoofer leverages the Print Spooler's SYSTEM-level context and SeImpersonate_Privilege to create a privileged token. I attempted the PrintSpoofer route but did not obtain a SYSTEM shell or read the proof file. The escalation was attempted, not confirmed. This is the highest-risk privilege because successful escalation would grant SYSTEM access to the entire web application.
 
 SeBackupPrivilege — Disabled in the observed token. This privilege allows reads that bypass ordinary file ACL checks, including access to protected registry hives (SAM, SYSTEM, SECURITY). I ran reg save for the SAM and SYSTEM hives, and both commands reported success. However, the disabled state contradicts the lab notes, and I did not use the resulting files to recover or verify a credential. When enabled, this would be the second-highest risk because the SAM and SYSTEM hives contain credential material and system configuration.
 
@@ -19,9 +19,9 @@ SeIncreaseWorkingSetPrivilege — Disabled. This allows a process to increase it
 
 Highest-Risk Paths and Remediation
 
-The two most serious paths are SeImpersonatePrivilege and SeBackupPrivilege when enabled. Remediation must account for load-bearing features to avoid breaking legitimate application functionality.
+The two most serious paths are SeImpersonate_Privilege and SeBackupPrivilege when enabled. Remediation must account for load-bearing features to avoid breaking legitimate application functionality.
 
-For SeImpersonatePrivilege: Run each IIS application pool under an isolated virtual application-pool identity. First check whether the specific application genuinely needs impersonation. If it does, isolate that application from unrelated sites and services, restrict who can connect to it, and monitor for unexpected child processes and privileged impersonation activity. This narrows the exposure while allowing required features to continue working.
+For SeImpersonate_Privilege: Run each IIS application pool under an isolated virtual application-pool identity. First check whether the specific application genuinely needs impersonation. If it does, isolate that application from unrelated sites and services, restrict who can connect to it, and monitor for unexpected child processes and privileged impersonation activity. This narrows the exposure while allowing required features to continue working.
 
 For SeBackupPrivilege if enabled: Use a dedicated backup identity for the scheduled backup service, not the web application identity. If local policy grants this right to svc-web, remove that assignment and confirm the change in a fresh logon token. Test that the backup service still works under its dedicated identity. This protects sensitive data without breaking the backup process.
 
