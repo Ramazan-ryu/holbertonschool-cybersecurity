@@ -64,5 +64,10 @@ The vendor relationship itself requires remediation [F03]. The decision is not t
 *   Produce the SOC 2 roadmap and engagement status [F06].
 *   Assemble the final diligence package with traceable evidence [F06].
 
-## What Will Not Be True by close
-Vireo should not represent that a SOC 2 Type II report exists by the Series C close [F06]; it will only have a roadmap [F06]. DORA remediation will still be in progress [F06] where gaps require further implementation or evidence compilation [F06]. Finally, the Certeva remediation milestones will remain subject to completion and validation [F03]. The investor package should therefore present Vireo as a company with known, owned, and quantified risks on a dated remediation plan [F06].
+## What will not be true by close
+*   No SOC 2 Type II report will exist by close; Vireo will have only a roadmap [F06].
+*   DORA remediation remains in progress where implementation or evidence compilation is incomplete [F06].
+*   Certeva remediation milestones remain pending completion and validation [F03].
+
+The investor package should therefore present Vireo as a company with known,
+owned, and quantified risks on a dated remediation plan [F06].
