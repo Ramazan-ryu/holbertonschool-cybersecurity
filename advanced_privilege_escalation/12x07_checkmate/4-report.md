@@ -169,6 +169,8 @@ The `webapp` account could run a root-owned backup script that passed wildcard-e
 
 **Impact:** Complete compromise of WEB01, access to root-readable credentials, modification of the host, and preparation of a pivot into the internal network.
 
+**Metric justification:** `AV:L` (shell on WEB01), `AC:L` (simple filename creation), `PR:L` (limited sudo), `UI:N` (backup execution), `S:U` (WEB01 only), and `C:H/I:H/A:H` (root control). Downstream domain impact is excluded.
+
 **Remediation:** Replace wildcard-based archive commands with an explicit file list or a safe archive API. Run backups with a fixed working directory and a non-writable source path. Remove unnecessary passwordless sudo access. If sudo is required, use a narrowly constrained wrapper that validates filenames and arguments.
 
 ### Finding 2 — DMZ host provides an uncontrolled route into the internal network
@@ -180,7 +182,7 @@ WEB01 had simultaneous access to the external and internal networks. Once the ho
 
 **Impact:** The intended network boundary did not contain the compromise. An attacker controlling the internet-facing host could reach SMB, WinRM, and directory services that were not directly exposed to the attack workstation.
 
-The `S:C` metric reflects crossing from the DMZ host into the separately administered domain. The lower impacts describe this finding alone: internal reachability and pivot, not domain compromise or production-data destruction. Its business priority is high because it enabled later findings; that consequence is not folded into CVSS.
+The `S:C` metric reflects crossing from the DMZ host into the separately administered domain. The lower impacts describe this finding alone: internal reachability and pivot, not domain compromise or production-data destruction.
 
 **Remediation:** Place externally exposed application servers in a tightly isolated DMZ. Permit only explicitly required flows from WEB01 to internal services. Block SMB, WinRM, LDAP, Kerberos, and RPC from the DMZ unless a documented application requirement exists. Use separate service identities for DMZ applications and prohibit interactive or administrative use of those identities.
 
@@ -204,9 +206,9 @@ The vector uses `S:U` because this finding is the service’s execution impact w
 
 A legacy helpdesk delegation allowed modification of permissions on the domain root. That path allowed `svc-webapp` to grant itself replication rights and perform DCSync.
 
-**Impact:** Extraction of `krbtgt` and other domain secrets, impersonation of domain administrators, unrestricted access to domain-managed systems, and persistence beyond password resets.
+**Impact:** DCSync read `krbtgt` and other domain secrets from the directory. This finding alone demonstrates secret disclosure and supplies material for a later forged-ticket finding; it does not itself prove forged-ticket acceptance, ransomware, or modification of every domain object.
 
-This finding is limited to the domain-root ACL and resulting replication capability. `S:U` is appropriate because the low-privileged principal and directory are within the same authority. DCSync is principally a confidentiality failure: this score does not claim that the ACE alone created the later forged ticket or changed every domain object. It remains a critical business priority because the exposed `krbtgt` secret enabled the separate persistence finding.
+This finding is limited to the domain-root ACL and resulting replication capability. `S:U` is appropriate because the low-privileged principal and directory are within the same authority. `C:H` reflects extracted domain secrets; `I:N/A:N` reflect a read, not arbitrary object writes or outage. Business priority remains critical because the exposed `krbtgt` secret enabled persistence.
 
 **Remediation:** Immediately remove unauthorized `WriteDACL`, `WriteOwner`, and replication permissions from the domain root. Review effective permissions for every delegated group. Apply least privilege and administrative-tiering principles. Alert on changes to domain-root ACLs and on directory-replication requests from non-domain-controller hosts. Rotate `krbtgt` twice after confirming containment.
 
@@ -217,9 +219,9 @@ This finding is limited to the domain-root ACL and resulting replication capabil
 
 Once the `krbtgt` secret was obtained, a forged ticket for the real `Administrator` account was accepted by the domain controller.
 
-**Impact:** The attacker could return as an administrative identity without the original service-account password. Resetting `svc-webapp`, `svc-sql`, or other ordinary account passwords would not invalidate the forged ticket. This creates a full-domain recovery event rather than a routine account compromise.
+**Impact:** The forged ticket authenticated as `Administrator` and retrieved the protected proof without the original service-account password. This finding demonstrates durable administrative authentication after ordinary password changes; it does not claim that ransomware or data destruction occurred.
 
-This score covers the forged-ticket capability itself, not the preceding route used to obtain `krbtgt`. `S:U` treats the ticket as an authentication artifact accepted by the same domain authority that issued the trust secret. The high impacts are supported by the successful Administrator ticket and protected-domain proof; they are not a claim that ransomware or data destruction was demonstrated. Its business priority is critical because the capability survives ordinary password resets.
+This score covers the forged ticket, not the route to `krbtgt`. `S:U` treats it as an artifact accepted by the same authority. `PR:L` reflects possession of the recovered trust secret; `C:H/I:H/A:H` reflect Administrator authentication and domain control. Its business priority is critical because it survives password resets.
 
 **Remediation:** Treat the domain as compromised. Rotate `krbtgt` twice with sufficient replication delay between changes. Reset all privileged and service credentials, invalidate active sessions, review delegation, remove unauthorized ACLs, and investigate ticket use and replication events. Consider rebuilding systems where credential theft cannot be ruled out.
 
