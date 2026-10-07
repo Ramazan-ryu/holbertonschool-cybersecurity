@@ -32,6 +32,8 @@ The most important directory change is a **5136 Directory Service Object Modifie
 
 These records should be joined by time, account, client address, and service name rather than reviewed independently. A normal `jdoe` workstation asking for a report-service ticket is not automatically malicious, but the sequence of an RC4 service ticket, use of the newly recovered `svc_reports` identity, a 5136 change to a computer object, and an S4U request for the SQL SPN is highly unusual. The SOC should preserve the original and modified security-descriptor values so that the delegation grant can be attributed to the exact subject and reversed safely. The successful SQL session is the final confirmation, but the directory modification is the earlier high-confidence point.
 
+In a single timeline, the useful joins are `SubjectUserName=jdoe` on the first 4769, `TargetUserName=d.langford` on the overpass-the-hash 4768, and `SubjectUserName=svc_reports` on the 5136. The 5136 target is the `svc_sql01` computer object and its changed attribute is `msDS-AllowedToActOnBehalfOfOtherIdentity`; the following 4769 identifies the SQL SPN and impersonation-related ticket options. Those values let an analyst distinguish this chain from ordinary file access or a routine service ticket.
+
 ## Earliest prevention and detection
 
 The single missing detection that would have caught this chain earliest is a targeted 4769 analytic for a normal user requesting RC4 service tickets for service-account SPNs, enriched with the requester, SPN, client address, and ticket encryption type. That alert would have fired at the first Kerberoasting request, before the later pass-the-ticket and RBCD activity. It is a detection gap, not the same thing as changing the configuration.
