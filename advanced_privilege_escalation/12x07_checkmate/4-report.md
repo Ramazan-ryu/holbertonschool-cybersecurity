@@ -165,24 +165,29 @@ An engineer can reproduce the transition by querying `DC=corvid,DC=local`, resol
 **Severity:** High  
 **CVSS v3.1:** `AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H` — 7.8
 
+**Affected asset:** `CORVID-WEB01`, specifically the `webapp` sudo rule and backup script.
+
 The `webapp` account could run a root-owned backup script that passed wildcard-expanded filenames to tar. Because the working directory was writable by `webapp`, specially named files could be interpreted as tar options and execute arbitrary commands as root.
 
 **Impact:** Complete compromise of WEB01, access to root-readable credentials, modification of the host, and preparation of a pivot into the internal network.
 
-**Metric justification:** `AV:L` (shell on WEB01), `AC:L` (simple filename creation), `PR:L` (limited sudo), `UI:N` (backup execution), `S:U` (WEB01 only), and `C:H/I:H/A:H` (root control). Downstream domain impact is excluded.
+**Metric justification:** `AV:L/AC:L/PR:L/UI:N/S:U` reflect local shell, simple filenames, limited sudo, automatic execution, and WEB01-only scope; `C:H/I:H/A:H` reflect root control. Downstream impact is excluded.
 
 **Remediation:** Replace wildcard-based archive commands with an explicit file list or a safe archive API. Run backups with a fixed working directory and a non-writable source path. Remove unnecessary passwordless sudo access. If sudo is required, use a narrowly constrained wrapper that validates filenames and arguments.
 
 ### Finding 2 — DMZ host provides an uncontrolled route into the internal network
 
-**Severity:** Medium (high business priority)
+**Technical severity:** High
+**Business priority:** High
 **CVSS v3.1:** `AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:L` — 7.7
 
-WEB01 had simultaneous access to the external and internal networks. Once the host was compromised, it could forward traffic to the domain controller. The service credential recovered from WEB01 was also accepted by internal domain services.
+**Affected asset/trust relationship:** The dual-homed `CORVID-WEB01` DMZ host and its permitted paths to the internal domain.
+
+WEB01 was dual-homed. After compromise, its internal interface reached the domain controller, and its recovered service credential worked on internal services.
 
 **Impact:** The intended network boundary did not contain the compromise. An attacker controlling the internet-facing host could reach SMB, WinRM, and directory services that were not directly exposed to the attack workstation.
 
-The `S:C` metric reflects crossing from the DMZ host into the separately administered domain. The lower impacts describe this finding alone: internal reachability and pivot, not domain compromise or production-data destruction.
+The `S:C` metric reflects crossing from the DMZ host into the separately administered domain. The lower impacts describe this finding alone: internal reachability and pivot, not domain compromise.
 
 **Remediation:** Place externally exposed application servers in a tightly isolated DMZ. Permit only explicitly required flows from WEB01 to internal services. Block SMB, WinRM, LDAP, Kerberos, and RPC from the DMZ unless a documented application requirement exists. Use separate service identities for DMZ applications and prohibit interactive or administrative use of those identities.
 
@@ -191,37 +196,45 @@ The `S:C` metric reflects crossing from the DMZ host into the separately adminis
 **Severity:** High  
 **CVSS v3.1:** `AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H` — 8.8
 
+**Affected asset:** The PowerShell remoting endpoint and `CorvidAppSvc` on `CORVID-DC01`.
+
 `svc-webapp` belonged to a group with remoting access and service-control permissions sufficient to modify and start `CorvidAppSvc`. This permitted arbitrary code execution as SYSTEM on the domain controller’s application role.
 
 **Impact:** The service account could be converted into local administrative control on a critical Windows server. From that position, an attacker could access local secrets, privileged sessions, services, and domain-management interfaces.
 
-The vector uses `S:U` because this finding is the service’s execution impact within the same Windows security authority; the later domain-root delegation is a separate finding and is not counted here. `PR:L` represents the authenticated service identity, while the high impacts represent SYSTEM execution on the affected server.
+The vector uses `S:U` because this is SYSTEM execution within one Windows authority; domain-root delegation is separate. `PR:L` is the authenticated service identity; high impacts represent SYSTEM on the affected server.
 
 **Remediation:** Remove service configuration rights from application groups. Separate service administration from application execution. Use dedicated groups for remoting, and grant only the exact endpoint and command permissions required. Review all service DACLs with `sc.exe sdshow`, PowerShell, or an identity-management platform. Do not place application service accounts in broad local-admin or delegated groups.
 
 ### Finding 4 — Domain-root permissions allowed unauthorized DCSync
 
-**Severity:** Medium (critical business priority)
+**Technical severity:** Medium
+**Business priority:** Critical
 **CVSS v3.1:** `AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N` — 6.5
+
+**Affected asset/trust relationship:** The `DC=corvid,DC=local` security descriptor and the `GRP-HELPDESK-LEGACY` delegation.
 
 A legacy helpdesk delegation allowed modification of permissions on the domain root. That path allowed `svc-webapp` to grant itself replication rights and perform DCSync.
 
 **Impact:** DCSync read `krbtgt` and other domain secrets from the directory. This finding alone demonstrates secret disclosure and supplies material for a later forged-ticket finding; it does not itself prove forged-ticket acceptance, ransomware, or modification of every domain object.
 
-This finding is limited to the domain-root ACL and resulting replication capability. `S:U` is appropriate because the low-privileged principal and directory are within the same authority. `C:H` reflects extracted domain secrets; `I:N/A:N` reflect a read, not arbitrary object writes or outage. Business priority remains critical because the exposed `krbtgt` secret enabled persistence.
+This finding is limited to the domain-root ACL and replication capability. `S:U` fits the shared authority; `C:H` reflects extracted secrets, while `I:N/A:N` reflect no demonstrated arbitrary writes or outage.
 
 **Remediation:** Immediately remove unauthorized `WriteDACL`, `WriteOwner`, and replication permissions from the domain root. Review effective permissions for every delegated group. Apply least privilege and administrative-tiering principles. Alert on changes to domain-root ACLs and on directory-replication requests from non-domain-controller hosts. Rotate `krbtgt` twice after confirming containment.
 
 ### Finding 5 — Domain compromise remains valid after ordinary credential response
 
-**Severity:** High (critical business priority)
-**CVSS v3.1:** `AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H` — 8.8
+**Technical severity:** Critical
+**Business priority:** Critical
+**CVSS v3.1:** `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H` — 9.8
+
+**Affected asset/trust relationship:** Kerberos authentication on `CORVID-DC01` and the domain’s trust in `krbtgt`.
 
 Once the `krbtgt` secret was obtained, a forged ticket for the real `Administrator` account was accepted by the domain controller.
 
 **Impact:** The forged ticket authenticated as `Administrator` and retrieved the protected proof without the original service-account password. This finding demonstrates durable administrative authentication after ordinary password changes; it does not claim that ransomware or data destruction occurred.
 
-This score covers the forged ticket, not the route to `krbtgt`. `S:U` treats it as an artifact accepted by the same authority. `PR:L` reflects possession of the recovered trust secret; `C:H/I:H/A:H` reflect Administrator authentication and domain control. Its business priority is critical because it survives password resets.
+This score covers ticket presentation, not the route to `krbtgt`. `AV:N/AC:L/UI:N` describe network presentation without interaction; `PR:N` fits because the signing secret is not a normal account privilege check. `S:U` reflects the same authority; `C:H/I:H/A:H` reflect Administrator authentication and domain control. Business priority is critical because it survives resets.
 
 **Remediation:** Treat the domain as compromised. Rotate `krbtgt` twice with sufficient replication delay between changes. Reset all privileged and service credentials, invalidate active sessions, review delegation, remove unauthorized ACLs, and investigate ticket use and replication events. Consider rebuilding systems where credential theft cannot be ruled out.
 
