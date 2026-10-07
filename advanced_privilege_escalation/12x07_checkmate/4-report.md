@@ -154,6 +154,8 @@ d6750f3dd6bd7a511dd7079626e2d681
 
 This is the decisive result. The attacker no longer depended on the original `svc-webapp` password. The forged ticket represented an administrative identity and could be reused to authenticate after ordinary password changes.
 
+Four checks recorded the transition. The domain-root ACL showed `GRP-HELPDESK-LEGACY` could change the root descriptor. The delegated session added `svc-webapp` for `DS-Replication-Get-Changes` and `DS-Replication-Get-Changes-All`, then read both ACEs back. DCSync named the domain and `krbtgt` object and returned the NTLM value above. The forged-ticket request used the recorded domain SID, `krbtgt` key, and Administrator RID; `klist` showed the ticket before the protected share was accessed. The evidence is therefore root ACL → replication ACEs → `krbtgt` material → Administrator ticket → domain proof, not an assumption that local SYSTEM automatically meant domain administrator.
+
 ## Findings
 
 ### Finding 1 — Root escalation through attacker-controlled backup filenames
@@ -176,6 +178,8 @@ WEB01 had simultaneous access to the external and internal networks. Once the ho
 
 **Impact:** The intended network boundary did not contain the compromise. An attacker controlling the internet-facing host could reach SMB, WinRM, and directory services that were not directly exposed to the attack workstation.
 
+The `S:C` metric reflects the trust-boundary crossing from the DMZ host into the separately administered internal domain. It does not claim every internal asset or production data was compromised.
+
 **Remediation:** Place externally exposed application servers in a tightly isolated DMZ. Permit only explicitly required flows from WEB01 to internal services. Block SMB, WinRM, LDAP, Kerberos, and RPC from the DMZ unless a documented application requirement exists. Use separate service identities for DMZ applications and prohibit interactive or administrative use of those identities.
 
 ### Finding 3 — Excessive service and remoting delegation enabled SYSTEM access
@@ -187,27 +191,33 @@ WEB01 had simultaneous access to the external and internal networks. Once the ho
 
 **Impact:** The service account could be converted into local administrative control on a critical Windows server. From that position, an attacker could access local secrets, privileged sessions, services, and domain-management interfaces.
 
+The vector uses `S:U` because this finding is the service’s execution impact within the same Windows security authority; the later domain-root delegation is a separate finding and is not counted here. `PR:L` represents the authenticated service identity, while the high impacts represent SYSTEM execution on the affected server.
+
 **Remediation:** Remove service configuration rights from application groups. Separate service administration from application execution. Use dedicated groups for remoting, and grant only the exact endpoint and command permissions required. Review all service DACLs with `sc.exe sdshow`, PowerShell, or an identity-management platform. Do not place application service accounts in broad local-admin or delegated groups.
 
 ### Finding 4 — Domain-root permissions allowed unauthorized DCSync
 
-**Severity:** Critical  
-**CVSS v3.1:** `AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H` — 9.9
+**Severity:** High (critical business priority)
+**CVSS v3.1:** `AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H` — 8.8
 
 A legacy helpdesk delegation allowed modification of permissions on the domain root. That path allowed `svc-webapp` to grant itself replication rights and perform DCSync.
 
 **Impact:** Extraction of `krbtgt` and other domain secrets, impersonation of domain administrators, unrestricted access to domain-managed systems, and persistence beyond password resets.
 
+This finding is limited to the domain-root ACL and the resulting replication capability. `S:U` is appropriate because the low-privileged domain principal and the directory it modified are within the same security authority; the vector does not borrow the later forged-ticket persistence to inflate the score. Its high impacts are nevertheless justified because DCSync exposed the domain trust secret and enabled the demonstrated domain-wide authentication capability.
+
 **Remediation:** Immediately remove unauthorized `WriteDACL`, `WriteOwner`, and replication permissions from the domain root. Review effective permissions for every delegated group. Apply least privilege and administrative-tiering principles. Alert on changes to domain-root ACLs and on directory-replication requests from non-domain-controller hosts. Rotate `krbtgt` twice after confirming containment.
 
 ### Finding 5 — Domain compromise remains valid after ordinary credential response
 
-**Severity:** Critical  
-**CVSS v3.1:** `AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H` — 9.9
+**Severity:** High (critical business priority)
+**CVSS v3.1:** `AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H` — 8.8
 
 Once the `krbtgt` secret was obtained, a forged ticket for the real `Administrator` account was accepted by the domain controller.
 
 **Impact:** The attacker could return as an administrative identity without the original service-account password. Resetting `svc-webapp`, `svc-sql`, or other ordinary account passwords would not invalidate the forged ticket. This creates a full-domain recovery event rather than a routine account compromise.
+
+This score covers the forged-ticket capability itself, not the preceding route used to obtain `krbtgt`. `S:U` treats the ticket as an authentication artifact accepted by the same domain authority that issued the trust secret. The high impacts are supported by the successful Administrator ticket and protected-domain proof; they are not a claim that ransomware or data destruction was demonstrated.
 
 **Remediation:** Treat the domain as compromised. Rotate `krbtgt` twice with sufficient replication delay between changes. Reset all privileged and service credentials, invalidate active sessions, review delegation, remove unauthorized ACLs, and investigate ticket use and replication events. Consider rebuilding systems where credential theft cannot be ruled out.
 
