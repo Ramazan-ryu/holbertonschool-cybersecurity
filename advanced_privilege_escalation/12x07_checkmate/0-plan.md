@@ -1,27 +1,30 @@
-# 12x07 Checkmate — Engagement Plan
+12x07 Checkmate — Engagement Plan
+Scope and objective
 
-## Scope and objective
+I will assess the estate from the supplied foothold on CORVID-WEB01 and progress toward durable domain dominance of corvid.local. I will record all commands, credentials, timestamps, network paths, and changes to permit clean restoration.
 
-I will assess the estate from the supplied foothold on CORVID-WEB01 and progress toward the deepest objective the network permits: durable domain dominance of `corvid.local`. The assessment will remain inside the two lab systems and the routes exposed by them. I will record commands, credentials, timestamps, network paths, detections, and every change made so the environment can be restored cleanly.
+Planned phases and time allocation
 
-## Planned phases and order
+Phase 1 — Establish foothold (2 hours). Enumerate the host identity, interfaces, routes, users, sudo rights, services, scheduled tasks, local secrets, and capture original state. Two hours is sufficient for single-host enumeration; if I exceed this, I have either found an unplanned escalation path (continue) or become stuck (move to Phase 2 with available data).
 
-**Phase 1 — Establish and preserve the foothold (2 hours).** I will confirm the host identity, interfaces, routes, users, sudo rights, running services, scheduled tasks, application files, backups, and locally stored secrets. I will avoid broad destructive testing and first identify a controlled privilege-escalation path. I will capture the original state before changing anything.
+Phase 2 — Escalate and pivot (4 hours). Gain root on WEB01, remove escalation artifacts, build a SOCKS tunnel through it to the internal segment, and validate connectivity to the DC. Allocate 90 minutes per privilege-escalation route; if neither route yields root, pivot with available access. Tunnel validation is 30 minutes; if unreachable, boundary is intact and exploitation is limited.
 
-**Phase 2 — Own WEB01 and cross the boundary (4 hours).** After gaining root on the DMZ host, I will validate the privilege level, collect only the credentials and configuration required for the assessment, and remove temporary escalation artifacts before pivoting. I will confirm that the attack workstation cannot reach the internal segment directly, then build a hand-operated SSH SOCKS tunnel or equivalent transport through WEB01. I will test the route against the internal DC and document the exact listener, tunnel, interface, and destination details.
+Phase 3 — Enumerate internal estate (6 hours). Identify the domain controller, DNS, SMB, WinRM, domain users, groups, delegated rights, and service accounts. Prioritize identity relationships over broad scanning. Enumeration is bounded: DC discovery (30 min), users and groups (60 min), delegation (90 min), sessions (30 min), ranking (30 min). If repetitive after four hours, stop and rank existing candidates.
 
-**Phase 3 — Enumerate the internal estate (6 hours).** From the pivot, I will identify the domain controller, DNS and authentication services, SMB shares, WinRM/PowerShell remoting, domain users and groups, delegated rights, service accounts, sessions, and exposed application roles. I will prioritize identity relationships and authorization paths over indiscriminate scanning. Each candidate path will be ranked by required privilege, reliability, noise, and reversibility.
+Phase 4 — Obtain domain admin control (10 hours). Execute the strongest defensible route first, likely a delegated service or remoting path. Apply the 90-minute rule per route: if no new privilege, credential, or confirmed authorization emerges, abandon and switch to the next candidate. Test at least two independent routes. Ten hours covers four complete 90-minute attempts plus overhead.
 
-**Phase 4 — Obtain domain administrative control (10 hours).** I will execute the strongest defensible route first, likely a delegated service or remoting path that can be converted into SYSTEM or domain-administrator-equivalent access. I will separately test at least one independent route, such as credential material from a privileged session or an authorization weakness on the domain root. I will stop a line after 90 minutes without a new privilege, credential, or confirmed relationship unless it provides unique evidence.
+Phase 5 — Prove durable dominance (12 hours). The deepest objective: acquire the krbtgt secret via DCSync, forge a valid ticket for an existing admin, remove all temporary changes, re-authenticate using only the forged ticket and original foothold, and retrieve the protected flag. This demonstrates domain re-entry without new credentials or persistence.
 
-**Phase 5 — Prove durable dominance (12 hours).** The deepest objective is control that survives password resets: acquiring the `krbtgt` secret through DCSync, forging a valid ticket for an existing administrative identity, and using that ticket to authenticate and retrieve the protected dominance proof. I will verify access after removing temporary group membership, resetting changed passwords, and removing temporary ACLs. A successful post-cleanup authentication demonstrates that the domain can be re-entered without the original account credentials.
+Phase 6 — Cleanup and reporting (6 hours). Restore all modified state, re-test original conditions, and produce route diagram, command timeline, noise assessment, and flag values. Cleanup is methodical reversal (1 hour per change class), validation (1 hour), and reporting (1 hour).
 
-**Phase 6 — Cleanup and reporting (6 hours).** I will restore service paths, group membership, passwords, ACLs, SUID bits, payloads, tunnels, and temporary files. I will re-test the original state where possible and produce a route diagram, command timeline, noise assessment, alternative paths, limitations, and the three flag values.
+Abandonment rule: 90-minute threshold
 
-## Noise posture
+Any investigation without a new privilege, credential, or confirmed authorization path is abandoned after 90 minutes. A confirmed relationship means evidence of a trust, delegation, or authorization link; routine enumeration does not count. Abandoned time is reallocated to the next ranked candidate or documentation.
 
-The lab permits monitoring, so I will accept visible authentication, SMB, WinRM, service-control, and directory-replication events when necessary to prove impact. I will prefer targeted enumeration and one controlled execution over repeated spraying or broad scans. A quieter route is worth extra time when it reaches the same objective with fewer logons, service changes, or credential accesses; otherwise I will use the reliable route and document its indicators.
+Noise posture and quiet-work cost
 
-## Success criterion
+The lab permits monitoring; I accept visible authentication, SMB, WinRM, and replication events when necessary. Example trade-off: a quiet credential dump via LOLBin (30 min, low visibility) is worth choosing over a password spray (15 min, high visibility) only if the spray is unreliable or creates unacceptable noise. A quiet incremental delegation route (4 hours, moderate visibility) is justified only if the loud token-impersonation path (1 hour, high visibility) is unreliable. Decision criterion: does quiet work reach the same objective with fewer logon events, service control events, or replication triggers within acceptable phase time? If not, use the reliable visible route and document its indicators.
 
-Success is not merely being an administrator today. It is demonstrating repeatable administrative access after the client’s response, with the original foothold credentials and temporary changes no longer sufficient or necessary, while leaving no persistence behind.
+Success criterion and proof
+
+Success is durable dominance proved by: (1) retrieval of krbtgt via DCSync; (2) creation of a valid ticket for an existing domain admin; (3) removal of all temporary changes (group membership, ACLs, passwords, artifacts); (4) re-authentication to the DC using only the forged ticket and original foothold; (5) retrieval of the protected flag. This demonstrates domain re-entry without new credentials or persistence.
