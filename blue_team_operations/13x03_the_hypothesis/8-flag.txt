@@ -1,1 +1,9 @@
+FLAG_GAP: Local Data Staging (MITRE ATT&CK T1074.001) and Archive Collected Data (MITRE ATT&CK T1560.001).
 
+Required telemetry: Sysmon Event ID 11 (FileCreate) is needed to observe new staging files and archive creation. Windows Security file-object auditing, especially Event ID 4663, is needed to observe access or modification of files used for staging and archiving.
+
+Coverage check: Fleet-wide searches of wazuh-alerts-* for data.win.system.eventID:11 and data.win.system.eventID:4663 returned zero documents for all Nimbus hosts during the available search period. Security file-audit events 4656 and 4660 were also absent. Unlike the authentication and network telemetry used for the lateral-movement hunt, these file-activity channels are not present anywhere in the estate; this is a collection gap, not a confirmed absence of activity.
+
+Collection recommendation: Enable Sysmon FileCreate logging for Event ID 11 on Nimbus endpoints. Enable Windows Object Access auditing and collect Security Event ID 4663 for relevant user-writable, temporary, archive, and sensitive-data paths. This will increase endpoint event volume, index storage, retention requirements, and analyst review workload; scope file auditing to high-value paths first and tune exclusions for known high-volume applications.
+
+Client conclusion: Nimbus cannot determine whether the actor staged or archived data on the searched systems because current collection does not record the required file-creation or file-audit telemetry; the question remains unanswered, not clean.
