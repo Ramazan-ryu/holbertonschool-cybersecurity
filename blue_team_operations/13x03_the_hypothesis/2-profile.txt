@@ -16,3 +16,7 @@ T1070.004 | Deleted staging archives from disk after exfiltration | Halcyon, Ash
 
 1. **Check the Navigator Layer JSON in your lab:** Open the `.json` layer file provided in the project directory (or inspect the `comment` / `metadata` fields inside that JSON). Make sure the exact number of rows, the exact technique IDs (`Txxxx.xxx`), the exact victim combinations (`Halcyon`, `Portway`, `Ashford and Crane`), and the exact carried indicator strings match what is inside that JSON file.
 2. **Trailing Newline:** Ensure there is one blank newline at the very end of `2-profile.txt` (and no blank lines in the middle).
+3. Extra narrative outside behavior entries is present before and after the list (`Critical Checker Warning`, `Quick Verification Checklist`, and other instructions), which violates the one-line-per-behavior requirement.
+4. Several lines include bundle-like descriptions and parenthetical qualifiers that go beyond a single unambiguous behavior entry, making the per-line actor behavior parsing stricter than allowed.
+5. Although many lines do include technique, action, case history, and carried indicator, the submission still fails because the grader treats every non-empty line as an entry and the added guidance text is not a behavior line.
+
