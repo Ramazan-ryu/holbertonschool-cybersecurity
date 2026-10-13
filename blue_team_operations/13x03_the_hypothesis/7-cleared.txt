@@ -1,4 +1,4 @@
-Technique: Lateral movement using remote services or stolen authentication material (MITRE ATT&CK T1021 and T1550).
+Technique: Remote Services lateral movement (MITRE ATT&CK T1021) from the confirmed foothold hosts. The hunt specifically covered SMB, RDP, and WinRM-style remote access, not every possible form of lateral movement or all T1550 credential/token abuse.
 
 Data sources and coverage: Windows Security authentication events 4624, 4648, and 4769, plus Sysmon Event ID 3 network-connection telemetry. These sources are collected in the Nimbus Wazuh index. The same event types returned many records from other Nimbus endpoints during the search window, confirming that the authentication and endpoint-network channels were live.
 
