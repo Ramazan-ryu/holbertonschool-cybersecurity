@@ -1,0 +1,1 @@
+T1547.001 | The actor set the Windows Run value Tavistock9 to launch a payload from the user’s AppData\Roaming directory | Previous case 13x01 (one of three; victim label is not present in this repository) | Carried indicator: exact Run-value name Tavistock9
