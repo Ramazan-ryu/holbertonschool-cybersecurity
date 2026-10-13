@@ -2,10 +2,8 @@ FLAG_FOOTHOLD: NIM-ENG-031, NIM-ENG-057, NIM-ENG-066
 
 FLAG_PERSIST: HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Tavistock9
 
-Mechanism: Sysmon Event ID 13 recorded an unsigned powershell.exe process creating the Tavistock9 HKCU Run value on each foothold host. The values point to payloads in user-writable AppData\Roaming paths: sedgwyn.exe, gullivane.exe, and pellmoor.exe.
+Mechanism: Sysmon Event ID 13 shows unsigned powershell.exe creating the Tavistock9 value under the HKCU Run key. Each value launches a payload from a user-writable AppData\Roaming path: sedgwyn.exe on NIM-ENG-031, gullivane.exe on NIM-ENG-057, and pellmoor.exe on NIM-ENG-066.
 
-FLAG_ATTRIB: Tavistock9 is the exact Run-value name that carried across the prior actor cases and ties this persistence to the tracked campaign.
+FLAG_ATTRIB: Tavistock9 is the exact Run-value name carried across the prior actor cases. Its identical use here links the three engineering hosts to the tracked campaign.
 
-Stage: The evidence confirms foothold and HKCU Run-key persistence on the three engineering hosts. Do not claim lateral movement or staging unless the relevant hunts and coverage support it.
-
-This includes all three required foothold hosts, includes Tavistock9, identifies the HKCU Run key, and excludes the unrelated sales hosts.
+Stage assessment: The actor has established foothold and Run-key persistence on the three engineering endpoints. The evidence supports persistence and related beaconing only; it does not establish lateral movement or data staging.
