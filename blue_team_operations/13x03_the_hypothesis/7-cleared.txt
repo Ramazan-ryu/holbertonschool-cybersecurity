@@ -1,1 +1,11 @@
+Technique: Lateral movement using remote services or stolen authentication material (MITRE ATT&CK T1021 and T1550).
 
+Data sources and coverage: Windows Security authentication events 4624, 4648, and 4769, plus Sysmon Event ID 3 network-connection telemetry. These sources are collected in the Nimbus Wazuh index. The same event types returned many records from other Nimbus endpoints during the search window, confirming that the authentication and endpoint-network channels were live.
+
+Search scope: Searched NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066, and the associated identities NIMBUS\eli.cole, NIMBUS\avery.eaves, and NIMBUS\jude.pike. The search covered 2026-09-01T00:22:54.128Z through 2026-10-13T04:56:17.155Z. It looked for authentication activity and endpoint network connections consistent with remote access, service-based lateral movement, or use of stolen authentication material from the foothold hosts and accounts.
+
+Result: Zero matching lateral-movement events were found in the scoped foothold hosts and associated identities. Comparable authentication and Sysmon network events were present elsewhere in the Nimbus fleet during the same period.
+
+Conclusion: Within the stated hosts, identities, time range, and collected authentication and Sysmon EID 3 telemetry, there is no evidence that the actor performed the searched forms of lateral movement. This is a proven absence within coverage; it does not rule out lateral movement outside the period, from other hosts or identities, or by techniques not visible in these sources.
+
+Confidence: High, because the required authentication and endpoint-network telemetry was collected, searched, and demonstrably active elsewhere in the fleet during the same period.
