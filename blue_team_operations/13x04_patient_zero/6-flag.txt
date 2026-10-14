@@ -1,0 +1,5 @@
+FLAG_ATTACHMENT: `d13e0265140f33bc79de76e6c31708138443510e9d44184f5acd44ea7a88c6b2`.
+Evidence: static extraction from PZ-0001 attachment `Order_Confirmation_Revised_PO-48490.docm` decoded an embedded payload with this SHA-256. It matches the 13x01 payload / 13x02 dropper in the trace key. The `.docm` container's own SHA-256 is `86dce67a9c0c0000e9c3e7bdad4e6d4ee803fccce90b2fe1017080c98ab8584d`; it is not the required payload hash.
+
+FLAG_C2_LINK: `198.51.100.47`.
+Evidence: the PZ-0001 body link resolves to this lab stand-in address, which matches C2 infrastructure recorded across 13x00–13x02. Offline detonation of the document container independently reports that the decoded payload would beacon to the same address.

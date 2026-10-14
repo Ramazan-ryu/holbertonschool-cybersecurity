@@ -1,0 +1,3 @@
+FLAG_ORIGIN: relay `203.0.113.243`; sending account `dana.berglund@harrowfield-metalworks.example`.
+Evidence: PZ-0001 headers identify Harrowfield Metalworks' authorised relay and the supplier account; it is a compromised supplier account, not a spoofed sender.
+Posture: Corvan publishes SPF (`v=spf1 include:_spf.relaymesh-mail.example -all`) and DMARC `p=reject` at 100 percent; inbound gateway authentication results show those controls are applied. Corvan also publishes DKIM. No missing-DMARC finding exists.

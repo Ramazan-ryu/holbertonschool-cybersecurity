@@ -1,0 +1,3 @@
+FLAG_AUTH: `AUTHFAIL-0001` — DMARC fail. SPF passes for `listrelay-partners.example` but does not align with visible `northgate-freight.example`; DKIM fails because the forwarder appended a footer, causing a body-hash mismatch. This establishes relay modification and lack of aligned SPF/DKIM; it does not establish malicious intent or that the original partner sender was illegitimate.
+
+FLAG_AUTH: `PZ-0001` — SPF pass, DKIM pass (`d=harrowfield-metalworks.example`, `s=mail1`), and DMARC pass with aligned SPF and DKIM. SPF confirms `203.0.113.243` is authorised for the supplier domain and DKIM confirms the signed fields verified under that domain. These results do not establish sender-account integrity, benign intent, or safe content.

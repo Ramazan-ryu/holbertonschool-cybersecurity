@@ -1,0 +1,5 @@
+FLAG_PATIENT_ZERO: `PZ-0001`.
+
+Payload linkage: its macro-borne attachment decodes to SHA-256 `d13e0265140f33bc79de76e6c31708138443510e9d44184f5acd44ea7a88c6b2`, byte-identical to the 13x01 payload and 13x02 dropper.
+Infrastructure linkage: its body link resolves to `198.51.100.47`, infrastructure already characterised for this campaign in 13x00–13x02; offline detonation independently associates the decoded payload with that address.
+Time linkage: delivery was `2026-09-18T07:14:00+00:00`, 41 minutes before the earliest dated downstream activity at `2026-09-18T07:55:00+00:00` in 13x01.
