@@ -6,3 +6,5 @@ T1053.005 | Registered a local scheduled task to launch the payload | Portway (1
 T1021.002 | Moved laterally between internal hosts over SMB admin shares | Halcyon, Portway (2/3 cases, repeated behavior across two victims) | None
 T1074.001 | Staged collected files in a local user-writable directory before exfiltration | Halcyon, Portway, Ashford and Crane (3/3 cases, core actor constraint across all three victims) | Identical local staging directory path convention carried across all three cases
 T1560.001 | Compressed staged files into an archive using a command-line utility | Halcyon, Portway, Ashford and Crane (3/3 cases, core actor constraint across all three victims) | None
+T1071.001 | Beaconed outbound over HTTPS on port 443 for command and control | Halcyon, Portway, Ashford and Crane (3/3 cases, core actor constraint across all three victims) | Identical HTTPS C2 beacon URI pattern carried across all three cases for campaign attribution
+T1070.004 | Deleted staging archives from disk after exfiltration | Halcyon, Ashford and Crane (2/3 cases, repeated behavior across two victims) | None
