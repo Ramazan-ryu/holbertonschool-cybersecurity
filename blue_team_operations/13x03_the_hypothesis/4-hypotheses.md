@@ -1,29 +1,31 @@
-## Hypothesis 1: campaign persistence is present
+# Hypothesis 1: campaign persistence is present
 
-The actor has established persistence on Nimbus endpoints by writing the same HKCU Run-key value used at prior victims, with an unsigned payload in a user-writable AppData path.
+**Statement:** During the Nimbus 30-day collection window, the actor has established persistence on one or more Nimbus endpoints by creating the same HKCU Run-key value used at the prior victims, with an unsigned payload in a user-writable AppData path.
 
-Derivation: this mechanism appeared at all three prior victims, and the carried value name was identical across those cases.
+**Derivation:** This is T1547.001. Run-key persistence was observed at Halcyon, Portway, and Ashford and Crane, including the carried value name Tavistock9. Its 3/3 recurrence makes it a strong actor constraint.
 
-Test: confirm with Sysmon Event ID 13 registry telemetry showing the value name, Run-key path, writer, and payload path. Refute within coverage if no matching value-name writes exist while ordinary Event ID 13 records are present.
+**Test:** Confirm with Sysmon Event ID 13 records across all 340 hosts where the target object is the HKCU Run path, the value name is Tavistock9, and the payload is in AppData. Refute this bounded proposition if Event ID 13 is present and active elsewhere but no matching value-name write exists in the window.
 
-## Hypothesis 2: the actor has used the same execution channel
+# Hypothesis 2: the actor used its PowerShell execution channel
 
-The actor has executed hidden or encoded PowerShell from a user process on Nimbus endpoints.
+**Statement:** During the same window, one or more Nimbus endpoints contain hidden or encoded PowerShell launched from a user process.
 
-Derivation: PowerShell execution was observed at all three prior victims.
+**Derivation:** This is T1059.001. Hidden PowerShell execution was observed at Halcyon, Portway, and Ashford and Crane, so it was present in 3/3 cases.
 
-Test: confirm with Sysmon Event ID 1 or Security 4688 process creation, including PowerShell command-line and parent process fields. Refute for the collected process telemetry and search period if comparable process events are present but no matching behavior exists.
+**Test:** Confirm with Sysmon Event ID 1 or Security 4688 process creation, using image, parent image, and command-line fields for PowerShell plus hidden, encoded, download, or execute behavior. Refute within collected process telemetry if those events are live and no matching process exists.
 
-## Hypothesis 3: the actor has staged or archived collected data locally
+# Hypothesis 3: the actor staged or archived data locally
 
-The actor has created a local staging directory or archive in a user-writable location before exfiltration.
+**Statement:** During the collection window, the actor has written collected data to a user-writable local staging location or created an archive before exfiltration.
 
-Derivation: local staging and archive creation were observed across all three prior cases.
+**Derivation:** This targets T1074.001 and T1560.001. Local staging and archive creation were observed at all three prior victims, so both are 3/3 behaviors. The hypothesis is worth testing, but its result is uninterpretable until file telemetry exists.
 
-Test: confirm with file-creation and file-object auditing. The current estate cannot produce an interpretable refutation if Sysmon Event ID 11 and Security 4663/4656/4660 are absent.
+**Test:** Confirm with Sysmon Event ID 11 and Security 4663, 4656, or 4660 showing file creation, object access, or archive activity in the profiled paths. A zero cannot refute this hypothesis in the current Nimbus estate because those sources are absent; the current verdict must remain unknown.
 
-## Hypothesis 4: the actor has moved laterally from a foothold
+# Hypothesis 4: the actor moved laterally from a foothold
 
-The actor has used SMB, RDP, or WinRM-style remote access from a compromised Nimbus endpoint or identity.
+**Statement:** During the collection window, the actor used SMB, RDP, or WinRM-style remote access from one of the confirmed engineering footholds or its associated identities to another Nimbus endpoint.
 
-Derivation: lateral movement was observed at two of the three prior victims, so it is plausible but less reliable than the three behaviors seen at every victim.
+**Derivation:** This targets T1021.002. Lateral movement was observed at Halcyon and Portway but not consistently across all three cases, so it is a 2/3 behavior and a plausible but weaker candidate than the 3/3 constraints.
+
+**Test:** Confirm with Security 4624, 4648, and 4769 plus Sysmon Event ID 3, scoped to NIM-ENG-031, NIM-ENG-057, NIM-ENG-066 and NIMBUS\eli.cole, NIMBUS\avery.eaves, and NIMBUS\jude.pike. Refute within those hosts, identities, dates, and remote-service methods if those event types are demonstrably live elsewhere but the correlated query returns no match.

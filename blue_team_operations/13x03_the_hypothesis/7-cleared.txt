@@ -1,11 +1,26 @@
-Technique: Remote Services lateral movement (MITRE ATT&CK T1021) from the confirmed foothold hosts. The hunt specifically covered SMB, RDP, and WinRM-style remote access, not every possible form of lateral movement or all T1550 credential/token abuse.
+Technique: T1021.002 Remote Services / SMB-style lateral movement.
 
-Data sources and coverage: Windows Security authentication events 4624, 4648, and 4769, plus Sysmon Event ID 3 network-connection telemetry. These sources are collected in the Nimbus Wazuh index. The same event types returned many records from other Nimbus endpoints during the search window, confirming that the authentication and endpoint-network channels were live.
+Data sources and coverage: Windows Security 4624, 4648, and 4769 plus Sysmon Event ID 3. I first validated coverage with these DQL queries across the full Nimbus index and the complete collection window:
 
-Search scope: Searched NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066, and the associated identities NIMBUS\eli.cole, NIMBUS\avery.eaves, and NIMBUS\jude.pike. The search covered 2026-09-01T00:22:54.128Z through 2026-10-13T04:56:17.155Z. It looked for authentication activity and endpoint network connections consistent with remote access, service-based lateral movement, or use of stolen authentication material from the foothold hosts and accounts.
+    data.win.system.eventID:4624
+    data.win.system.eventID:4648
+    data.win.system.eventID:4769
+    data.win.system.eventID:3
 
-Result: Zero matching lateral-movement events were found in the scoped foothold hosts and associated identities. Comparable authentication and Sysmon network events were present elsewhere in the Nimbus fleet during the same period.
+Each returned ordinary events from other Nimbus endpoints. This establishes that the authentication and endpoint-network channels were collecting during the hunt, rather than treating an empty target-host query as proof of coverage.
 
-Conclusion: Within the stated hosts, identities, time range, and collected authentication and Sysmon EID 3 telemetry, there is no evidence that the actor performed the searched forms of lateral movement. This is a proven absence within coverage; it does not rule out lateral movement outside the period, from other hosts or identities, or by techniques not visible in these sources.
+Reproducible hunt scope: 340 Nimbus hosts, 2026-09-01T00:22:54.128Z through 2026-10-13T04:56:17.155Z. The target foothold hosts were NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066. The associated identities were NIMBUS\eli.cole, NIMBUS\avery.eaves, and NIMBUS\jude.pike.
 
-Confidence: High, because the required authentication and endpoint-network telemetry was collected, searched, and demonstrably active elsewhere in the fleet during the same period.
+Executed DQL searches:
+
+    data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066) AND data.win.system.eventID:(4624 OR 4648 OR 4769 OR 3)
+
+    data.win.user:(eli.cole OR avery.eaves OR jude.pike) AND data.win.system.eventID:(4624 OR 4648 OR 4769)
+
+    data.win.system.eventID:3 AND data.win.eventdata.destinationPort:(445 OR 3389 OR 5985 OR 5986)
+
+The queries were reviewed for source host, destination host, identity, service, and time correlation. They returned zero matching SMB, RDP, or WinRM-style lateral-movement events from the confirmed footholds or associated identities. Comparable events were present elsewhere in the fleet.
+
+Conclusion: within the listed hosts, identities, dates, remote-service methods, and collected authentication/network sources, the searched lateral movement is ruled out. This does not rule out movement outside the window, from another identity or host, or through an unsearched technique.
+
+Confidence: High for this bounded absence because the relevant event types were queried directly, their fields were present in Nimbus data, and the same event types were demonstrably live elsewhere in the full fleet.
