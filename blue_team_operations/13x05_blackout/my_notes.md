@@ -128,7 +128,32 @@ The entry point is mailbox message `PZ-0001.eml` with the macro-enabled attachme
 Linkage: the patient-zero email delivered the initial document. The memory image contains `c2client.ps1`, `c2listener.ps1`, and `updt_loader01.exe`. SIEM telemetry then shows `HALC-WS-050` using `obsidn64_ldr.exe` and reading LSASS in Sysmon EID 10 at `2026-08-20T23:00:00Z`. The same intrusion later deployed the ransomware hash recorded in FLAG_DETECT.
 
 Sources: `PZ-0001.eml`, `/evidence/memory.raw`, Volatility 3, and SIEM Sysmon EID 3, EID 10, EID 11, and EID 1.
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+In your evidence, Sysmon EID 1 recorded:
 
+- Executable: obsidn64_ldr.exe
+- Parent: Microsoft Word
+- Document: Order_Confirmation_Revised_PO-48490.docm
+- Field: hashes
+- Hash value: the text after SHA256=
+
+You found it with:
+
+grep -F '"eventID":"1"' /index/campaign-2026-08-13.jsonl |
+grep -F 'obsidn64_ldr.exe'
+
+The relevant part is:
+
+"hashes":"SHA256=d13e0265140f33bc79de76e6c31708138443510e9d44184f5acd44ea7a88c6b2"
+
+Therefore, the loader/dropper hash from this event is:
+
+d13e0265140f33bc79de76e6c31708138443510e9d44184f5acd44ea7a88c6b2
+
+Why this is the dropper:
+
+Word document → obsidn64_ldr.exe → C2 activity → LSASS access → later ransomware
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ## FLAG 4 — `4-flag.txt`
 
 Find DCSync:
