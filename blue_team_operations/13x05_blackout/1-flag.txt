@@ -1,0 +1,5 @@
+FLAG_DETECT=e7c189efd70aa01d5735246ae70908953e4e1797f88614bf5fd8311334663957
+
+Confirming evidence: Sysmon EID 11 on HALC-ADM-04 created C:\ProgramData\HalcyonUpdate\obsidn64.exe with SHA256=e7c189efd70aa01d5735246ae70908953e4e1797f88614bf5fd8311334663957 at 2026-09-20T09:01:34.616Z. The same campaign produced RESTORE_YOUR_FILES.txt, beginning at 2026-09-20T09:04:20.051Z on HALC-PAY-10. This confirms active ransomware execution rather than ordinary Sunday noise.
+
+Source/correlation: Kestrel SIEM campaign-2026-09-20.jsonl; EID 11 hash correlated with EID 11 ransom-note creation and EID 1 persistence. Detection decision timestamp: 2026-09-20T09:01:34.616Z.

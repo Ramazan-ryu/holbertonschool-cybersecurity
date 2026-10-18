@@ -1,0 +1,11 @@
+FLAG_ROOTCAUSE
+Message-ID: <0025e2e3bbf6e32.harrowfield-metalworks.example@mail.harrowfield-metalworks.example>
+Dropper hash (memory): cb4eee1bced77b05b896cae15cfcb5b3083c2f47b54d2b72f1628c9591713063
+
+Entry point: mailbox PZ-0001.eml, received 2026-09-18, with the macro-enabled attachment Order_Confirmation_Revised_PO-48490.docm. The message and attachment are identified by Message-ID and filename; regulated record content is not reproduced.
+
+Linkage: SIEM telemetry identifies HALC-WS-050 connecting repeatedly to docportal-secure-access.example as obsidn64_ldr.exe, including the LSASS read (Sysmon EID 10 at 2026-08-20T23:00:00Z). The memory image contains the C2 artefacts c2client.ps1/c2listener.ps1 and the staged loader URL 10.0.2.2:8091/updt_loader01.exe with original SHA-256 cb4eee1bced77b05b896cae15cfcb5b3083c2f47b54d2b72f1628c9591713063. The same intrusion later creates the ransomware hash in the live SIEM. This is causal linkage across mail, memory, and telemetry, not resemblance.
+
+Forensic artefacts: read-only /evidence/memory.raw; Volatility 3 process/file artefacts; /mailbox/PZ-0001.eml; SIEM EID 3 and EID 10 on HALC-WS-050; campaign EID 11 and EID 1 persistence.
+
+Decision timestamp supported: 2026-09-20T10:50:00Z.

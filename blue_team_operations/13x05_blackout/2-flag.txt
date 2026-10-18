@@ -1,0 +1,12 @@
+FLAG_SCOPE
+
+Encrypted count: 53. Separating evidence: each encrypted host has a Sysmon EID 11 creation of RESTORE_YOUR_FILES.txt; the observed campaign range ends at 2026-09-20T22:44:58.057Z.
+
+Savable/staged hosts (19, exact set; payments first):
+HALC-PAY-01, HALC-PAY-03, HALC-PAY-04, HALC-PAY-06, HALC-PAY-08, HALC-PAY-10, HALC-ADM-04, HALC-WS-050, HALC-WS-077, HALC-WS-100, HALC-WS-109, HALC-WS-135, HALC-WS-145, HALC-WS-146, HALC-WS-192, HALC-WS-213, HALC-WS-243, HALC-WS-264, HALC-WS-271.
+
+The staged set is the exact set with successful Kerberos network logon EID 4624 from workstation/source HALC-ADM-04 (10.20.31.25), but without a ransom-note event at the action threshold. The last such staged logon is HALC-WS-100 at 2026-09-20T10:49:49.650Z. Good-enough-to-act timestamp: 2026-09-20T10:50:00Z.
+
+Clean population: 244 hosts after removing the 53 encrypted and 19 staged hosts from the 316-host inventory. Distractor telemetry was not treated as compromise without a decisive staging, execution, or ransom-note correlation.
+
+Source/correlation: Kestrel SIEM, EID 11, EID 1/7045, and EID 4624.

@@ -1,0 +1,13 @@
+# Command Plan
+
+I will work from the frozen lab only and preserve the evidence sources. I will begin with the Kestrel Console because it is the fastest way to establish whether the Sunday activity is a real encryption event. I will query the final campaign window for ransomware process creation, the ransomware hash, ransom-note creation, persistence, authentication, service creation, and the host populations. I will record the first decisive timestamp before widening the investigation.
+
+Next I will separate the estate into three populations. Hosts with the ransomware hash and `RESTORE_YOUR_FILES.txt` are already encrypted. Hosts showing the actor’s successful remote logon, staging, persistence, or service installation but no ransom note are savable if isolated. The remainder are clean unless a separate decisive event proves otherwise. I will compare the results against the full host inventory and keep payments hosts at the head of the savable priority list.
+
+I will not wait for a perfect kill chain before acting. My rule is: once the ransomware hash is confirmed, the encrypted set is stable, and every remaining suspicious host has been classified as staged or clean, I will choose containment. The action threshold is the first timestamp at which the 19-host staged set can be defended from the evidence, not the time at which every historical event has been explained. Unknowns will be written into the decision log.
+
+The first action is therefore detection and a narrow scope query, followed immediately by containment of the staged set and the already-encrypting population. I will prioritize the six staged payments hosts. I will not isolate every host that merely appears in ordinary Sunday telemetry or in a distractor event.
+
+The expected decision point is after correlating the 4624 remote logons from `HALC-ADM-04` with the staging/persistence events and ransom-note events. In this instance that threshold is 2026-09-20T10:50:00Z, immediately after the last staged-host logon at 10:49:49.650Z. At that point, further analysis competes directly with preventing detonation. I will contain, preserve the snapshot, and continue historical root-cause and domain-dominance work afterward.
+
+I will then inspect the mailbox for patient zero, extract the attachment without executing it, and use Volatility 3 on the memory image for the dropper and forensic artefacts. Finally I will test the domain-level hypothesis with 4662 replication evidence, forged-ticket use, and the non-DC source. Eradication will be recorded separately from containment: user password resets and host cleaning do not evict an actor who has obtained domain dominance; the remediation position must include a controlled double reset of `krbtgt`.
