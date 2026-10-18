@@ -1,0 +1,7 @@
+No. The encryption can be stopped, but that does not prove the attacker is gone. We found evidence that the attacker gained control beyond individual computers and obtained credentials capable of returning after ordinary password changes. Resetting user passwords alone would therefore leave a way back in.
+
+Some systems are already damaged and will require recovery from clean backups. Other systems were reached but not yet encrypted and must be isolated immediately. This will disrupt payment operations, but leaving them connected risks greater loss.
+
+The first action is to keep affected systems disconnected and begin recovery in a separate, trusted environment. During the week ahead, Halcyon should rebuild compromised systems from verified clean sources, replace central access credentials, confirm both core login servers are trustworthy, and monitor every restored system before reconnecting it.
+
+The board should fund both recovery and a full eviction effort. Stopping the visible encryption is only the end of the attack’s loudest phase; it is not proof that the attacker has been removed.
