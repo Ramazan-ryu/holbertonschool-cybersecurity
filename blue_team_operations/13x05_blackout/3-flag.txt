@@ -1,5 +1,11 @@
 FLAG_ROOTCAUSE
 Message-ID: <0025e2e3bbf6e32.harrowfield-metalworks.example@mail.harrowfield-metalworks.example>
+
+Initial loader/dropper hash from Sysmon EID 1:
+d13e0265140f33bc79de76e6c31708138443510e9d44184f5acd44ea7a88c6b2
+Additional staged-loader hash recovered from memory:
+cb4eee1bced77b05b896cae15cfcb5b3083c2f47b54d2b72f1628c9591713063
+
 Dropper hash (memory): cb4eee1bced77b05b896cae15cfcb5b3083c2f47b54d2b72f1628c9591713063
 
 Entry point: mailbox PZ-0001.eml, received 2026-09-18, with the macro-enabled attachment Order_Confirmation_Revised_PO-48490.docm. The message and attachment are identified by Message-ID and filename; regulated record content is not reproduced.
