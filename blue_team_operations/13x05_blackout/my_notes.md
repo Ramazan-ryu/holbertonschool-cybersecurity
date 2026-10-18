@@ -181,3 +181,21 @@ done
 ```
 
 The final byte of every file must be `0a`, the newline character.
+
+## Student Hints — No Direct Answers
+
+### Task 1: Detect and Confirm
+
+Start with the campaign data from the final incident date and look for a suspicious executable being created by Sysmon file-creation events. Confirm that the same activity is followed by a ransom-note filename; one artifact alone may be a distractor. Record the earliest decisive timestamp and the evidence source.
+
+### Task 2: Scope the Incident
+
+Build host populations from evidence, rather than treating every related event as encryption. Separate hosts with the ransom note from hosts that show access or staging but no detonation, then calculate the remaining clean population from the stated estate size. Preserve the payments-tier hosts at the front of the savable priority list and record what was still unknown when you acted.
+
+### Task 3: Prove Root Cause
+
+The mailbox identifies the entry point, while the memory image identifies what ran on the pivot host. Do not stop at finding a suspicious email and a suspicious binary: connect them through the execution chain and matching SIEM activity. Your conclusion should contain one mail identifier and one forensic hash, supported by timestamps and artifacts.
+
+### Task 4: Understand Domain Dominance
+
+Search directory-service events for replication-rights identifiers and check whether the source is a normal domain controller or another host. Then correlate the same source with unusually long-lived Kerberos service tickets. Explain why isolating hosts and resetting ordinary user passwords does not evict an actor with domain-level credential material.
