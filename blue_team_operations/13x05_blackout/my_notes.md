@@ -129,6 +129,7 @@ Linkage: the patient-zero email delivered the initial document. The memory image
 
 Sources: `PZ-0001.eml`, `/evidence/memory.raw`, Volatility 3, and SIEM Sysmon EID 3, EID 10, EID 11, and EID 1.
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
 In your evidence, Sysmon EID 1 recorded:
 
 - Executable: obsidn64_ldr.exe
