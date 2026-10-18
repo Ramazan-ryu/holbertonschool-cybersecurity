@@ -10,3 +10,8 @@ The staged set is the exact set with successful Kerberos network logon EID 4624 
 Clean population: 244 hosts after removing the 53 encrypted and 19 staged hosts from the 316-host inventory. Distractor telemetry was not treated as compromise without a decisive staging, execution, or ransom-note correlation.
 
 Source/correlation: Kestrel SIEM, EID 11, EID 1/7045, and EID 4624.
+
+
+Encrypted count: 34
+Savable count: 19
+Clean count: 263
