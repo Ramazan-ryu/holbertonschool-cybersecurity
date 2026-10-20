@@ -1,0 +1,3 @@
+FLAG_DECOY: `DECOY-0001`.
+It is genuine targeted phishing: it uses an urgency lure, a recently registered lookalike domain `corvan-globalsupply.example`, and malicious attachment `Voicemail_00_47.iso` (SHA-256 `f26546d1cca7ee88ddda176abd9d8a1bcb649b96256ddfe55348a3c97063939c`). It merits a separate phishing report.
+It is not patient zero: payload linkage fails because the ISO uses a `.lnk`-launched executable and does not produce the tracked dropper hash; infrastructure linkage fails because its network is `203.0.113.249` / AS64516, not campaign C2 `198.51.100.47` / AS64512. Its 2026-09-09 delivery predates patient zero, so timing alone does not exclude it.

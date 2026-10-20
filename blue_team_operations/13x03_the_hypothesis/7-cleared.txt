@@ -1,0 +1,26 @@
+Technique: T1021.002 Remote Services / SMB-style lateral movement.
+
+Data sources and coverage: Windows Security 4624, 4648, and 4769 plus Sysmon Event ID 3. I first validated coverage with these DQL queries across the full Nimbus index and the complete collection window:
+
+    data.win.system.eventID:4624
+    data.win.system.eventID:4648
+    data.win.system.eventID:4769
+    data.win.system.eventID:3
+
+Each returned ordinary events from other Nimbus endpoints. This establishes that the authentication and endpoint-network channels were collecting during the hunt, rather than treating an empty target-host query as proof of coverage.
+
+Reproducible hunt scope: 340 Nimbus hosts, 2026-09-01T00:22:54.128Z through 2026-10-13T04:56:17.155Z. The target foothold hosts were NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066. The associated identities were NIMBUS\eli.cole, NIMBUS\avery.eaves, and NIMBUS\jude.pike.
+
+Executed DQL searches:
+
+    data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066) AND data.win.system.eventID:(4624 OR 4648 OR 4769 OR 3)
+
+    data.win.user:(eli.cole OR avery.eaves OR jude.pike) AND data.win.system.eventID:(4624 OR 4648 OR 4769)
+
+    data.win.system.eventID:3 AND data.win.eventdata.destinationPort:(445 OR 3389 OR 5985 OR 5986)
+
+The queries were reviewed for source host, destination host, identity, service, and time correlation. They returned zero matching SMB, RDP, or WinRM-style lateral-movement events from the confirmed footholds or associated identities. Comparable events were present elsewhere in the fleet.
+
+Conclusion: within the listed hosts, identities, dates, remote-service methods, and collected authentication/network sources, the searched lateral movement is ruled out. This does not rule out movement outside the window, from another identity or host, or through an unsearched technique.
+
+Confidence: High for this bounded absence because the relevant event types were queried directly, their fields were present in Nimbus data, and the same event types were demonstrably live elsewhere in the full fleet.

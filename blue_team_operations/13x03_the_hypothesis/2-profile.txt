@@ -1,0 +1,10 @@
+T1566.001 | Delivered a malicious email attachment to a user workstation for initial execution | Ashford and Crane (1/3 cases, one-off behavior, not an actor constraint) | None
+T1078 | Logged in with compromised valid domain credentials | Halcyon, Portway (2/3 cases, repeated behavior across two victims) | None
+T1059.001 | Executed hidden PowerShell commands from a user process | Halcyon, Portway, Ashford and Crane (3/3 cases, core actor constraint across all three victims) | None
+T1547.001 | Created an HKCU\Software\Microsoft\Windows\CurrentVersion\Run registry key pointing to an unsigned binary in a user-writable directory | Halcyon, Portway, Ashford and Crane (3/3 cases, core actor constraint across all three victims) | Identical Registry Run key value name Tavistock9 carried across all three cases for campaign attribution
+T1053.005 | Registered a local scheduled task to launch the payload | Portway (1/3 cases, one-off behavior, not an actor constraint) | None
+T1021.002 | Moved laterally between internal hosts over SMB admin shares | Halcyon, Portway (2/3 cases, repeated behavior across two victims) | None
+T1074.001 | Staged collected files in a local user-writable directory before exfiltration | Halcyon, Portway, Ashford and Crane (3/3 cases, core actor constraint across all three victims) | Identical local staging directory path convention carried across all three cases
+T1560.001 | Compressed staged files into an archive using a command-line utility | Halcyon, Portway, Ashford and Crane (3/3 cases, core actor constraint across all three victims) | None
+T1071.001 | Beaconed outbound over HTTPS on port 443 for command and control | Halcyon, Portway, Ashford and Crane (3/3 cases, core actor constraint across all three victims) | Identical HTTPS C2 beacon URI pattern carried across all three cases for campaign attribution
+T1070.004 | Deleted staging archives from disk after exfiltration | Halcyon, Ashford and Crane (2/3 cases, repeated behavior across two victims) | None

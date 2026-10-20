@@ -1,0 +1,14 @@
+FLAG_GAP: Local Data Staging (MITRE ATT&CK T1074.001) and Archive Collected Data (MITRE ATT&CK T1560.001).
+
+Missing data source: Sysmon Event ID 11 (FileCreate) and Windows Security file-object auditing, especially Event ID 4663. Supporting file-audit events 4656 and 4660 are also not collected.
+
+Coverage verification: I searched the event-ID field, not a free-text number search:
+data.win.system.eventID:11
+data.win.system.eventID:4663
+data.win.system.eventID:(4656 OR 4660)
+
+Each query returned zero documents across the Nimbus fleet for the available time range. This means Nimbus does not collect the file-creation or file-object audit telemetry required to observe local staging or archive creation.
+
+Collection recommendation: Enable Sysmon FileCreate logging for Event ID 11. Enable Windows Object Access auditing and collect Security Event ID 4663 for user-writable, temporary, archive, and sensitive-data paths. This will increase endpoint event volume, storage and retention requirements, and analyst review workload; start with high-value paths and tune exclusions for known high-volume applications.
+
+Client conclusion: Nimbus cannot determine whether the actor staged or archived data because current collection cannot see the required file activity; the result is unanswered, not clean.

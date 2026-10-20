@@ -1,0 +1,16 @@
+FLAG_INCIDENTAL: Commodity cryptominer installed as the scheduled task \MediaConvUpdate.
+
+Affected hosts: NIM-SAL-054 and NIM-SAL-063.
+
+Finding: The scheduled task launches:
+C:\Program Files\MediaConv\mcsvc.exe --worker --threads 4
+
+The task uses a LogonTrigger and was registered by NIMBUS\leo.frost on 2026-01-14. Sysmon Event ID 3 network telemetry shows sustained connections from these two hosts to the mining pool 203.0.113.58:3333.
+
+Why this matters: The miner consumes endpoint CPU resources, creates unnecessary external mining-pool traffic, and represents unvetted software running persistently on sales endpoints.
+
+Why this is not the tracked campaign: This activity uses a scheduled task rather than the campaign’s HKCU Run-key persistence. It connects to a different destination and ASN, began about eight months before the Tavistock9 activity, and behaves as a sustained mining worker rather than a periodic beacon. The indicators, mechanism, timing, and behavior do not support attribution to the tracked actor.
+
+Evidence queries:
+data.win.eventdata.taskName:*MediaConv*
+data.win.eventdata.destinationIp:203.0.113.58

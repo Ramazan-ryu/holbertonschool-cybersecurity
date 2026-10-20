@@ -1,0 +1,4 @@
+Persistence: `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Tavistock9`; recorded in `13x03_the_hypothesis/2-profile.txt` and observed across Halcyon, Portway, and Ashford and Crane. A delivering message would need an attachment or retrieval link that installs the payload which creates this Run value. This is endpoint-side corroboration, not a direct mailbox search term.
+Payload SHA-256: `d13e0265140f33bc79de76e6c31708138443510e9d44184f5acd44ea7a88c6b2`; recorded as the 13x01 payload and 13x02 dropper. A delivering message must carry an attachment whose decoded or extracted payload hashes to this value.
+Beacon/C2 infrastructure: `198.51.100.47`; recorded across 13x00–13x02. A delivering message must contain a link resolving to this address or a payload configured to call back to it.
+Earliest downstream activity: `2026-09-18T07:55:00+00:00`; recorded in 13x01. A message delivered after this timestamp cannot have caused the downstream activity.

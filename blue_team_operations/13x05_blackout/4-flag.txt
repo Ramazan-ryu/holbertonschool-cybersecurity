@@ -1,0 +1,9 @@
+FLAG_DOMINANCE
+
+DCSync/replication evidence: Security EID 4662 on HALC-DC-02 at 2026-09-11T23:20:00.246Z records subjectUserName=adm.okonkw01, objectServer=DS, objectType=domainDNS, objectName=DC=halcyon,DC=local, accesses=Control Access, and replication GUIDs 1131f6aa-9c07-11d1-f79f-00c04fc2dcd2 and 1131f6ad-9c07-11d1-f79f-00c04fc2dcd2. The source ipAddress is 10.20.31.25, which is the non-DC host HALC-ADM-04.
+
+Depth confirmation: EID 4769 from 10.20.31.25 uses svc-vestg_1@HALCYON.LOCAL with 240-hour ticket lifetimes, including 2026-09-20T20:46:52.913Z for cifs/halc-fs-01. This is consistent with forged-ticket/domain-level persistence, not merely a compromised endpoint.
+
+Eviction requirement: isolate and rebuild affected hosts, rotate exposed credentials, remove unauthorized persistence, and perform a controlled two-step krbtgt double reset with replication and ticket-expiry validation. A user-password reset or host-level cleanup alone does not evict an actor with domain dominance.
+
+Source/correlation: Kestrel SIEM EID 4662 + EID 4769, correlated to HALC-ADM-04 and the staged campaign. Decision timestamp: 2026-09-20T10:50:00Z.
