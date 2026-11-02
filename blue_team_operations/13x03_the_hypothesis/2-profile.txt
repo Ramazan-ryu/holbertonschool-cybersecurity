@@ -8,5 +8,3 @@ T1074.001 | Staged collected files in a local user-writable directory before exf
 T1560.001 | Compressed staged files into an archive using a command-line utility | Halcyon, Portway, Ashford and Crane (3/3 cases, core actor constraint across all three victims) | None
 T1071.001 | Beaconed outbound over HTTPS on port 443 for command and control | Halcyon, Portway, Ashford and Crane (3/3 cases, core actor constraint across all three victims) | Identical HTTPS C2 beacon URI pattern carried across all three cases for campaign attribution
 T1070.004 | Deleted staging archives from disk after exfiltration | Halcyon, Ashford and Crane (2/3 cases, repeated behavior across two victims) | None
-T1074.001 staging path: the literal directory, or a template with only the variable parts marked, for example C:\Users\<user>\AppData\Local\Temp\<random>. The stable folder names must be written out in full.
-T1071.001 C2 URI: the literal beacon URI, or a template with only the variable parts marked, for example https://<domain>/updates/<id>/beacon. The stable path segments and domain must be written out in full.
