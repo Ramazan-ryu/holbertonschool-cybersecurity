@@ -40,7 +40,7 @@ Required test parameters:
 
 Control check, run first: confirm the field names work by running a query known to return results, such as `data.win.system.eventID:13` over the window. If it returns zero, fix the field names before reading any other result. A zero from a broken query is not a zero from the fleet.
 
-Queries to run in the Wazuh/OpenSearch dashboard over the window above. Adjust backslash and wildcard escaping for your indexer if needed.
+Queries to run in the Wazuh/OpenSearch dashboard over the window above. Copy them as raw text. Adjust backslash and wildcard escaping for your indexer if needed.
 
 Query A, full rule (all three conditions):
 ```
