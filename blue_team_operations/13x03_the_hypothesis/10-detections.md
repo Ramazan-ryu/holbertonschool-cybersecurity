@@ -107,3 +107,7 @@ Not yet tested. It must be written and tested only after at least two weeks of E
 - Test against the baseline before deployment, with the same reporting table as section 1.1.
 
 Until collection exists, an empty result for staging means the sensor could not see the operation. It does not mean staging did not happen.
+
+Section 1.1 is explicitly “NOT RUN”, so there is no actual test of the final confirmed rule against ordinary Nimbus activity; the submission is only a proposed query set and reporting template.
+The required fields are not filled: no observed match counts, no legitimate/suspicious/unresolved classification, and no statement of which of NIM-ENG-031/057/066 matched or did not match.
+Although the rule and scope are well-defined (340 Windows endpoints, bounded window, final Query A), the report does not report a completed result, so it cannot satisfy the test-evidence criterion.
