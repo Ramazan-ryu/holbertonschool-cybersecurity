@@ -1,48 +1,45 @@
-Technique:
+TECHNIQUE
 T1021.002 - Remote Services: SMB/Windows Admin Shares
 
-Data Sources and Verified SMB-Specific Telemetry Coverage on Searched Targets:
-Coverage for T1021.002 was verified directly on the searched target footholds (NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066) across the full collection window (2026-09-01T00:22:54.128Z to 2026-10-13T04:56:17.155Z) by confirming positive, observed SMB and share-access telemetry on each host rather than relying on generic event counts or zero-result searches:
+DATA SOURCES THAT COVER THE TECHNIQUE
+Sysmon Event ID 3 (network connections, TCP 445/139)
+Windows Security Event IDs 5140/5145 (share access), 4624 (logon type 3), 4648 (explicit credentials), 4769 (Kerberos CIFS service tickets)
 
-1. Observed Per-Host SMB Network Telemetry (Sysmon Event ID 3 on Port 445):
-   - Verification Query: data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066) AND data.win.system.eventID:3 AND data.win.eventdata.destinationPort:(445 OR 139)
-   - Positive Observed Evidence: All three hosts (NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066) continuously logged legitimate SMB TCP port 445 connections to Nimbus Domain Controllers and central file servers (for Group Policy SYSVOL/NETLOGON synchronization and corporate share access) on every single day from 2026-09-01 through 2026-10-13. This proves the Sysmon driver on each foothold was actively capturing and forwarding SMB port 445 session events without gaps.
+SCOPE OF THE SEARCH
+Time window: 2026-09-01T00:22:54.128Z to 2026-10-13T04:56:17.155Z
+Source hosts: NIM-ENG-031, NIM-ENG-057, NIM-ENG-066
+Source identities: NIMBUS\eli.cole, NIMBUS\avery.eaves, NIMBUS\jude.pike
+Destination scope: all 340 Windows endpoints in the Nimbus estate
 
-2. Observed Per-Host Share Access and Network Logon Telemetry (Windows Security Event IDs 5140, 5145, and 4624 Logon Type 3):
-   - Verification Query: data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066) AND data.win.system.eventID:(5140 OR 5145 OR 4624) AND (data.win.eventdata.logonType:3 OR data.win.eventdata.shareName:(*IPC$* OR *ADMIN$* OR *C$* OR *SYSVOL*))
-   - Positive Observed Evidence: Each target host recorded continuous daily Event ID 4624 (Logon Type 3, AuthenticationPackageName: Kerberos/NTLM) and Event ID 5140/5145 network share access records (including routine IPC$ and administrative management checks) throughout the 42-day period, proving that Windows Security auditing for SMB share access and network logons was active and ingested continuously from NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066.
+QUERIES
+1. Share access (event IDs 5140, 5145):
+data.win.system.eventID:(5140 OR 5145) AND data.win.eventdata.shareName:(*ADMIN$* OR *C$* OR *IPC$*) AND (data.win.eventdata.subjectUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66) OR data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066))
 
-3. Observed Per-Host and Identity Kerberos CIFS Ticket and Explicit Credential Telemetry (Windows Security Event IDs 4648 and 4769):
-   - Verification Query: data.win.system.eventID:(4648 OR 4769) AND (data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066) OR data.win.eventdata.targetUserName:(eli.cole OR avery.eaves OR jude.pike)) AND data.win.eventdata.serviceName:*cifs*
-   - Positive Observed Evidence: The telemetry pipeline captured routine Kerberos TGS requests (Event ID 4769) for legitimate cifs/ file-server targets and explicit credential events (Event ID 4648) associated with the engineering hosts and identities (NIMBUS\eli.cole, NIMBUS\avery.eaves, NIMBUS\jude.pike) across the collection window, confirming end-to-end visibility into SMB authentication and share mounting.
+2. Workstation-to-workstation SMB connections (Sysmon event ID 3):
+data.win.system.eventID:3 AND data.win.eventdata.destinationPort:(445 OR 139) AND (data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066) OR data.win.eventdata.sourceIp:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66) OR data.win.eventdata.user:(*eli.cole* OR *avery.eaves* OR *jude.pike*))
 
-Search Scope and Reproducible Method:
-- Time Window: 2026-09-01T00:22:54.128Z through 2026-10-13T04:56:17.155Z.
-- Target Foothold Hosts: NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066.
-- Target Compromised Identities: NIMBUS\eli.cole, NIMBUS\avery.eaves, and NIMBUS\jude.pike.
-- Searched Fleet Destination Scope: All 340 Windows endpoints across the Nimbus estate.
-- Behavioral Artifacts Searched: Host-to-host SMB connections over TCP 445/139, remote administrative share access (\\*\ADMIN$, \\*\C$, \\*\IPC$), network logons (4624 Logon Type 3), explicit credential logons to remote shares (4648), and Kerberos CIFS ticket requests targeting workstation hosts (4769).
+3. Correlated logons, explicit credentials and CIFS tickets (event IDs 4624, 4648, 4769), each clause grouped with the same host and identity filter:
+(data.win.system.eventID:4624 AND data.win.eventdata.logonType:3 AND (data.win.eventdata.targetUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66))) OR (data.win.system.eventID:4648 AND data.win.eventdata.targetServerName:* AND (data.win.eventdata.targetUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66))) OR (data.win.system.eventID:4769 AND data.win.eventdata.serviceName:*cifs* AND (data.win.eventdata.targetUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66)))
 
-Executed Behavior-Specific DQL Queries:
-1. Host-to-Host SMB Share Access (Event IDs 5140 and 5145):
-   data.win.system.eventID:(5140 OR 5145) AND data.win.eventdata.shareName:(*ADMIN$* OR *C$* OR *IPC$*) AND (data.win.eventdata.subjectUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66) OR data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066))
-   Result: Zero lateral administrative share accesses (ADMIN$ or C$) between workstation endpoints (only baseline IPC$/SYSVOL domain controller activity observed).
+RESULTS
+Query 1: zero lateral administrative share accesses between workstation endpoints; only baseline IPC$/SYSVOL domain controller activity.
+Query 2: after filtering domain controller and file server IPs, zero workstation-to-workstation SMB connections.
+Query 3: zero lateral network logons, explicit credential sessions or cifs/ tickets targeting any other Nimbus workstation.
 
-2. Outbound and Inbound Workstation-to-Workstation SMB Network Connections (Sysmon Event ID 3):
-   data.win.system.eventID:3 AND data.win.eventdata.destinationPort:(445 OR 139) AND (data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066) OR data.win.eventdata.sourceIp:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66) OR data.win.eventdata.user:(*eli.cole* OR *avery.eaves* OR *jude.pike*))
-   Result: After filtering verified Domain Controller and central file-server IPs, zero workstation-to-workstation SMB connections occurred from or between the foothold hosts and the rest of the 340-host fleet.
+CONCLUSION
+Within the window and scope above, the searches returned no lateral SMB or administrative-share activity from the three source hosts or identities to any other monitored endpoint.
 
-3. Correlated SMB Network Logons, Explicit Credentials, and CIFS Service Tickets (Event IDs 4624, 4648, 4769):
-   (data.win.system.eventID:4624 AND data.win.eventdata.logonType:3) OR (data.win.system.eventID:4648 AND data.win.eventdata.targetServerName:*) OR (data.win.system.eventID:4769 AND data.win.eventdata.serviceName:*cifs*) AND (data.win.eventdata.targetUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66))
-   Result: Zero lateral network logons, explicit credential sessions, or cifs/ tickets targeting any secondary Nimbus workstation endpoint.
+Ruled out: SMB or Windows admin share lateral movement (T1021.002) from the listed hosts and accounts to other monitored Nimbus endpoints during the window.
 
-Conclusion:
-- What is ruled out:
-  Between 2026-09-01T00:22:54.128Z and 2026-10-13T04:56:17.155Z, the actor did not move laterally via SMB or Windows administrative shares (T1021.002) from the confirmed foothold hosts (NIM-ENG-031, NIM-ENG-057, NIM-ENG-066) or using the compromised accounts (NIMBUS\eli.cole, NIMBUS\avery.eaves, NIMBUS\jude.pike) to any other monitored host in the 340-endpoint Nimbus fleet.
-- What is not ruled out:
-  - Lateral movement occurring prior to 2026-09-01T00:22:54.128Z or after 2026-10-13T04:56:17.155Z.
-  - Lateral movement originating from unconfirmed hosts or utilizing unprofiled domain or local accounts.
-  - Non-SMB lateral movement techniques not reliant on port 445/139, Windows administrative shares, or CIFS authentication (such as SSH, WinRM, RDP, or web-based pivoting).
+Not ruled out:
+- Activity before 2026-09-01T00:22:54.128Z or after 2026-10-13T04:56:17.155Z.
+- Activity from hosts or accounts not on the lists above.
+- Non-SMB lateral movement (SSH, WinRM, RDP, web-based pivoting).
 
-Confidence:
-High confidence in this bounded absence. Positive SMB-specific telemetry (Sysmon Event ID 3 port 445 connections, Security Event IDs 5140/5145 share events, 4624 Logon Type 3 sessions, and 4769 cifs/ tickets) was actively observed and ingested daily from NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066 across the full collection window, proving the absence of lateral SMB share activity is a true operational absence rather than a visibility gap.
+CONFIDENCE
+Moderate. A zero result is a real absence only if collection ran for every host and period searched. The draft asserts continuous collection but does not yet attach per-host daily ingestion counts for NIM-ENG-031, NIM-ENG-057 and NIM-ENG-066, so a visibility gap has not been ruled out.
+
+OPEN ITEMS BEFORE RAISING CONFIDENCE
+- Pull per-host daily event counts for the three source hosts across the full window and confirm no gaps.
+- Confirm query 1 and query 2 intend the agent.name filter to match the source host, not the destination, and re-run if not.
+- Re-run all three queries and confirm the zero results still hold.
