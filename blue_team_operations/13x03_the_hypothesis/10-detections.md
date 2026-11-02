@@ -67,19 +67,14 @@ Report in this form, with every field filled from the run:
 | Not matched | | | |
 
 Hosts NIM-ENG-031, NIM-ENG-057 and NIM-ENG-066 must be stated explicitly as matched or not matched by Query A. They are not to be listed as matches unless Query A returned them.
-
 Until this table is filled, the rule must not be deployed as a live alert. A rule that fires on normal operations gets turned off.
 
 ## 2. Remedy for the blind spot: collection, not a rule yet
-
 Choice: a data-source recommendation, not an immediate rule.
-
 Reason: local staging and archive creation were not observable during the hunt. Without file-creation telemetry, no rule can match the operation. A rule written now would only match what the sensor happens to see, which is nothing for staging.
 
 ### What to enable
-
 - Sysmon Event ID 11 (FileCreate), with a configuration limited to user-writable staging locations, temporary directories, and archive extensions. Starting configuration:
-
 ```xml
 <FileCreate onmatch="include">
   <TargetFilename condition="contains">\AppData\Local\Temp\</TargetFilename>
@@ -89,25 +84,16 @@ Reason: local staging and archive creation were not observable during the hunt. 
   <TargetFilename condition="end with">.7z</TargetFilename>
 </FileCreate>
 ```
-
 - Windows Object Access auditing with Security Event ID 4663 on the sensitive paths only, not the whole disk, to avoid flooding.
 - Security Event IDs 4656 and 4660 as supporting events for handle and delete context.
-
 Tune by adding exclusions for high-volume applications after a baseline is collected. Do not disable the staging paths to reduce volume.
 
 ### What it lets Nimbus detect
-
 Archive creation or repeated writes into a staging directory, correlated with the writing process and its destination. This is the staging step that the current telemetry cannot see.
 
 ### Rule to write once collection exists
-
 Not yet tested. It must be written and tested only after at least two weeks of Event ID 11 data is confirmed as collected. Sketch of the logic:
 - Match Sysmon Event ID 11 where the target is an archive extension in a staging path.
 - Use a frequency condition: several such writes from one process within a short window.
 - Test against the baseline before deployment, with the same reporting table as section 1.1.
-
 Until collection exists, an empty result for staging means the sensor could not see the operation. It does not mean staging did not happen.
-
-Section 1.1 is explicitly “NOT RUN”, so there is no actual test of the final confirmed rule against ordinary Nimbus activity; the submission is only a proposed query set and reporting template.
-The required fields are not filled: no observed match counts, no legitimate/suspicious/unresolved classification, and no statement of which of NIM-ENG-031/057/066 matched or did not match.
-Although the rule and scope are well-defined (340 Windows endpoints, bounded window, final Query A), the report does not report a completed result, so it cannot satisfy the test-evidence criterion.
