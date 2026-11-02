@@ -23,11 +23,21 @@ This rule is keyed on the behaviour, not on the host, the hash, or the Tavistock
 
 - Three conditions must hold together: the Run-key target, a user-writable value path, and a script-capable writer. Any one alone matches normal software installs, so none is used alone.
 - The writer list is limited to interpreters and script hosts. It does not include general installers.
-- Signer context is not in this rule yet. Sysmon Event ID 13 does not carry the signature of the writing binary. Known signed enterprise updaters should be excluded with a Wazuh CDB allowlist, built from the software inventory, keyed on the image path and signer. This allowlist does not exist yet and must be built before the rule goes to production.
+- Signer context is not implemented in this rule. Sysmon Event ID 13 does not carry the signature of the writing binary. Known signed enterprise updaters should be excluded with a Wazuh CDB allowlist, built from the software inventory, keyed on the image path and signer. This allowlist does not exist yet. Until it does, the rule is not production-ready, and this is stated as a gap, not a control.
 
 ### Known weakness
 
 `rundll32` and `regsvr32` are used by some legitimate installers. Until the allowlist exists, these two are the most likely source of false positives. If the test in section 1.1 shows noise from them, drop them first and keep the three conditions.
+
+### What this rule deliberately does not cover
+
+The rule is narrow on purpose, so that its first run produces a reviewable result. It will miss:
+
+- Run-key writes by a non-script executable, for example a compiled binary dropped by the actor. These are covered by the candidate rule in section 1.2, not by this one.
+- Run-key writes to a user-writable path that is outside AppData, Users\Public and Temp.
+- Persistence through other autostart locations, such as RunOnce, scheduled tasks and services. These are separate techniques and are not part of this detection.
+
+A missed case is not evidence of absence. It is a case the rule was not built to see.
 
 ### 1.1 Test against ordinary fleet activity
 
@@ -78,6 +88,22 @@ Report in this form, with every field filled from the run:
 Hosts NIM-ENG-031, NIM-ENG-057 and NIM-ENG-066 must be stated explicitly as matched or not matched by Query A. They are not to be listed as matches unless Query A returned them. Query D results are reviewed as candidates only and do not count as matches of the final rule.
 
 Until this table is filled, the rule must not be deployed as a live alert. A rule that fires on normal operations gets turned off.
+
+### 1.2 Candidate second rule (not tested, not deployable)
+
+Purpose: cover Run-key writes by a non-script executable into a user-writable path, which rule 100310 does not see.
+
+```xml
+<rule id="100311" level="10">
+  <if_group>sysmon_event13</if_group>
+  <field name="win.eventdata.targetObject">(?i)\\Software\\Microsoft\\Windows\\CurrentVersion\\Run</field>
+  <field name="win.eventdata.details">(?i)(AppData\\Roaming|AppData\\Local|Users\\Public|\\Temp\\)</field>
+  <description>Run-key value points into a user-writable path (candidate, pending allowlist and test)</description>
+  <mitre><id>T1547.001</id></mitre>
+</rule>
+```
+
+Why this is only a candidate: without an allowlist of known per-user installers, this condition will match many legitimate applications that register Run-key entries under AppData. It must not be deployed until the allowlist exists and section 1.1 has been run for it, with its own results table. It is recorded here so the gap is visible, not so that it is treated as a control.
 
 ## 2. Remedy for the blind spot: collection, not a rule yet
 
