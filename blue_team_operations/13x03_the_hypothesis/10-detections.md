@@ -38,6 +38,25 @@ Required test parameters:
 - Population: all 340 Windows endpoints in the Nimbus estate, all Sysmon Event ID 13 events in the window.
 - Run the full rule, with all three conditions, unmodified.
 
+Queries to run in the Wazuh/OpenSearch dashboard over the window above. Adjust backslash and wildcard escaping for your indexer if needed.
+
+Query A, full rule (all three conditions):
+```
+data.win.system.eventID:13 AND data.win.eventdata.targetObject:*CurrentVersion\\Run* AND data.win.eventdata.details:(*AppData\\Roaming* OR *AppData\\Local* OR *Users\\Public*) AND data.win.eventdata.image:(*powershell.exe OR *wscript.exe OR *cscript.exe OR *rundll32.exe OR *regsvr32.exe OR *mshta.exe)
+```
+
+Query B, all Run-key writes (benign baseline):
+```
+data.win.system.eventID:13 AND data.win.eventdata.targetObject:*CurrentVersion\\Run*
+```
+
+Query C, the three named hosts:
+```
+data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066) AND data.win.system.eventID:13 AND data.win.eventdata.targetObject:*CurrentVersion\\Run*
+```
+
+For each Query B hit that is not returned by Query A: record the image path and the value written, and classify it as legitimate (with the reason) or unresolved.
+
 Report in this form, with every field filled from the run:
 
 | Class | Count | Hosts | Notes |
@@ -47,7 +66,7 @@ Report in this form, with every field filled from the run:
 | Matched, unresolved | | | |
 | Not matched | | | |
 
-Hosts NIM-ENG-031, NIM-ENG-057 and NIM-ENG-066 must be stated explicitly as matched or not matched by the full rule. They are not to be listed as matches unless the full rule fired on them.
+Hosts NIM-ENG-031, NIM-ENG-057 and NIM-ENG-066 must be stated explicitly as matched or not matched by Query A. They are not to be listed as matches unless Query A returned them.
 
 Until this table is filled, the rule must not be deployed as a live alert. A rule that fires on normal operations gets turned off.
 
