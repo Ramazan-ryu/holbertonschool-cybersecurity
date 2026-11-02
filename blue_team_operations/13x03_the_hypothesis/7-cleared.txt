@@ -2,7 +2,9 @@
 
 **Technique:** T1021.002 Remote Services (SMB, RDP, and WinRM-style lateral movement)
 
-**Data sources:** Windows Security Event IDs 4624, 4648, and 4769, and Sysmon Event ID 3 (network connection). Coverage was checked across the full Nimbus index before the hunt: each of these event types returned ordinary events from other Nimbus endpoints, which confirms the channels are ingested fleet-wide.
+**Status:** Not cleared. The absence below cannot be attributed to the foothold hosts until their telemetry coverage for the window is verified.
+
+**Data sources:** Windows Security Event IDs 4624, 4648, and 4769, and Sysmon Event ID 3 (network connection). Fleet-wide, each of these event types returned ordinary events from other Nimbus endpoints, so the channels are ingested somewhere in the estate. This does not show that they were ingested from the target hosts.
 
 **Scope of the search:**
 - Hosts: NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066 (the confirmed foothold hosts)
@@ -18,15 +20,17 @@
 
     data.win.system.eventID:3 AND data.win.eventdata.destinationPort:(445 OR 3389 OR 5985 OR 5986)
 
-**Result:** The queries returned zero matching SMB, RDP, or WinRM-style lateral-movement events from the listed foothold hosts or identities in the stated period.
+**Result:** The queries returned zero matching SMB, RDP, or WinRM-style lateral-movement events from the listed hosts or identities in the stated period.
 
-**Conclusion:** Within the listed hosts, identities, period, ports, and event types, no lateral movement by these remote-service methods is observed. This is a bounded absence, not a clearance of the fleet.
+**Conclusion:** No lateral movement by these remote-service methods was observed in the searched data. This result is not a clearance of the foothold hosts. A zero result from a host that was not logging these event types is indistinguishable from a true absence, and the coverage for the three hosts has not been checked.
 
-**Limits of this conclusion:**
-- It does not show that the three foothold hosts themselves were collecting these event types for the full period. The fleet-wide ingestion check does not establish host-level continuity, and per-host ingestion or agent-health records for the window were not reviewed.
-- It does not cover movement outside the window, from other identities or hosts, or over ports and services not in the query.
-- It does not rule out the technique through an unsearched method (for example, DCOM, scheduled tasks on remote hosts, or service creation over other channels).
+**Limits:**
+- Per-host ingestion over the window has not been verified. A gap on any host would make its zero result meaningless.
+- Movement outside the window, from other identities or hosts, or over ports and services not in the queries is not covered.
+- Methods outside these event types (for example, DCOM, remote scheduled tasks, or remote service creation over other channels) are not covered.
 
-**Confidence:** Moderate. The queries and their fields are reproducible and the event types are ingested fleet-wide. Confidence in the absence on the three foothold hosts specifically stays moderate until their collection continuity over the window is confirmed from ingestion or agent-health records.
+**Confidence:** Low for the foothold hosts. Moderate for the fleet-wide statement that these event types are ingested somewhere in Nimbus.
 
-**To raise confidence to high:** pull per-host event counts for NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066 for each day in the window, for Event IDs 4624, 4648, 4769, and Sysmon 3. Any day with zero events on a host that should be active is a gap, and the absence must be re-scoped to exclude it.
+**Next step to clear the absence:** Count events per host, per day, for Event IDs 4624, 4648, 4769, and Sysmon 3, for NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066 across 2026-09-01 to 2026-10-13. For each host:
+- If every day has events, the zero result can be restated as a bounded absence for that host.
+- If any day has none, that day is a coverage gap. Re-scope the absence to exclude it and state the gap in the conclusion.
