@@ -1,49 +1,32 @@
-Technique: T1021.002 Remote Services: SMB/Windows Admin Shares.
+# 7-cleared.txt
 
-Data sources and coverage verification:
-To establish that the empty hunt result represents a true absence rather than a telemetry gap, coverage was verified directly on the searched targets (foothold systems NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066) rather than inferring coverage from fleet-wide presence:
+**Technique:** T1021.002 Remote Services (SMB, RDP, and WinRM-style lateral movement)
 
-1. Per-host observed events and continuous ingestion:
-   - NIM-ENG-031: Ingestion verified active across the entire window (2026-09-01T00:22:54.128Z to 2026-10-13T04:56:17.155Z). The queries `data.win.agent.name:NIM-ENG-031 AND data.win.system.eventID:3` and `data.win.agent.name:NIM-ENG-031 AND data.win.system.eventID:4624` returned hundreds of baseline events distributed continuously across all 30 days, confirming uninterrupted agent reporting and log ingestion.
-   - NIM-ENG-057: Ingestion verified active across the entire window. The queries `data.win.agent.name:NIM-ENG-057 AND data.win.system.eventID:3` and `data.win.agent.name:NIM-ENG-057 AND data.win.system.eventID:4624` returned consistent daily event streams, confirming continuous agent health and data pipeline availability.
-   - NIM-ENG-066: Ingestion verified active across the entire window. The queries `data.win.agent.name:NIM-ENG-066 AND data.win.system.eventID:3` and `data.win.agent.name:NIM-ENG-066 AND data.win.system.eventID:4624` returned regular baseline records spanning the full collection timeframe without gaps.
+**Data sources:** Windows Security Event IDs 4624, 4648, and 4769, and Sysmon Event ID 3 (network connection). Coverage was checked across the full Nimbus index before the hunt: each of these event types returned ordinary events from other Nimbus endpoints, which confirms the channels are ingested fleet-wide.
 
-2. Source-specific telemetry validation:
-   - Sysmon Event ID 3 (Network Connect): Actively configured and running on all three footholds via the Sysmon driver.
-   - Windows Security Event ID 4624 (Successful Logon): Actively recording on all endpoints and Domain Controllers.
-   - Windows Security Event ID 4648 (Logon with Explicit Credentials) and Event ID 4769 (Kerberos Service Ticket Operations): Actively recording authentication requests domain-wide.
+**Scope of the search:**
+- Hosts: NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066 (the confirmed foothold hosts)
+- Identities: NIMBUS\eli.cole, NIMBUS\avery.eaves, and NIMBUS\jude.pike
+- Period: 2026-09-01T00:22:54.128Z through 2026-10-13T04:56:17.155Z
+- Destination ports checked for Sysmon 3: 445 (SMB), 3389 (RDP), 5985 and 5986 (WinRM)
 
-3. Behavior-specific positive evidence:
-   - On NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066, Sysmon Event ID 3 positively captured routine outbound TCP connections to internal infrastructure (DNS port 53, Kerberos/LDAP ports 88 and 389, and outbound HTTPS port 443). This confirms that network connection tracking was fully functional and capable of logging outbound port 445 traffic.
-   - On the same hosts, Security Event ID 4624 positively recorded legitimate local and network sessions (Logon Type 2 and Type 3), demonstrating that logon auditing was fully operational throughout the period.
+**Queries run:**
 
-Scope of the search:
-- Time window: 2026-09-01T00:22:54.128Z through 2026-10-13T04:56:17.155Z.
-- Population: All 340 Nimbus estate endpoints, focused on outbound activity from confirmed engineering footholds NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066, and inbound activity across the remaining fleet.
-- Target identities: NIMBUS\eli.cole, NIMBUS\avery.eaves, and NIMBUS\jude.pike.
-- Target mechanisms: SMB session establishment (TCP port 445/139), administrative share access (ADMIN$, C$), network logons (Logon Type 3), explicit credential use (4648), and Kerberos CIFS ticket requests (4769).
+    data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066) AND data.win.system.eventID:(4624 OR 4648 OR 4769 OR 3)
 
-Executed reproducible hunt queries:
-1. Outbound SMB network connections from footholds:
-   data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066) AND data.win.system.eventID:3 AND data.win.eventdata.destinationPort:(139 OR 445)
-   Result: 0 peer-to-peer connections (routine connections to Domain Controllers/file servers excluded).
+    data.win.user:(eli.cole OR avery.eaves OR jude.pike) AND data.win.system.eventID:(4624 OR 4648 OR 4769)
 
-2. Network logons originating from footholds or compromised identities to other fleet systems:
-   data.win.system.eventID:4624 AND data.win.eventdata.logonType:3 AND (data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66) OR data.win.eventdata.targetUserName:(eli.cole OR avery.eaves OR jude.pike)) AND NOT data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066)
-   Result: 0 matching logon events on external endpoints.
+    data.win.system.eventID:3 AND data.win.eventdata.destinationPort:(445 OR 3389 OR 5985 OR 5986)
 
-3. Explicit credential usage and Kerberos CIFS ticket requests:
-   data.win.system.eventID:(4648 OR 4769) AND (data.win.eventdata.targetUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.user:(eli.cole OR avery.eaves OR jude.pike)) AND data.win.eventdata.serviceName:*cifs*
-   Result: 0 matching records.
+**Result:** The queries returned zero matching SMB, RDP, or WinRM-style lateral-movement events from the listed foothold hosts or identities in the stated period.
 
-Conclusion:
-- What is ruled out:
-  The actor did not execute lateral movement via SMB or Windows administrative shares (T1021.002) originating from the confirmed engineering footholds (NIM-ENG-031, NIM-ENG-057, NIM-ENG-066) or utilizing the compromised identities (NIMBUS\eli.cole, NIMBUS\avery.eaves, NIMBUS\jude.pike) to access other endpoints across the 340-host Nimbus estate during the 30-day collection window (2026-09-01T00:22:54.128Z through 2026-10-13T04:56:17.155Z).
-- What is not ruled out:
-  - Lateral movement originating from other, unconfirmed host footholds within Nimbus.
-  - Lateral movement executed with credentials other than the three known compromised engineering identities.
-  - Lateral movement occurring outside the collection window (prior to 2026-09-01 or after 2026-10-13).
-  - Alternative lateral movement mechanisms that do not generate SMB network traffic or Windows authentication events (e.g., direct physical access or unmonitored third-party remote management utilities).
+**Conclusion:** Within the listed hosts, identities, period, ports, and event types, no lateral movement by these remote-service methods is observed. This is a bounded absence, not a clearance of the fleet.
 
-Confidence:
-High confidence within the defined boundaries. This confidence is justified because per-host telemetry health, continuous event ingestion, and behavior-specific capture capability (Sysmon 3 and Security 4624) were positively verified on each of the three foothold targets across the entire window, and multi-source correlation queries returned zero matching artifacts.
+**Limits of this conclusion:**
+- It does not show that the three foothold hosts themselves were collecting these event types for the full period. The fleet-wide ingestion check does not establish host-level continuity, and per-host ingestion or agent-health records for the window were not reviewed.
+- It does not cover movement outside the window, from other identities or hosts, or over ports and services not in the query.
+- It does not rule out the technique through an unsearched method (for example, DCOM, scheduled tasks on remote hosts, or service creation over other channels).
+
+**Confidence:** Moderate. The queries and their fields are reproducible and the event types are ingested fleet-wide. Confidence in the absence on the three foothold hosts specifically stays moderate until their collection continuity over the window is confirmed from ingestion or agent-health records.
+
+**To raise confidence to high:** pull per-host event counts for NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066 for each day in the window, for Event IDs 4624, 4648, 4769, and Sysmon 3. Any day with zero events on a host that should be active is a gap, and the absence must be re-scoped to exclude it.
