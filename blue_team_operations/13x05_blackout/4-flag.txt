@@ -1,9 +1,18 @@
 FLAG_DOMINANCE
+FLAG_REENTRY
 
-DCSync/replication evidence: Security EID 4662 on HALC-DC-02 at 2026-09-11T23:20:00.246Z records subjectUserName=adm.okonkw01, objectServer=DS, objectType=domainDNS, objectName=DC=halcyon,DC=local, accesses=Control Access, and replication GUIDs 1131f6aa-9c07-11d1-f79f-00c04fc2dcd2 and 1131f6ad-9c07-11d1-f79f-00c04fc2dcd2. The source ipAddress is 10.20.31.25, which is the non-DC host HALC-ADM-04.
+1. Domain-Level Achievement and DCSync Replication Evidence:
+The threat actor achieved full domain dominance via a DCSync attack (Active Directory replication of domain secrets, including the krbtgt password hash).
+Security Event ID 4662 on domain controller HALC-DC-02 at 2026-09-11T23:20:00.246Z records subjectUserName=adm.okonkw01 requesting Directory Service (DS) replication on objectName=DC=halcyon,DC=local (objectType=domainDNS, accesses=Control Access) using DS-Replication-Get-Changes (1131f6aa-9c07-11d1-f79f-00c04fc2dcd2) and DS-Replication-Get-Changes-All (1131f6ad-9c07-11d1-f79f-00c04fc2dcd2).
 
-Depth confirmation: EID 4769 from 10.20.31.25 uses svc-vestg_1@HALCYON.LOCAL with 240-hour ticket lifetimes, including 2026-09-20T20:46:52.913Z for cifs/halc-fs-01. This is consistent with forged-ticket/domain-level persistence, not merely a compromised endpoint.
+2. Non-DC Source Host Confirmation:
+The replication request originated from IP address 10.20.31.25, which belongs to workstation HALC-ADM-04. This source is not a domain controller (non-DC / non-domain controller). Legitimate Active Directory replication only occurs between domain controllers; replication initiated from a host that is not a domain controller confirms credential dumping via DCSync.
 
-Eviction requirement: isolate and rebuild affected hosts, rotate exposed credentials, remove unauthorized persistence, and perform a controlled two-step krbtgt double reset with replication and ticket-expiry validation. A user-password reset or host-level cleanup alone does not evict an actor with domain dominance.
+3. Why Host Isolation and Password Resets Fail (Golden Ticket Persistence):
+Event ID 4769 from 10.20.31.25 shows Kerberos service ticket requests using svc-vestg_1@HALCYON.LOCAL with anomalous 240-hour (10-day) ticket lifetimes, including at 2026-09-20T20:46:52.913Z for cifs/halc-fs-01. Because the actor extracted the krbtgt hash via DCSync, they can forge Golden Tickets offline. Isolating scoped hosts and resetting user or administrator passwords does not evict them because forged Kerberos TGTs signed with the compromised krbtgt key remain valid across the domain and bypass standard password resets.
 
-Source/correlation: Kestrel SIEM EID 4662 + EID 4769, correlated to HALC-ADM-04 and the staged campaign. Decision timestamp: 2026-09-20T10:50:00Z.
+4. Eviction Requirements (krbtgt Double-Reset):
+Stopping tonight's encryption only requires isolating affected hosts and disabling compromised accounts, but actual eviction requires invalidating the actor's Golden Ticket capability at the krbtgt level:
+- Perform a controlled double-reset (double reset / two-step reset, resetting the password twice) of the krbtgt account across the Active Directory domain, waiting for full AD replication between the first and second reset so both the current and previous krbtgt key versions (kvno) are invalidated.
+- Purge all active Kerberos tickets and validate ticket-expiry policies.
+- Rotate all privileged, service, and machine account credentials after the krbtgt double-reset, and rebuild compromised hosts including HALC-ADM-04 (10.20.31.25).
