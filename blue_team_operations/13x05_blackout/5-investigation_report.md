@@ -11,5 +11,4 @@ Patient zero is mailbox message `<0025e2e3bbf6e32.harrowfield-metalworks.example
 The campaign used compromised administrative access from HALC-ADM-04. The SIEM shows the ransomware file creation, scheduled-task persistence, and ransom-note creation. Domain evidence shows replication rights used from the non-DC source HALC-ADM-04 and long-lived service tickets, establishing domain-level control.
 
 ## Containment and eradication position
-
 Contain the 19 staged hosts and the 53 encrypted hosts with payments-first handling and preserve evidence. Do not over-contain the 244 clean hosts. Eradication requires domain recovery, credential rotation, removal/rebuild of persistence, validation of both domain controllers, and a controlled krbtgt double reset.
