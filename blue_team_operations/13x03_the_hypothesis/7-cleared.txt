@@ -1,45 +1,65 @@
 TECHNIQUE
-T1021.002 - Remote Services: SMB/Windows Admin Shares
+T1021.002 - Remote Services: SMB/Windows Admin Shares (lateral movement via SMB admin shares and CIFS service access)
 
 DATA SOURCES THAT COVER THE TECHNIQUE
-Sysmon Event ID 3 (network connections, TCP 445/139)
-Windows Security Event IDs 5140/5145 (share access), 4624 (logon type 3), 4648 (explicit credentials), 4769 (Kerberos CIFS service tickets)
+Source-side (initiating hosts NIM-ENG-031, NIM-ENG-057, NIM-ENG-066):
+- Sysmon Event ID 3 (outbound network connections, TCP 445/139)
+- Security 4648 (logon with explicit credentials)
+Destination-side (all 340 Windows endpoints):
+- Security 5140/5145 (network share access; requires Object Access auditing on the shares)
+- Security 4624 logon type 3 (network logon)
+Domain controllers:
+- Security 4769 (Kerberos service ticket requests for cifs/*). These are recorded on the issuing DC, not on the destination endpoint, so DC coverage is a separate requirement.
 
 SCOPE OF THE SEARCH
-Time window: 2026-09-01T00:22:54.128Z to 2026-10-13T04:56:17.155Z
-Source hosts: NIM-ENG-031, NIM-ENG-057, NIM-ENG-066
-Source identities: NIMBUS\eli.cole, NIMBUS\avery.eaves, NIMBUS\jude.pike
-Destination scope: all 340 Windows endpoints in the Nimbus estate
+Time window: 2026-09-01T00:22:54.128Z to 2026-10-13T04:56:17.155Z (UTC, as stated).
+Source hosts: NIM-ENG-031 (10.0.10.31), NIM-ENG-057 (10.0.10.57), NIM-ENG-066 (10.0.10.66).
+Source identities: NIMBUS\eli.cole, NIMBUS\avery.eaves, NIMBUS\jude.pike.
+Destination population: all 340 Windows endpoints. Queries 1 and 3 do not filter on destination host, so they search every endpoint whose events are indexed. Query 2 covers outbound connections from the three source hosts only. Whether all 340 endpoints are actually represented in the index is covered under Collection Verification below.
 
 QUERIES
-1. Share access (event IDs 5140, 5145):
+1. Share access (Security 5140, 5145), destination-side:
 data.win.system.eventID:(5140 OR 5145) AND data.win.eventdata.shareName:(*ADMIN$* OR *C$* OR *IPC$*) AND (data.win.eventdata.subjectUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66) OR data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066))
+Note: the agent.name clause returns share events recorded on the source hosts themselves. These are not lateral movement and are reviewed separately; the identity and IP clauses are the lateral-movement filter.
 
-2. Workstation-to-workstation SMB connections (Sysmon event ID 3):
+2. Outbound SMB connections (Sysmon Event ID 3), source-side:
 data.win.system.eventID:3 AND data.win.eventdata.destinationPort:(445 OR 139) AND (data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066) OR data.win.eventdata.sourceIp:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66) OR data.win.eventdata.user:(*eli.cole* OR *avery.eaves* OR *jude.pike*))
+Exclusions applied: domain controllers [list DC IPs] and file servers [list file server IPs].
 
-3. Correlated logons, explicit credentials and CIFS tickets (event IDs 4624, 4648, 4769), each clause grouped with the same host and identity filter:
+3. Correlated logons, explicit credentials, and CIFS tickets (4624, 4648, 4769):
 (data.win.system.eventID:4624 AND data.win.eventdata.logonType:3 AND (data.win.eventdata.targetUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66))) OR (data.win.system.eventID:4648 AND data.win.eventdata.targetServerName:* AND (data.win.eventdata.targetUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66))) OR (data.win.system.eventID:4769 AND data.win.eventdata.serviceName:*cifs* AND (data.win.eventdata.targetUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66)))
+Purpose: 4624 and 4648 corroborate the share-access and connection results. 4769 is supporting evidence only, and its completeness depends on DC collection.
 
 RESULTS
-Query 1: zero lateral administrative share accesses between workstation endpoints; only baseline IPC$/SYSVOL domain controller activity.
-Query 2: after filtering domain controller and file server IPs, zero workstation-to-workstation SMB connections.
-Query 3: zero lateral network logons, explicit credential sessions or cifs/ tickets targeting any other Nimbus workstation.
+Query 1: zero lateral administrative share accesses between workstation endpoints. Only baseline IPC$ and SYSVOL activity from domain controllers was returned.
+Query 2: zero workstation-to-workstation SMB connections after the DC and file-server exclusions above.
+Query 3: zero lateral network logons, explicit-credential sessions, or cifs/* service tickets targeting any other Nimbus workstation.
+
+COLLECTION VERIFICATION
+Status: NOT VERIFIED. No per-host ingestion records have been attached for any source in the scope above. Configuration settings and query results are not evidence of collection.
+- Source-side Sysmon Event ID 3 and Security 4648 on NIM-ENG-031, NIM-ENG-057, NIM-ENG-066: unverified.
+- Destination-side Security 5140/5145 and 4624 across the 340 endpoints: unverified. Object Access auditing on the admin shares is also unconfirmed.
+- Domain controller Security 4769: unverified.
+Until per-host, per-day ingestion records show no gaps for each source, the result below is inconclusive for every host and period lacking them.
 
 CONCLUSION
-Within the window and scope above, the searches returned no lateral SMB or administrative-share activity from the three source hosts or identities to any other monitored endpoint.
-
-Ruled out: SMB or Windows admin share lateral movement (T1021.002) from the listed hosts and accounts to other monitored Nimbus endpoints during the window.
-
+Result: no matching SMB, admin-share, or CIFS-ticket events were observed in the searched data for the stated hosts, identities, and window.
+Ruled out: nothing is ruled out at this stage. A zero result shows only that no matching records were found. It does not establish that the behaviour did not occur, because collection on the searched systems has not yet been verified.
 Not ruled out:
+- Activity on any host or day where collection is unverified or has gaps.
 - Activity before 2026-09-01T00:22:54.128Z or after 2026-10-13T04:56:17.155Z.
-- Activity from hosts or accounts not on the lists above.
-- Non-SMB lateral movement (SSH, WinRM, RDP, web-based pivoting).
+- Activity from hosts or accounts not listed above.
+- Other lateral-movement methods: RDP, WinRM, SSH, scheduled tasks, service creation, and web-based pivoting.
+- Events cleared, not forwarded, or never logged.
 
 CONFIDENCE
-Moderate. A zero result is a real absence only if collection ran for every host and period searched. The draft asserts continuous collection but does not yet attach per-host daily ingestion counts for NIM-ENG-031, NIM-ENG-057 and NIM-ENG-066, so a visibility gap has not been ruled out.
+Low. Collection on both the source and destination populations is unverified, and domain controller coverage is unknown.
+Would rise to Moderate once per-host ingestion is verified for the three source hosts and for the 5140/5145 destination population.
+Would rise to High only when collection is verified for all three sources (including DCs), share-access auditing is confirmed active, and the queries are re-run on the verified data.
 
-OPEN ITEMS BEFORE RAISING CONFIDENCE
-- Pull per-host daily event counts for the three source hosts across the full window and confirm no gaps.
-- Confirm query 1 and query 2 intend the agent.name filter to match the source host, not the destination, and re-run if not.
-- Re-run all three queries and confirm the zero results still hold.
+OPEN ITEMS BEFORE THIS CAN BE STATED AS A VERIFIED ABSENCE
+1. Attach per-host daily event counts for Sysmon 3, Security 4648, and Security 4624 on NIM-ENG-031, NIM-ENG-057, and NIM-ENG-066 for the full window, and show no gaps.
+2. Attach per-host ingestion evidence for Security 5140/5145 and 4624 across the 340 endpoints. Confirm Object Access auditing is enabled on the shares. List any endpoint without it as unverified.
+3. Confirm 4769 collection from each domain controller and list them.
+4. Fill in the DC and file-server IP exclusions used in Query 2.
+5. Re-run all three queries after the collection checks and update the results if they change.
