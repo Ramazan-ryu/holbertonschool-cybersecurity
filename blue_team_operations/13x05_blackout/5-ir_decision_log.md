@@ -1,11 +1,13 @@
 # IR Decision Log
 
-| UTC timestamp | Decision | Evidence held | Unknown at decision time |
-|---|---|---|---|
-| 2026-09-20T09:01:34.616Z | Confirmed active ransomware | EID 11 created `obsidn64.exe` with the confirmed SHA-256 on HALC-ADM-04 | Full host scope and domain depth were not yet known |
-| 2026-09-20T09:04:20.051Z | Began separating encrypted from staged | First ransom-note creation on HALC-PAY-10 | Whether all staged hosts had been found |
-| 2026-09-20T10:50:00Z | Containment threshold reached; contain staged set | 53 note hosts; exact 19-host staged set; last staged logon 10:49:49.650Z; payments hosts prioritized | Historical root cause and domain-dominance proof still incomplete |
-| 2026-09-20T11:00:00Z | Treat incident as contained, not eradicated | Ransomware execution stopped by isolation position | Persistence, forged tickets, and credential exposure required further investigation |
-| 2026-09-20T11:30:00Z | Set eradication requirement | EID 4662 replication from HALC-ADM-04 and long-lived 4769 tickets | Exact recovery duration and business cost |
+This log records each material decision with the information available at the time. Entries are not revised with later knowledge. Where a later finding changed a conclusion, a new entry was added.
 
-No production action was executed by this analyst; these are documented containment, eradication, and recovery positions for the frozen lab.
+| UTC timestamp | Decision | Evidence held at the time | Uncertainty at the time | Alternatives considered | Reason for action |
+|---|---|---|---|---|---|
+| 2026-09-20T09:01:34.616Z | Treat the activity as a live ransomware event | EID 11 created the ransomware binary (SHA-256 `e7c189…3957`) on HALC-ADM-04 | Host scope unknown; domain depth unknown; whether the hash was a false positive not fully excluded | (a) Continue investigating before acting; (b) Act immediately on the single hash | A confirmed ransomware hash on an administrative host justifies urgent scoping. Acting on the hash alone was judged proportionate because isolation is reversible. |
+| 2026-09-20T09:04:20.051Z | Begin separating encrypted from staged hosts | First ransom-note creation on HALC-PAY-10 | Whether all staged hosts had been identified | Treat all hosts seen in telemetry as encrypted; wait for full inventory | Separating the two populations determines which hosts are still savable, so it was the priority query. |
+| 2026-09-20T10:50:00Z | **Threshold for containment reached. Contain the staged set and the encrypting population.** | 53 hosts with ransom notes; 19-host staged set identified; last staged-host logon from HALC-ADM-04 at 10:49:49.650Z; payments hosts prioritized | Historical root cause not established; domain dominance not proven; forged-ticket use not tested | (a) Continue analysis to establish root cause and domain scope before isolating; (b) Contain now, preserve evidence, analyse afterward | Each further minute of analysis risked detonation on staged hosts that were still savable. The analysis gap was accepted; the evidence loss from isolation was also accepted and recorded. |
+| 2026-09-20T11:00:00Z | Record the incident as contained, not eradicated | Ransomware execution stopped on isolated hosts | Persistence mechanisms, forged tickets, and credential exposure remain unverified | Declare the incident resolved after isolation | Stopping execution does not remove an actor with domain-level access; a resolved declaration would have been unsafe. |
+| 2026-09-20T11:30:00Z | Set eradication requirement: domain recovery, credential rotation, and controlled `krbtgt` double reset | EID 4662 replication from HALC-ADM-04; long-lived 4769 tickets | Full domain compromise extent; recovery duration; business cost | Password resets and host cleaning only | Password resets do not invalidate forged tickets, so the krbtgt reset was judged necessary. Exact timing is deferred to the recovery team. |
+
+No production action was executed by this analyst. These are documented containment, eradication, and recovery positions for the frozen lab.
