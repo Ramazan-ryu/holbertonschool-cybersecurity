@@ -1,0 +1,17 @@
+{
+  "text": "Hello and a warm welcome!",
+  "model": "gemini-3.6-flash",
+  "tokens_consumed": {
+    "prompt": 7,
+    "output": 6,
+    "total": 13
+  },
+  "finish_reason": "STOP",
+  "temperature": 0.7,
+  "request_structure": [
+    {
+      "role": "user",
+      "chars": 24
+    }
+  ]
+}
