@@ -1,31 +1,42 @@
 Task 0 — successful request through the school proxy
 
+PROOF OF SUCCESSFUL CALL
+
 Request:
 POST http://localhost:8080/v1/generate
-x-goog-api-key: loaded from the GEMINI_API_KEY environment variable at runtime (value omitted)
+Header: x-goog-api-key — value loaded from the GEMINI_API_KEY environment variable at runtime (value not recorded here)
 JSON body:
 {"student_id":"student","mode":"probe","temperature":0.7,"max_output_tokens":200,"contents":[{"role":"user","parts":[{"text":"Say hello in five words."}]}]}
 
-HTTP 200; the client exits on any non-200 response. The proxy returned this completed response:
+Result: HTTP 200. The client exits on any non-200 response.
+Response:
 {
   "text": "Hello, it is nice meeting.",
   "model": "gemini-3.1-flash-lite",
-  "tokens_consumed": {
-    "prompt": 7,
-    "output": 7,
-    "total": 14
-  },
+  "tokens_consumed": {"prompt": 7, "output": 7, "total": 14},
   "finish_reason": "STOP",
   "temperature": 0.7,
-  "request_structure": [
-    {
-      "role": "user",
-      "chars": 24
-    }
-  ]
+  "request_structure": [{"role": "user", "chars": 24}]
 }
 
-Roles visible in the request structure, one per line:
-user — set by my client in `contents`; my client controls this role and its message text.
+REQUEST STRUCTURE
 
-This probe request contains one client-authored user message. It does not show a separate system or model role. The model's generated response is output, not a request role set by my client. The API key is read from the runtime environment and is not recorded here.
+The request is not one prompt string. It is a JSON object whose fields are set separately. The conversational content lives in `contents`, an array of turn objects. Each turn carries its own `role` and a list of `parts`, so every message is attributed to a role before it reaches the model.
+
+Roles, one per line, with whether my client sets them:
+
+user — SET BY MY CLIENT. It is the role on the single entry in `contents`. My client chooses both the role and its text ("Say hello in five words."). The proxy's request_structure entry (role user, 24 characters) matches that text length, which is consistent with what I sent.
+
+model — NOT SET BY MY CLIENT in this request, and not present in the request. The reply "Hello, it is nice meeting." is output returned in `text`. It is generated content, not a request turn. If I later replay earlier turns in `contents` with role model, my client would be setting that role, and I would need to say so then.
+
+system — NOT PRESENT, NOT SET BY MY CLIENT. The body has no system instruction field. I cannot see from the client side whether the proxy adds instructions of its own. The response reports only one request entry (role user), so I have no evidence of any proxy-added role, and I make no claim about control over any hidden platform instructions.
+
+CLIENT-SET FIELDS (other than roles)
+- student_id: "student"
+- mode: "probe"
+- temperature: 0.7 (echoed back in the response)
+- max_output_tokens: 200
+- contents: the single user turn above
+
+CREDENTIAL HANDLING
+The API key is read from the GEMINI_API_KEY environment variable at runtime. It is sent only in the x-goog-api-key header and is not written to this file or to the repository.
