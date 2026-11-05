@@ -1,1 +1,1 @@
-FLAG_DIRECT: FLAG{b6eaf33efd5f6d581b65cef2e38258cc}
+FLAG{b6eaf33efd5f6d581b65cef2e38258cc}
