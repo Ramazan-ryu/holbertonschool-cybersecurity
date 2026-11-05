@@ -1,0 +1,11 @@
+Task 1 — probe observations
+
+Q1. With the prompt “Name a colour and a fruit.”, temperature 0.7, and 10 calls, the probe observed 2 distinct responses.
+
+Q2. With the same prompt, temperature 2.0, and 10 calls, it observed 3 distinct responses. In this small sample, the higher temperature produced more variation; it did not make the result deterministic or guarantee a particular answer.
+
+Q3. The prompt contains 26 characters and the proxy reported 8 prompt tokens. Characters and tokens are different units; the model input is tokenized, so character count does not directly give token count.
+
+Q4. Asked “What is my favourite number?” without supplied history, the model said it did not know. When prior conversation was included in the request history, it answered “Your favourite number is 47.” The response changed because that earlier exchange was present in the input, not because the model had persistent personal memory.
+
+Observed request structure: the direct client request contains a structured `contents` array with a `user` role and message parts. The client sets that role and text. The response reports the input/output token counts and finish reason separately from the request messages.
