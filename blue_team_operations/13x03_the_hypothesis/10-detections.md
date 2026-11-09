@@ -136,6 +136,17 @@ Until collection exists, an empty result for staging means the sensor could not 
 
 No indexer endpoint or fleet event export was available when this section was prepared. It must be run by someone with access to the Nimbus Wazuh/OpenSearch dashboard. Until it is, this section reports no results, and no counts, hosts or classifications should be read into it.
 
+### Prior hunt result (reference only; not a test of rule v2)
+
+The Kestrel hypothesis hunt ran over the same window and population with a different filter. Its results are recorded here as context for the test, not as its result.
+
+- **Filter used by the hunt:** Run-key writes filtered for value name `Tavistock9`, an unsigned PowerShell-backed writer, and a user-writable AppData/Roaming target. The hunt's filter is not the same as rule v2: it adds a value-name condition, which v2 deliberately does not use, and an "unsigned" condition, which Sysmon Event ID 13 cannot evaluate.
+- **Hosts returned by the hunt:** NIM-ENG-031, NIM-ENG-057 and NIM-ENG-066, each with the same value name and mechanism. Payload names differed (sedgwyn.exe, gullivane.exe, pellmoor.exe).
+- **Incidental finding:** the scheduled task `MediaConvUpdate` on NIM-SAL-054 and NIM-SAL-063 is a commodity cryptominer. It uses scheduled-task persistence rather than a Run-key write, and the hunt did not classify it as campaign activity.
+- **Not reported by the hunt:** the count of ordinary Run-key writes in the window, and any review of benign Run-key events. Those are what Query B and the results form must supply.
+
+Whether rule v2 matches the three hosts is **not established** by the hunt. The hunt describes the writer as PowerShell-backed, which suggests Query A may match them, but that must be confirmed by running Query A and recording the result in the form below.
+
 ### Test parameters
 
 - Window: 2026-09-01T00:22:54.128Z to 2026-10-13T04:56:17.155Z (same as the hunt).
