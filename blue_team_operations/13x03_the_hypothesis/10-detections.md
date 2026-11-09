@@ -1,15 +1,15 @@
 # 10 Close the Gaps: durable coverage for T1547.001 and the staging blind spot
 
-Status summary
+## Status
 
 | Part | Status |
 |---|---|
 | 1. Detection for confirmed persistence (rule 100310) | Written. **Not tested. Not deployable.** |
 | 1.2 Candidate rule 100311 | Written. Not tested. Not deployable. |
 | 2. Remedy for the staging blind spot | Written: data-source recommendation (Sysmon Event ID 11). No rule yet. |
-| 3. Test against ordinary fleet activity | **NOT RUN.** The environment used to write this file had no access to the Wazuh/OpenSearch indexer and no fleet event data. No results are reported below. |
+| 3. Test against ordinary fleet activity | **INCOMPLETE. The test has not been run. No results are reported.** |
 
-Nothing in this file should be read as a test result. Until section 3 is filled from a real run, rule 100310 must not be enabled as a live alert.
+This submission does not yet contain a test result. Section 3 gives the procedure and an empty results form. It must be completed from a real run before rule 100310 can be treated as tested. Until then, rule 100310 must not be enabled as a live alert.
 
 ---
 
@@ -40,7 +40,7 @@ The rule is keyed on that behaviour, not on the host, the hash, or the Tavistock
 
 ### Known weakness
 
-`rundll32` and `regsvr32` are used by some legitimate installers and are the most likely source of false positives until the allowlist exists. If section 3 shows noise from them, drop them first and keep the three conditions.
+`rundll32` and `regsvr32` are used by some legitimate installers and are the most likely source of false positives until the allowlist exists. If section 3 shows noise from them, drop them first and keep the three conditions. Record that change as a new rule version.
 
 ### What this rule deliberately does not cover
 
@@ -76,7 +76,7 @@ Without an allowlist of known per-user installers, this condition will match man
 
 **Reason:** local staging and archive creation cannot be observed with the current collection. Without file-creation telemetry no rule can match the operation. A rule written now would only match what the sensor happens to see, which for staging is nothing.
 
-**Evidence for the gap (as reported in the source hunt notes; not re-verified here):** queries for `data.win.system.eventID:11`, `:4663`, and `:(4656 OR 4660)` returned zero documents across the Nimbus fleet for the available time range. A zero only shows a gap if the field name works, so the control query from section 3 must be run first to confirm it.
+**Evidence for the gap (from the source hunt notes; not re-verified in this file):** queries for `data.win.system.eventID:11`, `:4663`, and `:(4656 OR 4660)` returned zero documents across the Nimbus fleet for the available time range. A zero only shows a gap if the field name works, so the control query in section 3 must be run first to confirm it.
 
 ### What to enable
 
@@ -106,7 +106,7 @@ Archive creation or repeated writes into a staging directory, correlated with th
 Not yet written or tested. Write and test it only after at least two weeks of Event ID 11 data are confirmed as collected. Outline:
 - Match Sysmon Event ID 11 where the target is an archive extension in a staging path.
 - Use a frequency condition: several such writes from one process within a short window.
-- Test against the baseline before deployment, using the section 3 reporting table.
+- Test against the baseline before deployment, using the section 3 reporting form.
 
 Until collection exists, an empty result for staging means the sensor could not see the operation. It does not mean staging did not happen. Nimbus cannot determine from current data whether the actor staged or archived data. The result is **unanswered, not clean.**
 
@@ -114,19 +114,24 @@ Until collection exists, an empty result for staging means the sensor could not 
 
 ## 3. Test against ordinary fleet activity
 
-**Status: NOT RUN.**
+**Status: INCOMPLETE. Not run.**
 
-Reason: no Wazuh/OpenSearch indexer was reachable from the environment in which this file was prepared (connection to the default indexer endpoint refused), and no exported fleet event data was supplied. No counts, hosts or classifications are reported here, because any would be invented.
+No indexer endpoint or fleet event export was available when this section was prepared. It must be run by someone with access to the Nimbus Wazuh/OpenSearch dashboard. Until it is, this section reports no results, and no counts, hosts or classifications should be read into it.
 
-### Required test parameters
+### Test parameters
 
 - Window: 2026-09-01T00:22:54.128Z to 2026-10-13T04:56:17.155Z (same as the hunt).
 - Population: all 340 Windows endpoints in the Nimbus estate; all Sysmon Event ID 13 events in the window.
-- Run rule 100310 with all three conditions, unmodified. If the rule is changed (for example, dropping `rundll32`/`regsvr32` after noise), record the initial and final versions separately and report the final version's result.
+- Rule under test: rule 100310, all three conditions, unmodified. If the rule is changed during testing (for example, dropping `rundll32`/`regsvr32` after noise), record the initial version and the final version separately, and report the result for the final version.
 
-### Control check (run first)
+### Procedure
 
-Run `data.win.system.eventID:13` over the window. If it returns zero, fix the field names before reading any other result. A zero from a broken query is not a zero from the fleet.
+1. **Control check first.** Run `data.win.system.eventID:13` over the window. If it returns zero, fix the field names before reading any other result. A zero from a broken query is not a zero from the fleet.
+2. Run Query A (full rule) and Query B (all Run-key writes) over the window.
+3. For each Query B hit not returned by Query A, record the image path and value written, and classify it as legitimate (with reason) or unresolved.
+4. Run Query C for the three named hosts and state each host explicitly as matched or not matched by Query A.
+5. Run the precision check (below).
+6. Complete the results form.
 
 ### Queries (copy as raw text; adjust escaping for your indexer if needed)
 
@@ -150,21 +155,28 @@ Query D, broader discovery for comparison only (not the rule):
 data.win.system.eventID:13 AND data.win.eventdata.targetObject:*CurrentVersion\\Run* AND (data.win.eventdata.details:*\\AppData\\* OR data.win.eventdata.details:*\\Users\\Public\\* OR data.win.eventdata.details:*\\Temp\\*)
 ```
 
-### Checks to perform after running A and B
+### Precision check
 
-- **Precision check:** the NIM-SAL-054 / NIM-SAL-063 cryptominer (scheduled task `MediaConvUpdate`, not a Run-key write) is expected not to match Query A. If it does, the rule is too broad and that must be recorded in the table.
-- For each Query B hit not returned by Query A: record the image path and value written, and classify as legitimate (with reason) or unresolved.
-- Hosts NIM-ENG-031, NIM-ENG-057 and NIM-ENG-066 must each be stated explicitly as matched or not matched by Query A. Query D results are candidates only and do not count as matches.
+The NIM-SAL-054 / NIM-SAL-063 cryptominer (scheduled task `MediaConvUpdate`, not a Run-key write) is expected not to match Query A. If it does, the rule is too broad, and that must be recorded in the form below and the rule revised.
 
-### Results table (to be filled from the run)
+### Results form (to be completed from the run)
+
+Final rule version tested: _to be entered_
+Test run by: _to be entered_
+Date and time of run: _to be entered_
 
 | Class | Count | Hosts | Notes |
 |---|---|---|---|
-| Matched, classified suspicious | _not run_ | _not run_ | _not run_ |
-| Matched, classified legitimate (with reason) | _not run_ | _not run_ | _not run_ |
-| Matched, unresolved | _not run_ | _not run_ | _not run_ |
-| Not matched | _not run_ | _not run_ | _not run_ |
+| Matched, classified suspicious | | | |
+| Matched, classified legitimate (with reason) | | | |
+| Matched, unresolved | | | |
+| Not matched | | | |
 
-Host dispositions: NIM-ENG-031 _not run_; NIM-ENG-057 _not run_; NIM-ENG-066 _not run_.
+Host dispositions by Query A:
+- NIM-ENG-031: _to be entered (matched / not matched)_
+- NIM-ENG-057: _to be entered (matched / not matched)_
+- NIM-ENG-066: _to be entered (matched / not matched)_
 
-Until this table is filled from a real run, rule 100310 must not be deployed as a live alert. A rule that fires on normal operations gets turned off.
+Query D results are candidates only and do not count as matches of the final rule.
+
+Until this form is completed from a real run, rule 100310 must not be deployed as a live alert. A rule that fires on normal operations gets turned off.
