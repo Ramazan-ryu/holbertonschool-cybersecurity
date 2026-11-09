@@ -130,6 +130,20 @@ Until collection exists, an empty result for staging means the sensor could not 
 
 ---
 
+## Findings carried from the hunt (for handoff)
+
+These are observations from the Kestrel hypothesis hunt, not results of rule 100310 v2. They are recorded so the detection work can be traced to them.
+
+- **FLAG_FOOTHOLD:** NIM-ENG-031, NIM-ENG-057, NIM-ENG-066
+- **FLAG_PERSIST:** `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Tavistock9`
+- **Mechanism (Sysmon Event ID 13):** an unsigned `powershell.exe` created the Tavistock9 value under the HKCU Run key. Each value launches a payload from a user-writable AppData\Roaming path: `sedgwyn.exe` on NIM-ENG-031, `gullivane.exe` on NIM-ENG-057, and `pellmoor.exe` on NIM-ENG-066.
+- **FLAG_ATTRIB:** Tavistock9 is the exact Run-value name carried across the prior actor cases. The hunt uses it to link the three engineering hosts to the tracked campaign. Rule 100310 does not use it: the rule stays keyed on behaviour, so it would still fire on a different value name.
+- **Stage assessment:** the actor has established foothold and Run-key persistence on the three engineering endpoints. The evidence supports persistence and related beaconing only. It does not establish lateral movement or data staging.
+
+What this means for the test in section 3:
+- The writer in these findings is `powershell.exe`, which is in rule v2's writer list. Query A is therefore expected to match the three hosts, but this is an expectation from the hunt, not a result. It must be confirmed by running Query A.
+- The "unsigned" property in the hunt cannot be checked by rule v2, because Sysmon Event ID 13 does not record the writer's signature. This is the signer-context gap stated in section 1.
+
 ## 3. Test against ordinary fleet activity
 
 **Status: INCOMPLETE. Not run.**
