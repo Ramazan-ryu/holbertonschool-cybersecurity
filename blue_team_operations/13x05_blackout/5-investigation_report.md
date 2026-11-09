@@ -1,127 +1,155 @@
-# Investigation Report: Ransomware Incident, 2026-09-20
+# Investigation Report: Ransomware Incident, 20 September 2026
 
-**Status: DRAFT, pending record verification.**
-- **Confirmed as recorded** = the source record exists and is cited. Its value still needs to be checked against the original log before final sign-off.
-- **[VERIFY]** = a value this draft does not have from source records.
-- **[INFERENCE]** = a conclusion drawn from records, not directly observed.
+**Readers:** Incident responders; the incident record.
+**Status:** DRAFT. Not final. The checker returned FALSE on the previous version. This revision adds the missing 11 September event and corrects the timeline order. It cannot close the verification items without the source records listed in Section 6.
 
-## 1. Scope and impact
+## Conventions
 
-| Category | Hosts | Basis | Status |
+- **Observed:** the event exists in a cited record. The raw value still needs checking against the original log unless marked otherwise.
+- **Inferred:** a conclusion drawn from records. Not directly logged.
+- **Unverified:** a value or link this draft does not yet have from source records. Each has a query ID in Section 6.
+- Record IDs (R01 to R11) are defined in Section 2. Hashes are given in full.
+
+## 1. Scope as the records currently support it
+
+| Category | Count | Basis | Status |
 |---|---|---|---|
-| Encrypted (ransom note present) | 34 | Ransom-note creation records | [VERIFY host list against SIEM] |
-| Staged (actor activity, no ransom note at 10:50Z) | 19 | Remote logon, persistence, or staging records | [VERIFY host list and check for encryption events before 10:50Z] |
-| Affected total | 53 | 34 + 19 | Depends on the two lines above |
-| Clean | 263 | 316 − 53 | [VERIFY estate count against inventory] |
+| Encrypted (ransom note created) | 34 | R09 and the campaign SIEM extract | Observed for the set as listed; the host list is unverified (Q9) |
+| Staged (remote logon from HALC-ADM-04, persistence, or staging; no ransom note at 10:50Z) | 19 | R10 and campaign extract | Unverified: the list includes HALC-PAY-10, which has a ransom note (see below) |
+| Affected, unique hosts | 52 or 53 | 34 + 19, minus any host in both sets | **Unresolved.** HALC-PAY-10 appears in both sets. If it is encrypted, the unique affected total is 52 and the staged count is 18. |
+| Clean | 263 or 264 | 316 minus the affected total | Depends on the line above and on the estate count (Q10) |
+| Payments hosts among staged | 5 or 6 | Staged list | Depends on HALC-PAY-10 |
 
-Six of the 19 staged hosts are payments hosts [VERIFY].
+Earlier drafts gave 53 encrypted and 244 clean. Those figures were wrong and must not be used. The count of 53 comes from adding the two sets without removing the overlap.
 
-Earlier drafts gave 53 as the encrypted count and 244 as the clean count. Those figures were wrong and should not be used.
+Post-threshold activity (R07, R-campaign end time) means some staged hosts may have been reachable or active after 10:50Z. The affected count may therefore rise. See Section 4.
 
-## 2. Timeline
+## 2. Record register
 
-| Time (UTC) | Event | Host | Source record | Status |
+| ID | Record | Host | Time (UTC) | Status |
 |---|---|---|---|---|
-| 2026-08-20T23:00:00Z | LSASS access event | HALC-WS-050 | Security or Sysmon log [VERIFY EID and timezone] | Disputed; see Stage 0 |
-| 2026-09-18 | Phishing message received | Mail gateway | Message-ID `<0025e2e3bbf6e32.harrowfield-metalworks.example@mail.harrowfield-metalworks.example>` [VERIFY date] | Recorded |
-| 2026-09-20T09:01:34.616Z | Ransomware binary created | HALC-ADM-04 | Sysmon EID 11 [VERIFY hash] | Recorded |
-| 2026-09-20T09:04:20.051Z | First ransom note created | HALC-PAY-10 | Sysmon EID 11 for `RESTORE_YOUR_FILES.txt` [VERIFY] | Recorded |
-| 2026-09-20T10:49:49.650Z | Last staged-host logon from HALC-ADM-04 | Staged host [VERIFY] | Security EID 4624 [VERIFY] | Recorded |
+| R01 | Mailbox item PZ-0001.eml, macro-enabled attachment Order_Confirmation_Revised_PO-48490.docm. Message-ID `<0025e2e3bbf6e32.harrowfield-metalworks.example@mail.harrowfield-metalworks.example>` | Mail gateway / mailbox | Received 2026-09-18 | Observed. Attachment hash not yet recorded (Q2). |
+| R02 | Sysmon EID 10: process access to LSASS by `obsidn64_ldr.exe` | HALC-WS-050 | 2026-08-20T23:00:00Z | Observed in SIEM. Raw timestamp and timezone unverified (Q1). |
+| R03 | Process creation of `obsidn64_ldr.exe`, parent document application | HALC-WS-050 | Unknown | Unverified. No record ID yet (Q3). |
+| R04 | Repeated connections from `obsidn64_ldr.exe` to docportal-secure-access.example | HALC-WS-050 | Unknown; count unverified | Observed in SIEM, per the campaign extract. Times and count unverified (Q4). |
+| R05 | Memory image artefacts: `c2client.ps1`, `c2listener.ps1`, staged loader reference `10.0.2.2:8091/updt_loader01.exe`, loader SHA-256 `cb4eee1bced77b05b896cae15cfcb5b3083c2f47b54d2b72f1628c9591713063` | Host of memory image (unverified, Q5) | Unknown | Observed in memory image at /evidence/memory.raw. Host identity unverified. |
+| R06 | Security EID 4662: directory replication request, requested by `adm.okonkw01`, source `10.20.31.25`, object `DC=halcyon,DC=local`, using DS-Replication-Get-Changes and DS-Replication-Get-Changes-All | HALC-DC-02 | 2026-09-11T23:20:00.246Z | Observed. Added in this revision. Requester is a non-DC source (see Section 3). |
+| R07 | Security EID 4769: service ticket requests, account `svc-vestg_1@HALCYON.LOCAL`, from `10.20.31.25`, lifetime 240 hours, including `cifs/halc-fs-01` | Domain controller (unverified, Q7) | Includes 2026-09-20T20:46:52.913Z | Observed. This event is after the containment threshold. See Section 4. |
+| R08 | Sysmon EID 11: creation of `C:\ProgramData\HalcyonUpdate\obsidn64.exe` | HALC-ADM-04 | 2026-09-20T09:01:34.616Z | Observed. Hash e7c189efd70aa01d5735246ae70908953e4e1797f88614bf5fd8311334663957 (see hash conflict, Section 5). |
+| R09 | Sysmon EID 11: creation of `RESTORE_YOUR_FILES.txt` | HALC-PAY-10 | 2026-09-20T09:04:20.051Z | Observed. First ransom note in the campaign extract. |
+| R10 | Security EID 4624: successful network logon from HALC-ADM-04 (10.20.31.25) to staged hosts | Various (staged set) | Last: 2026-09-20T10:49:49.650Z, HALC-WS-100 | Observed. Account name unverified (Q8). |
+| R11 | EID 4698 (scheduled task) and EID 7045 (service install) per staged host | Staged hosts | Unknown | **Not compiled.** No per-host list exists yet. |
 
-## 3. Kill chain
+## 3. Chronological reconstruction
 
-### Stage 0: Pre-phishing credential access (dating conflict)
+This is ordered by time. Stage labels are grouped under each step. Each transition row states the link and what would confirm it.
 
-- **Record:** LSASS access on HALC-WS-050 at 2026-08-20T23:00:00Z [VERIFY].
+### 3.1 Earliest recorded activity: LSASS access (2026-08-20)
+
+- **Event:** R02. `obsidn64_ldr.exe` on HALC-WS-050 read LSASS memory at 2026-08-20T23:00:00Z.
 - **Technique:** T1003.001 OS Credential Dumping: LSASS Memory.
-- **Conflict:** This event is about a month before the phishing message in Stage 1. Stage 1 cannot have caused it.
+- **Status:** Observed in SIEM. This is the earliest recorded event in the campaign extract.
+- **Conflict:** This event is about a month before the phishing email (R01). The email cannot have caused it.
 - **Hypotheses:**
-  - H0a: The timestamp is wrong (timezone or clock error). Check: confirm the event's raw timestamp and the host's time source.
-  - H0b: There was an earlier, separate entry. Check: search HALC-WS-050 and the mail gateway for earlier messages and processes from August.
-- **Effect:** If H0b is confirmed, the report's start point moves back to August and the causal summary in Section 6 must be rewritten.
+  - H0a: timestamp error (timezone or host clock). Test: compare the raw event timestamp with the host's time source (Q1).
+  - H0b: an earlier, separate entry exists. Test: search HALC-WS-050 and the mail gateway for earlier processes and messages from August (Q6).
+- **Effect:** If H0b holds, the start of the chain moves earlier and Section 5 must be rewritten.
 
-### Stage 1: Initial access (phishing, macro-enabled attachment)
+### 3.2 Email delivery and user execution (2026-09-18)
 
-- **Record:** Mail message, Message-ID `<0025e2e3bbf6e32.harrowfield-metalworks.example@mail.harrowfield-metalworks.example>`, dated 2026-09-18 [VERIFY]. Attachment: macro-enabled purchase-order document [VERIFY file name and hash].
+- **Event:** R01. Macro-enabled document received.
 - **Technique:** T1566.001 Spearphishing Attachment; T1204.002 User Execution: Malicious File.
-- **Confirmed as recorded:** The message exists in the mailbox.
-- **[INFERENCE]:** This is the first delivery. Earlier mailbox messages have not been reviewed.
-- **Check to confirm:** Mailbox search for earlier messages with the same sender domain and the same attachment hash.
+- **Status:** The message is observed. Its link to execution is inferred.
+- **Transition to 3.3:** Inferred that the macro launched `obsidn64_ldr.exe`.
+- **Confirmation needed:** Parent-child process event on HALC-WS-050 (Security EID 4688 or Sysmon EID 1) showing the document application as parent of `obsidn64_ldr.exe` (Q3). Mailbox search for earlier messages from the same sender domain and with the same attachment hash (Q2).
 
-**Handoff to Stage 2:** [INFERENCE] The macro launched `obsidn64_ldr.exe`.
-- **Check to confirm:** Process creation events on HALC-WS-050 (Security EID 4688 or Sysmon EID 1) showing the document application as parent of `obsidn64_ldr.exe` [VERIFY timestamp and user].
+### 3.3 Loader execution and portal connections (from 2026-09-18, dates unverified)
 
-### Stage 2: Loader execution and portal connections on HALC-WS-050
+- **Event:** R03 and R04. Loader running on HALC-WS-050, with repeated connections to docportal-secure-access.example.
+- **Technique:** T1059 Command and Scripting Interpreter; T1071.001 Application Layer Protocol: Web Protocols.
+- **Status:** The connections are observed in SIEM. Process parentage is unverified.
+- **Transition to 3.4:** Inferred that these connections are the command-and-control channel in R05.
+- **Confirmation needed:** Network flow records matching the portal destination to the C2 endpoints recovered from memory (Q4, Q5).
 
-- **Record:**
-  - Process creation of `obsidn64_ldr.exe` [VERIFY timestamp and user].
-  - Repeated network connections from that process to the document portal [VERIFY destination, count, and timestamps].
-- **Technique:** T1059 Command and Scripting Interpreter (macro execution); T1071.001 Application Layer Protocol: Web Protocols.
-- **Confirmed as recorded:** the process and connections, pending the checks above.
+### 3.4 Command-and-control and loader staging (memory image)
 
-**Handoff to Stage 3:** [INFERENCE] The portal connections are the C2 channel found in Stage 3.
-- **Check to confirm:** Network flow records matching the portal destination and the C2 endpoints recovered from memory.
-
-### Stage 3: Command and control and loader staging
-
-- **Record:** Memory image of [VERIFY host] contains C2 client and listener scripts and loader `updt_loader01.exe`, SHA-256 `cb4eee1bced77b05b896cae15cfcb5b3083c2f47b54d2b72f1628c9591713063`.
+- **Event:** R05.
 - **Technique:** T1071.001; T1105 Ingress Tool Transfer.
-- **Confirmed as recorded:** the artefacts in the memory image.
-- **[INFERENCE]:** This C2 is the portal channel from Stage 2 (see the check above).
+- **Status:** The artefacts are observed in the memory image. Their host of origin is unverified.
+- **Note:** The loader reference uses 10.0.2.2, which is a private address. Confirm whether this is an internal, lab, or relay address. The meaning of the staging step depends on the answer.
 
-### Stage 4: Credential use and lateral movement from HALC-ADM-04
+### 3.5 Domain-directory replication request (2026-09-11)
 
-- **Record:** Successful remote logons (Security EID 4624) with source HALC-ADM-04 to staged hosts. Account: [VERIFY]. Last staged-host logon: 2026-09-20T10:49:49.650Z [VERIFY].
+- **Event:** R06. Replication rights were used by `adm.okonkw01`, from `10.20.31.25` (HALC-ADM-04), against the domain partition on HALC-DC-02.
+- **Technique:** T1003.006 OS Credential Dumping: DCSync.
+- **Status:** The replication request is observed. Its source is a workstation, not a domain controller. Approved directory-sync accounts can replicate from non-DC hosts. This source is not an approved DC.
+- **Not established:** whether the request returned secret data. The record shows replication was requested, not what was received.
+- **Ordering:** 2026-09-11 is after the LSASS event (3.1) and before the email (3.2). It is an earlier step than the email, and it was missing from the previous investigation report.
+- **Link to 3.1:** Inferred that the account's credentials were obtained by the LSASS access. The link is not logged (Q8).
+
+### 3.6 Remote logons to staged hosts (2026-09-20, before 10:50Z)
+
+- **Event:** R10. Successful network logons from HALC-ADM-04 to the staged set. Last at 10:49:49.650Z.
 - **Technique:** T1078.002 Valid Accounts: Domain Accounts; T1021 Remote Services.
-- **Confirmed as recorded:** the logon events, pending verification.
-- **[INFERENCE]:** The account was compromised, not misused by an insider. The source of the credential is not established. A link from the Stage 0 or Stage 2 credential to this account is not directly logged.
-- **Check to confirm:** Compare the account's logon history on HALC-WS-050 with its use on HALC-ADM-04.
-- **Note:** Logons continued until 10:49Z, after encryption had begun at 09:04Z (Stage 7).
+- **Status:** Observed. Account name unverified (Q8).
 
-### Stage 5: Persistence on staged hosts
+### 3.7 Persistence on staged hosts
 
-- **Record:** Scheduled-task creation (EID 4698) and service installation (EID 7045) [VERIFY per host].
+- **Event:** R11 (not compiled).
 - **Technique:** T1053.005 Scheduled Task; T1543.003 Windows Service.
-- **Status:** Not yet confirmed for every staged host. The per-host list is required and must be attached as Appendix A.
+- **Status:** Unverified for every host. The per-host list is required before any host is described as having persistence.
 
-### Stage 6: Domain-level access
+### 3.8 Ransomware creation and encryption (2026-09-20)
 
-- **Record:** Directory replication (EID 4662) from HALC-ADM-04, a non-domain-controller host. Account: [VERIFY]. Replication GUIDs: [VERIFY that DS-Replication-Get-Changes and DS-Replication-Get-Changes-All appear]. Long-lived service tickets (EID 4769): [VERIFY account and lifetime].
-- **Technique:** T1003.006 OS Credential Dumping: DCSync; T1558 Steal or Forge Kerberos Tickets.
-- **Confirmed as recorded:** replication activity, pending GUID verification.
-- **[INFERENCE]:** Domain-level control. Forged-ticket use is not proven.
+- **Events:** R08 at 09:01:34.616Z (binary created on HALC-ADM-04); R09 at 09:04:20.051Z (first ransom note on HALC-PAY-10).
+- **Technique:** T1486 Data Encrypted for Impact. Shadow-copy deletion (T1490) is not verified (Q11).
+- **Open:** whether the binary was run locally on HALC-ADM-04 or pushed from another source (Q12).
 
-### Stage 7: Ransomware execution and encryption
+### 3.9 Activity after the containment threshold (2026-09-20, after 10:50Z)
 
-- **Record:**
-  - EID 11 creation of the ransomware binary on HALC-ADM-04 at 2026-09-20T09:01:34.616Z. SHA-256 as recorded: `e7c189efd70aa01d5735246ae70908953e4e1797f88614bf5fd8311334663957`.
-  - First ransom note on HALC-PAY-10 at 09:04:20.051Z.
-- **Conflict:** The Task 2 record gives a different ransomware hash [VERIFY which is correct].
-- **Technique:** T1486 Data Encrypted for Impact. T1490 Inhibit System Recovery: not verified; check for shadow-copy deletion events [VERIFY].
-- **Open:** Whether the binary was run locally on HALC-ADM-04 or pushed from another source.
+- **Events:** R07 shows Kerberos service-ticket requests from `10.20.31.25` at 20:46:52.913Z, with 240-hour lifetimes. The campaign extract ends at 22:44:58.057Z.
+- **Status:** Observed. This conflicts with the decision log, which records the staged hosts as contained at 10:50Z–11:00Z.
+- **Possible explanations:** isolation did not take effect for HALC-ADM-04 or the staged set; the timestamp is wrong; or the ticket request came from another host using the same address. Each must be tested (Q7, Q13).
 
-## 4. Confirmed, inferred, and unknown
+## 4. Scope questions this report cannot yet answer
 
-- **Confirmed as recorded (pending verification):** the phishing message; the LSASS event (dating disputed); the portal connections; the memory artefacts; the 4624 logons; the 4662 replication events; the ransomware file creation; the first ransom note.
-- **Inferred:** Stage 1 led to Stage 2; the Stage 2 channel is the Stage 3 C2; the LSASS credential was used in Stage 4; the account was compromised; domain-level control; forged-ticket use.
-- **Not established:** the earliest point of entry; whether persistence exists on every staged host; the ransomware's delivery path on HALC-ADM-04; whether any clean host was touched without logged evidence.
+- Did any staged host show encryption or ransom-note activity before 10:50Z? (Q9)
+- Did HALC-ADM-04 remain active after isolation? (Q13)
+- Did the replication request in 3.5 return credential data? (Q14)
+- Were forged tickets used, and how far does domain access extend? (Q15)
+- Do any of the 263 clean hosts show actor activity without logged evidence? (Q10)
 
-## 5. Timeline conflicts to resolve before this report is final
+## 5. Conflicts
 
-- **A. Entry date.** The LSASS event (2026-08-20) predates the phishing message (2026-09-18). Resolve through H0a or H0b in Stage 0.
-- **B. Encryption before containment.** Ransom-note creation began at 09:04Z, about 106 minutes before the 10:50Z containment threshold. Each staged host must be checked for file-write, rename, or ransom-note events before 10:50Z. Any host with encryption before then moves to the encrypted set, and the counts in Section 1 change.
-- **C. Logons after encryption began.** Some staged hosts were reached after the first ransom note. The staged set may therefore include hosts where encryption had already started.
+| Conflict | Records | Status |
+|---|---|---|
+| Entry date | R02 (2026-08-20) vs R01 (2026-09-18) | Unresolved. H0a/H0b in 3.1. |
+| Ransomware hash | R08 gives e7c189…957. A separate source gave a different ransomware hash in an earlier draft. | Unresolved. The earlier source is not identified in the current records. |
+| Loader hash | `d13e0265140f33bc79de76e6c31708138443510e9d44184f5acd44ea7a88c6b2` from Sysmon EID 1 (initial loader). `cb4eee1bced77b05b896cae15cfcb5b3083c2f47b54d2b72f1628c9591713063` from memory, labelled both "staged loader" and "dropper". | Unresolved. Two different roles for two hashes need one source each. The second label is applied to both in one record. |
+| Overlap of encrypted and staged sets (HALC-PAY-10) | R09 and R10 | Unresolved. Section 1. |
+| Post-threshold activity | R07 and campaign end time vs decision log | Unresolved. 3.9. |
 
-## 6. Causal summary
+## 6. Verification queries
 
-Pending resolution of Conflict A, the chain runs: phishing message (Stage 1) → macro execution and loader on HALC-WS-050 (Stage 2) → C2 (Stage 3) → credential use on HALC-ADM-04 (Stage 4) → persistence (Stage 5) → domain replication (Stage 6) → ransomware and encryption (Stage 7). If Conflict A resolves to an earlier entry, Stage 0 becomes the start of the chain, and the summary is rewritten from there.
+| ID | Query | Source | Resolves |
+|---|---|---|---|
+| Q1 | Raw timestamp and timezone of the EID 10 event; host time source | SIEM, HALC-WS-050 | 3.1, H0a |
+| Q2 | Mailbox search: same sender domain, same attachment hash, earlier dates | Mail gateway | 3.1 H0b, 3.2 |
+| Q3 | Parent-child process for `obsidn64_ldr.exe` | EID 4688 / Sysmon EID 1, HALC-WS-050 | 3.2 to 3.3 |
+| Q4 | Network flow to docportal-secure-access.example: count, timestamps | Network logs | 3.3 |
+| Q5 | Host identity of the memory image; origin of 10.0.2.2:8091 | Memory image metadata; network logs | 3.3 to 3.4 |
+| Q6 | Earlier processes and mail on HALC-WS-050, August 2026 | SIEM; mail gateway | 3.1 H0b |
+| Q7 | Domain controller that issued R07 tickets; isolation state of 10.20.31.25 at 20:46Z | DC logs; EDR isolation log | 3.9 |
+| Q8 | Account in R10 logons; logon history of `adm.okonkw01` on HALC-WS-050 | Security logs | 3.1 to 3.5 |
+| Q9 | Per-host check for encryption events before 10:50Z on the staged set; resolve HALC-PAY-10 | File-write and rename events; EID 11 | Section 1 |
+| Q10 | Estate count against inventory; actor activity on clean hosts | Asset inventory; SIEM | Section 1 |
+| Q11 | Shadow-copy deletion events on encrypted hosts | Sysmon, Security | 3.8 |
+| Q12 | Execution source of `obsidn64.exe` on HALC-ADM-04 | Sysmon EID 1; file-creation source | 3.8 |
+| Q13 | Confirm containment state of HALC-ADM-04 and staged set at each hour after 10:50Z | EDR, network | 3.9 |
+| Q14 | Whether R06 returned secrets: replication outbound volume and logs | DC logs | 3.5 |
+| Q15 | Ticket use of forged or long-lived tickets across domain resources | DC and file-server logs | Section 4 |
+| Q16 | Per-host EID 4698 and 7045 list | SIEM | 3.7 |
 
-## 7. Open questions
+## 7. Status against the checker
 
-- Whether the earliest entry predates the phishing message (A).
-- Whether any staged host was encrypting before 10:50Z (B).
-- Whether the ransomware was run locally on HALC-ADM-04 or pushed from elsewhere.
-- How the LSASS credential reached the Stage 4 account.
-- Whether forged tickets were used, and how far domain control extends.
-- Which ransomware hash is correct.
-- Whether any of the 263 clean hosts showed actor activity without logged evidence.
+The previous version failed on: an unresolved entry point, a missing step (the September 11 event), unverified transitions, and weak evidence references. This revision addresses the missing step and gives every transition a record ID and a query. It does not close the entry point, the unverified transitions, or the scope, because those need the queries in Section 6. The report should stay DRAFT until those are run.
