@@ -1,0 +1,15 @@
+Review notes based on the supplied live lab transcripts
+
+1. The primary retrieval mistake observed was treating similarity as authorization: vector relevance ranks chunks but does not decide who may see them.
+2. The confirmed sensitive chunk was kb-900. Query `escalation ref` returned it; after `segment_internal=true`, the same query no longer returned kb-900.
+3. Retest residual: kb-901 internal deal-desk notes remained retrievable, including under `deal desk sign-off exception request director`.
+4. A customer ticket was accepted as `user-75e89a9e766f`; scripted victim query 5 retrieved it at score 0.7582. The model call failed upstream with quota exhaustion and zero tokens, so no action or dynamic FLAG_INDIRECT was captured.
+5. `retrieval.provenance_check=true` was followed by a search for that ordinary question that omitted the planted ticket from the top four. This is a query-specific retest, not proof all ingestion sources and stored content are handled.
+6. Two quarterly-account-review tickets were accepted as `user-c83938f9cab3` and `user-b7f6e12a25e8`. A later search did not return either, but no clean fresh-session answer demonstrated persistence; FLAG_POISON remains unclaimed.
+7. `allow_user_ingest=false` caused the tested ticket endpoint to return HTTP 403. The transcript establishes that this blocks new ticket ingestion on that endpoint, not every ingestion path.
+8. `parameterized` and `human_approval` were enabled in earlier attempts, but no successful before/after exploit reached a tool. Their retests remain inconclusive.
+9. The refund attempt failed upstream with quota exhaustion and zero tokens; no BLOCKED_TARGET audit event or refund was captured.
+10. The three related untrusted-content failures are the ingestion attacks in Findings 1–2 and unauthorized retrieved internal content in Finding 3. A shared corpus has no implicit per-user authorization model.
+11. Strongest evidenced business risks are disclosure of the internal pricing floor and cross-session retrieval of user-submitted content. Highest potential severity is unauthorized refund/deletion, but its bound and exploitability remain unverified.
+
+The prompt did not include the actual quiz questions or expected answer format. Map these notes to the course quiz when its questions are available.

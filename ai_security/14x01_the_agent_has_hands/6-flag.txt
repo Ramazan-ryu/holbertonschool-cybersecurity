@@ -1,0 +1,7 @@
+FLAG_UNBOUNDED: NOT CAPTURED
+
+No runaway-generation or looping run is present in the supplied transcript. The configuration snapshot showed resource_caps.enabled=false and max_tokens_per_session=null, but this is exposure evidence, not a captured ceiling event. The single quota-failed request consumed 0 tokens according to the response and cannot establish token exhaustion or cost.
+
+RETEST: Not performed. The knob `resource_caps.enabled=true` with a bounded `max_tokens_per_session` must be enabled and the same workload repeated; capture `/metrics` before and after. Distinguish service/resource exhaustion from direct provider-token spend.
+
+Additional supplied live attempts: two long-response chat requests were sent with output redirected to `/dev/null`, so their response bodies and token usage were not captured. `/metrics` on the service returned `requests=0`, `prompt_tokens=0`, `output_tokens=0`, `tokens_used=0`, `cap=150000`, and `breached=false`; this snapshot does not show that the chat workload was processed. A separate request to port 8095 failed because nothing was listening there, and the attempt to start a local container could not run because `docker` was unavailable. Enabling a 500-token session cap was rejected by validation, which requires at least 1000; no cap change was applied by that request. Therefore there is still no successful cap retest, token-limit event, or `FLAG_UNBOUNDED` value.

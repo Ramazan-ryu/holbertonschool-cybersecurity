@@ -1,0 +1,7 @@
+Puppet-Strings surface map — observed from GET /config on the lab instance
+
+Profile: p1_agent_naive. Model calls use the local proxy (Gemini 3.8 Flash); the system prompt is server-side. Retrieval is enabled against Chroma with top_k=4. The exposed tools are order_lookup, issue_refund, delete_record, and db_query. The configuration snapshot showed raw_passthrough tool output, human_approval=false, per_tool_authz=false, and resource_caps.enabled=false. The policy reported a 14-day refund window.
+
+The same snapshot showed retrieval provenance_check=false, allow_user_ingest=true, and segment_internal=false. A later retest changed provenance_check=true, allow_user_ingest=false, segment_internal=true. These are observed configuration values, not proof that each control works for every path. The pasted transcript did not enumerate table/record limits, refund caps, deletion scope, approval/audit behavior, or token ceiling; those remain to be measured from the lab.
+
+Evidence source: user-provided terminal output of GET http://127.0.0.1:8091/config (the actual host/port was not consistent across pasted commands).
