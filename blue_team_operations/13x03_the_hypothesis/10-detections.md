@@ -213,10 +213,10 @@ Date and time of run: _to be entered_
 
 | Class | Count | Hosts | Notes |
 |---|---|---|---|
-| Matched, classified suspicious | Not run | NIM-ENG-031, NIM-ENG-057, NIM-ENG-066 (hunt observations; not Query A) | Expected from the hunt; to be confirmed by Query A. |
-| Matched, classified legitimate (with reason) | Not run | Not run | Not run. Requires Query A results. |
-| Matched, unresolved | Not run | Not run | Not run. Requires Query A results. |
-| Not matched | Not run | Not run | Not run. Requires Query A and Query B results. |
+| Matched, classified suspicious | 3 (hunt-reported; not Query A) | NIM-ENG-031, NIM-ENG-057, NIM-ENG-066 (hunt observations; not Query A) | Expected from the hunt; to be confirmed by Query A. |
+| Matched, classified legitimate (with reason) | Pending run | Pending run | Requires Query A results. |
+| Matched, unresolved | Pending run | Pending run | Requires Query A results. |
+| Not matched | Pending run | Pending run | Requires Query A and Query B results. |
 
 Host dispositions by Query A:
 - NIM-ENG-031: Query A result _to be entered (matched / not matched)_. Hunt observed the Tavistock9 Run-key write with `powershell.exe` (payload `sedgwyn.exe`). Not a Query A result.
