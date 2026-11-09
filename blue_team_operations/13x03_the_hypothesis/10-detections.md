@@ -4,12 +4,29 @@
 
 | Part | Status |
 |---|---|
+| Findings carried from the hunt | Recorded (see below). These are hunt observations, not test results. |
 | 1. Detection for confirmed persistence (rule 100310, final version v2) | Written. **Not tested. Not deployable.** |
 | 1.2 Candidate rule 100311 | Written. Not tested. Not deployable. |
 | 2. Remedy for the staging blind spot | Written: data-source recommendation (Sysmon Event ID 11). No rule yet. |
 | 3. Test against ordinary fleet activity | **INCOMPLETE. The test has not been run. No results are reported.** |
 
 This submission does not yet contain a test result. Section 3 gives the procedure and an empty results form. It must be completed from a real run before rule 100310 can be treated as tested. Until then, rule 100310 must not be enabled as a live alert.
+
+---
+
+## Findings carried from the hunt
+
+These are observations from the Kestrel hypothesis hunt, not results of rule 100310 v2. They are recorded so the detection work can be traced to them.
+
+- **FLAG_FOOTHOLD:** NIM-ENG-031, NIM-ENG-057, NIM-ENG-066
+- **FLAG_PERSIST:** `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Tavistock9`
+- **Mechanism (Sysmon Event ID 13):** an unsigned `powershell.exe` created the Tavistock9 value under the HKCU Run key. Each value launches a payload from a user-writable AppData\Roaming path: `sedgwyn.exe` on NIM-ENG-031, `gullivane.exe` on NIM-ENG-057, and `pellmoor.exe` on NIM-ENG-066.
+- **FLAG_ATTRIB:** Tavistock9 is the exact Run-value name carried across the prior actor cases. The hunt uses it to link the three engineering hosts to the tracked campaign. Rule 100310 does not use it: the rule stays keyed on behaviour, so it would still fire on a different value name.
+- **Stage assessment:** the actor has established foothold and Run-key persistence on the three engineering endpoints. The evidence supports persistence and related beaconing only. It does not establish lateral movement or data staging.
+
+What this means for the test in section 3:
+- The writer in these findings is `powershell.exe`, which is in rule v2's writer list. Query A is therefore expected to match the three hosts, but this is an expectation from the hunt, not a result. It must be confirmed by running Query A.
+- The "unsigned" property in the hunt cannot be checked by rule v2, because Sysmon Event ID 13 does not record the writer's signature. This is the signer-context gap stated in section 1.
 
 ---
 
@@ -130,20 +147,6 @@ Until collection exists, an empty result for staging means the sensor could not 
 
 ---
 
-## Findings carried from the hunt (for handoff)
-
-These are observations from the Kestrel hypothesis hunt, not results of rule 100310 v2. They are recorded so the detection work can be traced to them.
-
-- **FLAG_FOOTHOLD:** NIM-ENG-031, NIM-ENG-057, NIM-ENG-066
-- **FLAG_PERSIST:** `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Tavistock9`
-- **Mechanism (Sysmon Event ID 13):** an unsigned `powershell.exe` created the Tavistock9 value under the HKCU Run key. Each value launches a payload from a user-writable AppData\Roaming path: `sedgwyn.exe` on NIM-ENG-031, `gullivane.exe` on NIM-ENG-057, and `pellmoor.exe` on NIM-ENG-066.
-- **FLAG_ATTRIB:** Tavistock9 is the exact Run-value name carried across the prior actor cases. The hunt uses it to link the three engineering hosts to the tracked campaign. Rule 100310 does not use it: the rule stays keyed on behaviour, so it would still fire on a different value name.
-- **Stage assessment:** the actor has established foothold and Run-key persistence on the three engineering endpoints. The evidence supports persistence and related beaconing only. It does not establish lateral movement or data staging.
-
-What this means for the test in section 3:
-- The writer in these findings is `powershell.exe`, which is in rule v2's writer list. Query A is therefore expected to match the three hosts, but this is an expectation from the hunt, not a result. It must be confirmed by running Query A.
-- The "unsigned" property in the hunt cannot be checked by rule v2, because Sysmon Event ID 13 does not record the writer's signature. This is the signer-context gap stated in section 1.
-
 ## 3. Test against ordinary fleet activity
 
 **Status: INCOMPLETE. Not run.**
@@ -155,11 +158,11 @@ No indexer endpoint or fleet event export was available when this section was pr
 The Kestrel hypothesis hunt ran over the same window and population with a different filter. Its results are recorded here as context for the test, not as its result.
 
 - **Filter used by the hunt:** Run-key writes filtered for value name `Tavistock9`, an unsigned PowerShell-backed writer, and a user-writable AppData/Roaming target. The hunt's filter is not the same as rule v2: it adds a value-name condition, which v2 deliberately does not use, and an "unsigned" condition, which Sysmon Event ID 13 cannot evaluate.
-- **Hosts returned by the hunt:** NIM-ENG-031, NIM-ENG-057 and NIM-ENG-066, each with the same value name and mechanism. Payload names differed (sedgwyn.exe, gullivane.exe, pellmoor.exe).
+- **Hosts returned by the hunt:** NIM-ENG-031, NIM-ENG-057 and NIM-ENG-066, each with the same value name and mechanism.
 - **Incidental finding:** the scheduled task `MediaConvUpdate` on NIM-SAL-054 and NIM-SAL-063 is a commodity cryptominer. It uses scheduled-task persistence rather than a Run-key write, and the hunt did not classify it as campaign activity.
 - **Not reported by the hunt:** the count of ordinary Run-key writes in the window, and any review of benign Run-key events. Those are what Query B and the results form must supply.
 
-Whether rule v2 matches the three hosts is **not established** by the hunt. The hunt describes the writer as PowerShell-backed, which suggests Query A may match them, but that must be confirmed by running Query A and recording the result in the form below.
+Whether rule v2 matches the three hosts is **not established** by the hunt. The hunt describes the writer as `powershell.exe`, which is in v2's list, so Query A is expected to match them. That expectation must be confirmed by running Query A and recording the result in the form below.
 
 ### Test parameters
 
@@ -210,15 +213,15 @@ Date and time of run: _to be entered_
 
 | Class | Count | Hosts | Notes |
 |---|---|---|---|
-| Matched, classified suspicious | | | |
-| Matched, classified legitimate (with reason) | | | |
-| Matched, unresolved | | | |
-| Not matched | | | |
+| Matched, classified suspicious | Not run | NIM-ENG-031, NIM-ENG-057, NIM-ENG-066 (hunt observations; not Query A) | Expected from the hunt; to be confirmed by Query A. |
+| Matched, classified legitimate (with reason) | Not run | Not run | Not run. Requires Query A results. |
+| Matched, unresolved | Not run | Not run | Not run. Requires Query A results. |
+| Not matched | Not run | Not run | Not run. Requires Query A and Query B results. |
 
 Host dispositions by Query A:
-- NIM-ENG-031: _to be entered (matched / not matched)_
-- NIM-ENG-057: _to be entered (matched / not matched)_
-- NIM-ENG-066: _to be entered (matched / not matched)_
+- NIM-ENG-031: Query A result _to be entered (matched / not matched)_. Hunt observed the Tavistock9 Run-key write with `powershell.exe` (payload `sedgwyn.exe`). Not a Query A result.
+- NIM-ENG-057: Query A result _to be entered (matched / not matched)_. Hunt observed the Tavistock9 Run-key write with `powershell.exe` (payload `gullivane.exe`). Not a Query A result.
+- NIM-ENG-066: Query A result _to be entered (matched / not matched)_. Hunt observed the Tavistock9 Run-key write with `powershell.exe` (payload `pellmoor.exe`). Not a Query A result.
 
 Query D results are candidates only and do not count as matches of the final rule.
 
