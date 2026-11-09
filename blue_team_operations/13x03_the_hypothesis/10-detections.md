@@ -4,7 +4,7 @@
 
 | Part | Status |
 |---|---|
-| 1. Detection for confirmed persistence (rule 100310) | Written. **Not tested. Not deployable.** |
+| 1. Detection for confirmed persistence (rule 100310, final version v2) | Written. **Not tested. Not deployable.** |
 | 1.2 Candidate rule 100311 | Written. Not tested. Not deployable. |
 | 2. Remedy for the staging blind spot | Written: data-source recommendation (Sysmon Event ID 11). No rule yet. |
 | 3. Test against ordinary fleet activity | **INCOMPLETE. The test has not been run. No results are reported.** |
@@ -19,42 +19,60 @@ Behaviour: a script-capable interpreter writes a value under the per-user Run ke
 
 The rule is keyed on that behaviour, not on the host, the hash, or the Tavistock9 indicator. Tavistock9 is a campaign pivot for hunting, not a condition of the rule.
 
+### Final rule (v2)
+
 ```xml
 <group name="kestrel_hunt,windows,persistence,">
   <rule id="100310" level="12">
     <if_group>sysmon_event13</if_group>
     <field name="win.eventdata.targetObject">(?i)\\Software\\Microsoft\\Windows\\CurrentVersion\\Run</field>
     <field name="win.eventdata.details">(?i)(AppData\\Roaming|AppData\\Local|Users\\Public)</field>
-    <field name="win.eventdata.image">(?i)(powershell|wscript|cscript|rundll32|regsvr32|mshta)\.exe</field>
-    <description>Script-backed writer creates Run-key persistence in a user-writable path</description>
+    <field name="win.eventdata.image">(?i)(powershell|wscript|cscript|mshta)\.exe</field>
+    <description>Script-host writer creates Run-key persistence in a user-writable path</description>
     <mitre><id>T1547.001</id></mitre>
   </rule>
 </group>
 ```
 
-### Precision controls
+### Version history
 
-- Three conditions must hold together: the Run-key target, a user-writable value path, and a script-capable writer. Any one alone matches normal software installs, so none is used alone.
-- The writer list is limited to interpreters and script hosts. It does not include general installers.
+- **v1** included `rundll32` and `regsvr32` in the writer list.
+- **v2 (final)** removes them. Both are general-purpose loaders that legitimate installers use to register DLLs and COM components. They are the least constrained writers in the list, so they add the most predictable noise while adding no script-host behaviour, which is what this rule is about. Their Run-key writes are not covered by v2. They are covered only by the candidate in 1.2, which is not deployable.
+
+The change was made on reasoning before any test. Section 3 must report the result for v2, the final version.
+
+### Precision controls (as implemented in v2)
+
+Each condition removes a class of ordinary activity:
+
+- **Run-key target** restricts the rule to autostart persistence. Ordinary writes elsewhere in the registry do not match.
+- **User-writable value path** (AppData\Roaming, AppData\Local, Users\Public) restricts the match to locations an unprivileged user or actor can write. Program Files and system directories do not match.
+- **Script-host writer** (powershell, wscript, cscript, mshta) restricts the match to interpreters and script hosts. A general installer writing a Run key does not match.
+
+Together, these three conditions mean the rule fires only when a script host writes an autostart entry that points into a user-writable path. That combination is the behaviour the hunt confirmed.
+
+**Limitations that remain in v2:**
+- Some installers and administration scripts legitimately use powershell, wscript or cscript and may write Run keys under AppData. v2 does not exclude them, because signer context is not available.
 - **Signer context is not implemented.** Sysmon Event ID 13 does not carry the signature of the writing binary. Known signed enterprise updaters should be excluded with a Wazuh CDB allowlist, built from the software inventory and keyed on image path and signer. **That allowlist does not exist yet.** Until it does, the rule is not production-ready. This is a stated gap, not a control.
 
 ### Known weakness
 
-`rundll32` and `regsvr32` are used by some legitimate installers and are the most likely source of false positives until the allowlist exists. If section 3 shows noise from them, drop them first and keep the three conditions. Record that change as a new rule version.
+The script-host writers (powershell, wscript, cscript, mshta) are the remaining likely source of false positives. If section 3 shows noise from a specific writer or path, the next step is an allowlist entry for that software, recorded as a new rule version. Do not widen the path or writer conditions to make the test look cleaner.
 
 ### What this rule deliberately does not cover
 
 The rule is narrow on purpose, so that its first run produces a reviewable result. It will miss:
 
-- Run-key writes by a non-script executable, such as a compiled binary dropped by the actor. Covered only by the candidate in 1.2, which is not deployable.
-- Run-key writes to a user-writable path outside AppData, Users\Public and Temp.
-- Persistence through other autostart locations (RunOnce, scheduled tasks, services). These are separate techniques.
+- **Run-key writes by `rundll32.exe` or `regsvr32.exe`** (removed in v2 for precision). Covered only by the candidate in 1.2, which is not deployable.
+- **Run-key writes by a non-script executable**, such as a compiled binary dropped by the actor. Also covered only by the candidate in 1.2.
+- **Run-key writes to a user-writable path outside AppData, Users\Public and Temp.**
+- **Persistence through other autostart locations** (RunOnce, scheduled tasks, services). These are separate techniques.
 
 A missed case is not evidence of absence. It is a case the rule was not built to see.
 
 ### 1.2 Candidate second rule (not tested, not deployable)
 
-Purpose: cover Run-key writes by a non-script executable into a user-writable path.
+Purpose: cover Run-key writes by non-script executables, including `rundll32.exe` and `regsvr32.exe`, into a user-writable path.
 
 ```xml
 <rule id="100311" level="10">
@@ -122,12 +140,12 @@ No indexer endpoint or fleet event export was available when this section was pr
 
 - Window: 2026-09-01T00:22:54.128Z to 2026-10-13T04:56:17.155Z (same as the hunt).
 - Population: all 340 Windows endpoints in the Nimbus estate; all Sysmon Event ID 13 events in the window.
-- Rule under test: rule 100310, all three conditions, unmodified. If the rule is changed during testing (for example, dropping `rundll32`/`regsvr32` after noise), record the initial version and the final version separately, and report the result for the final version.
+- Rule under test: **rule 100310 v2 (final)**, all three conditions, unmodified during the run. If the rule is changed after the run (for example, an allowlist entry), record the change as a new version and re-run.
 
 ### Procedure
 
 1. **Control check first.** Run `data.win.system.eventID:13` over the window. If it returns zero, fix the field names before reading any other result. A zero from a broken query is not a zero from the fleet.
-2. Run Query A (full rule) and Query B (all Run-key writes) over the window.
+2. Run Query A (final rule v2) and Query B (all Run-key writes) over the window.
 3. For each Query B hit not returned by Query A, record the image path and value written, and classify it as legitimate (with reason) or unresolved.
 4. Run Query C for the three named hosts and state each host explicitly as matched or not matched by Query A.
 5. Run the precision check (below).
@@ -135,9 +153,9 @@ No indexer endpoint or fleet event export was available when this section was pr
 
 ### Queries (copy as raw text; adjust escaping for your indexer if needed)
 
-Query A, full rule (all three conditions):
+Query A, final rule v2 (all three conditions):
 ```
-data.win.system.eventID:13 AND data.win.eventdata.targetObject:*CurrentVersion\\Run* AND data.win.eventdata.details:(*AppData\\Roaming* OR *AppData\\Local* OR *Users\\Public*) AND data.win.eventdata.image:(*powershell.exe OR *wscript.exe OR *cscript.exe OR *rundll32.exe OR *regsvr32.exe OR *mshta.exe)
+data.win.system.eventID:13 AND data.win.eventdata.targetObject:*CurrentVersion\\Run* AND data.win.eventdata.details:(*AppData\\Roaming* OR *AppData\\Local* OR *Users\\Public*) AND data.win.eventdata.image:(*powershell.exe OR *wscript.exe OR *cscript.exe OR *mshta.exe)
 ```
 
 Query B, all Run-key writes (benign baseline):
@@ -161,7 +179,7 @@ The NIM-SAL-054 / NIM-SAL-063 cryptominer (scheduled task `MediaConvUpdate`, not
 
 ### Results form (to be completed from the run)
 
-Final rule version tested: _to be entered_
+Final rule version tested: **v2**
 Test run by: _to be entered_
 Date and time of run: _to be entered_
 
