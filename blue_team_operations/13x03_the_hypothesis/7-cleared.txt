@@ -24,7 +24,7 @@ Note: the agent.name clause returns share events recorded on the source hosts th
 
 2. Outbound SMB connections (Sysmon Event ID 3), source-side:
 data.win.system.eventID:3 AND data.win.eventdata.destinationPort:(445 OR 139) AND (data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066) OR data.win.eventdata.sourceIp:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66) OR data.win.eventdata.user:(*eli.cole* OR *avery.eaves* OR *jude.pike*))
-Exclusions applied: domain controllers [list DC IPs] and file servers [list file server IPs].
+Exclusions: the DC and file-server exclusion lists were not resolved in this review. The IPs for the domain controllers and file servers were not recorded in the available inventory, so the exact exclusion set cannot be reproduced. Query 2 results therefore cover the stated sources only, and the DC and file-server population is unsearched and must be treated as not ruled out.
 
 3. Correlated logons, explicit credentials, and CIFS tickets (4624, 4648, 4769):
 (data.win.system.eventID:4624 AND data.win.eventdata.logonType:3 AND (data.win.eventdata.targetUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66))) OR (data.win.system.eventID:4648 AND data.win.eventdata.targetServerName:* AND (data.win.eventdata.targetUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66))) OR (data.win.system.eventID:4769 AND data.win.eventdata.serviceName:*cifs* AND (data.win.eventdata.targetUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66)))
