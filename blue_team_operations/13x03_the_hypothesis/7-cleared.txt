@@ -1,21 +1,33 @@
 TECHNIQUE
-T1021.002 - Remote Services: SMB/Windows Admin Shares (lateral movement via SMB admin shares and CIFS service access)
+T1021.002 - Remote Services: SMB/Windows Admin Shares. Hunt for SMB administrative-share lateral movement associated with the three identified Nimbus footholds.
 
-DATA SOURCES THAT COVER THE TECHNIQUE
-Source-side (initiating hosts NIM-ENG-031, NIM-ENG-057, NIM-ENG-066):
-- Sysmon Event ID 3 (outbound network connections, TCP 445/139)
-- Security 4648 (logon with explicit credentials)
-Destination-side (all 340 Windows endpoints):
-- Security 5140/5145 (network share access; requires Object Access auditing on the shares)
-- Security 4624 logon type 3 (network logon)
-Domain controllers:
-- Security 4769 (Kerberos service ticket requests for cifs/*). These are recorded on the issuing DC, not on the destination endpoint, so DC coverage is a separate requirement.
+RELEVANT TELEMETRY
+Source-side: Sysmon Event ID 3 for network connections to TCP 445/139; Security Event ID 4648 for explicit-credential use.
+Destination-side: Security Event IDs 5140/5145 for network-share access (only if corresponding Object Access auditing is collected) and Security Event ID 4624 with logon type 3 for network logons.
+Domain-controller side: Security Event ID 4769 for Kerberos service-ticket requests targeting cifs/*; DC ingestion must be verified independently.
 
-SCOPE OF THE SEARCH
-Time window: 2026-09-01T00:22:54.128Z to 2026-10-13T04:56:17.155Z (UTC, as stated).
+SEARCH SCOPE
+UTC window: 2026-09-01T00:22:54.128Z through 2026-10-13T04:56:17.155Z.
 Source hosts: NIM-ENG-031 (10.0.10.31), NIM-ENG-057 (10.0.10.57), NIM-ENG-066 (10.0.10.66).
-Source identities: NIMBUS\eli.cole, NIMBUS\avery.eaves, NIMBUS\jude.pike.
-Destination population: all 340 Windows endpoints. Queries 1 and 3 do not filter on destination host, so they search every endpoint whose events are indexed. Query 2 covers outbound connections from the three source hosts only. Whether all 340 endpoints are actually represented in the index is covered under Collection Verification below.
+Associated identities: NIMBUS\eli.cole, NIMBUS\avery.eaves, NIMBUS\jude.pike.
+Destination search population: records indexed from Nimbus Windows endpoints, whose stated estate size is 340. The search is not proof that all 340 endpoints contributed complete telemetry. Domain controllers are relevant to query 3 and must be assessed separately.
+
+SEARCHES / REPRODUCIBILITY
+All searches are bounded by the UTC window above. The exact index selection, executed-query history and per-host ingestion status have not been independently verified in this report.
+
+Query 1 - destination-side administrative-share access, Security 5140/5145:
+data.win.system.eventID:(5140 OR 5145) AND data.win.eventdata.shareName:(ADMIN$ OR C$ OR IPC$) AND (data.win.eventdata.subjectUserName:(eli.cole OR avery.eaves OR jude.pike) OR data.win.eventdata.ipAddress:(10.0.10.31 OR 10.0.10.57 OR 10.0.10.66) OR data.win.agent.name:(NIM-ENG-031 OR NIM-ENG-057 OR NIM-ENG-066))
+
+
+
+
+
+
+
+
+
+
+
 
 QUERIES
 1. Share access (Security 5140, 5145), destination-side:
