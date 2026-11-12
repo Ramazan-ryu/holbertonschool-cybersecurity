@@ -1,0 +1,27 @@
+{
+  "aws s3api list-buckets": {
+    "Buckets": [
+      {"Name":"copperline-freight-manifests-cl7f3a","CreationDate":"2026-11-12T18:51:24+00:00"},
+      {"Name":"copperline-ops-logs-cl7f3a","CreationDate":"2026-11-12T18:51:24+00:00"},
+      {"Name":"copperline-migration-scratch-cl7f3a","CreationDate":"2026-11-12T18:51:24+00:00"},
+      {"Name":"copperline-cloudtrail-cl7f3a","CreationDate":"2026-11-12T18:51:24+00:00"}
+    ],
+    "Owner":{"DisplayName":"webfile","ID":"bcaf1ffd86f41161ca5fb16fd081034f"}
+  },
+  "aws s3api list-objects-v2 --bucket copperline-migration-scratch-cl7f3a --max-keys 5": {
+    "IsTruncated":false,
+    "Contents":[
+      {"Key":"export/notes.txt","LastModified":"2026-11-12T18:51:24+00:00","ETag":"\"78ac36c5c7f964aa46a430c30859d22d\"","ChecksumAlgorithm":["CRC32"],"Size":278,"StorageClass":"STANDARD"},
+      {"Key":"export/pre-cutover-dump.json","LastModified":"2026-11-12T18:51:24+00:00","ETag":"\"793fb5f5d4f4d9c71e26276dcd00c990\"","ChecksumAlgorithm":["CRC32"],"Size":476,"StorageClass":"STANDARD"}
+    ],
+    "Name":"copperline-migration-scratch-cl7f3a","Prefix":"","MaxKeys":5,"EncodingType":"url","KeyCount":2
+  },
+  "aws s3api head-object --bucket copperline-ops-logs-cl7f3a --key access/2026-08.log": {
+    "AcceptRanges":"bytes","LastModified":"2026-11-12T18:51:24+00:00","ContentLength":0,"ETag":"\"e0886c0082f9f0cc64e7e430b91f550a\"","ContentType":"binary/octet-stream","ServerSideEncryption":"AES256","Metadata":{}
+  },
+  "aws s3api list-objects-v2 --bucket copperline-cloudtrail-cl7f3a --max-keys 1": {
+    "IsTruncated":true,
+    "Contents":[{"Key":"AWSLogs/418274639051/CloudTrail/eu-west-1/2026/11/04/418274639051_CloudTrail_eu-west-1_20261104T0005Z_9e4C7EfEda34Ba8D.json.gz","LastModified":"2026-11-12T18:51:25+00:00","ETag":"\"958eeaba74a26ea07936255ef4ef9e78\"","ChecksumAlgorithm":["CRC32"],"Size":590,"StorageClass":"STANDARD"}],
+    "Name":"copperline-cloudtrail-cl7f3a","Prefix":"","MaxKeys":1,"EncodingType":"url","KeyCount":1,"NextContinuationToken":"eb52d1a4ca772349ef0936ecf8bcd8eb"
+  }
+}

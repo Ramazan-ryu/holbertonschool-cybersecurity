@@ -1,98 +1,20 @@
 # 1 — Identity Map
 
-The account's own IAM API shows three permission sources associated with `svc-audit-intake`: one attached managed policy, one inline user policy, and membership in one group. The policy documents have not yet been retrieved, so their actual statements and contributions remain unassessed.
+## Principal and credential state
 
-## Identity confirmation
+`aws sts get-caller-identity` returned user `arn:aws:iam::418274639051:user/svc-audit-intake`, account `418274639051`, user ID `AIDA59C2ACB2A2DB59159`. `aws iam get-user` returned the same ARN and ID (`CreateDate: 2026-11-12T18:51:23.955462+00:00`). The current-session `aws iam list-access-keys --user-name svc-audit-intake` response shows one key metadata record with `Status: Active`; the secret key material was not returned or requested. See `evidence/current-session-api-results.json`.
 
-Command: `aws iam get-user`
+## Direct user attachments
 
-Response:
+The user has one attached managed policy and one inline policy:
 
-```json
-{
-    "User": {
-        "Path": "/",
-        "UserName": "svc-audit-intake",
-        "UserId": "AIDA59C2ACB2A2DB59159",
-        "Arn": "arn:aws:iam::418274639051:user/svc-audit-intake",
-        "CreateDate": "2026-11-12T18:14:23.603457+00:00"
-    }
-}
-```
+- **Attached managed policy — `CopperlineOpsLogsReadOnly`.** `list-attached-user-policies` returned ARN `arn:aws:iam::418274639051:policy/CopperlineOpsLogsReadOnly`. `get-policy` returned default version `v1`, attachment count `1`; `get-policy-version` returned the actual document in `evidence/iam-get-policy-version.json`. `ReadOpsLogs` allows `s3:GetObject` and `s3:ListBucket` on the operations-log bucket and its objects. A second statement, `IntakeSupport`, allows `s3:Get*` and `s3:List*` on `Resource: "*"`. The account confirmed practical reach beyond ops logs: bucket/object listing for the undocumented scratch bucket succeeded, as did `HeadObject` for its keys. These are broad S3 read/list grants, not write grants.
+- **Inline user policy — `intake-ops-access`.** `list-user-policies` returned this name, and `get-user-policy` returned its full JSON in `evidence/iam-get-user-policy.json`. `SelfIntrospection` grants calls to inspect this user and its keys. `DirectoryRead` grants `iam:ListUsers`, `iam:ListGroups`, `iam:ListPolicies`, and `iam:ListAccountAliases` on `*`. `PolicyRead` grants `iam:GetPolicy`, `iam:GetPolicyVersion`, and `iam:ListPolicyVersions` for policies in this account. `GroupRead` grants group inspection calls on `migration-readers`. `ServiceInventory` grants `sqs:ListQueues`, `secretsmanager:ListSecrets`, `kms:ListKeys`, and `kms:ListAliases`. `AuditTrailRead` grants `s3:GetObject` and `s3:ListBucket` on the CloudTrail bucket. `MaintainIntakePolicy` grants `iam:CreatePolicyVersion`, `iam:SetDefaultPolicyVersion`, and `iam:DeletePolicyVersion` on `CopperlineOpsLogsReadOnly`. The read actions listed above were exercised successfully. The attempted policy-version call failed before reaching AWS because the CLI could not load the relative JSON file; it does not prove a permission result. The delete action was not attempted because deleting a policy version is destructive.
 
-## Attached managed policy
+## Inherited group permissions
 
-Command: `aws iam list-attached-user-policies --user-name svc-audit-intake`
+`list-groups-for-user` returned one group, `migration-readers`. `list-attached-group-policies` returned managed policy `MigrationReadOnly`; `list-group-policies` returned an empty list. The actual managed policy document is in `evidence/migration-readonly-policy.json`. Its `MigrationDescribe` statement grants `secretsmanager:DescribeSecret`, `kms:DescribeKey`, `kms:GetKeyPolicy`, `sqs:GetQueueAttributes`, and `sqs:GetQueueUrl` on `Resource: "*"`. Calls to describe the carrier secret, describe the migration key, retrieve that key's policy, retrieve the dispatch queue URL, and read queue attributes all succeeded. Secret values were not requested.
 
-Response:
+## Other visible controls and limits
 
-```json
-{
-    "AttachedPolicies": [
-        {
-            "PolicyName": "CopperlineOpsLogsReadOnly",
-            "PolicyArn": "arn:aws:iam::418274639051:policy/CopperlineOpsLogsReadOnly"
-        }
-    ]
-}
-```
-
-This is an attached managed policy. Its name suggests log access, but its JSON has not been inspected and the name is not evidence of its permissions.
-
-## Inline user policy
-
-Command: `aws iam list-user-policies --user-name svc-audit-intake`
-
-Response:
-
-```json
-{
-    "PolicyNames": [
-        "intake-ops-access"
-    ]
-}
-```
-
-This is a policy written directly on the user. Its statements and contribution are not yet known.
-
-## Group membership
-
-Command: `aws iam list-groups-for-user --user-name svc-audit-intake`
-
-Response:
-
-```json
-{
-    "Groups": [
-        {
-            "Path": "/",
-            "GroupName": "migration-readers",
-            "GroupId": "AGPAEACD5DB3AB745338B",
-            "Arn": "arn:aws:iam::418274639051:group/migration-readers",
-            "CreateDate": "2026-11-12T18:14:23.509300+00:00"
-        }
-    ]
-}
-```
-
-The user inherits any applicable permissions attached to group `migration-readers` or written inline on that group. Those policies have not yet been enumerated, so this source is incomplete.
-
-## Policy documents and contributions
-
-The managed policy metadata call was `aws iam get-policy --policy-arn arn:aws:iam::418274639051:policy/CopperlineOpsLogsReadOnly`; it returned default version `v1`, attachment count `1`. The document was retrieved with `aws iam get-policy-version --policy-arn arn:aws:iam::418274639051:policy/CopperlineOpsLogsReadOnly --version-id v1` and is preserved in `evidence/iam-get-policy-version.json`.
-
-Its `ReadOpsLogs` statement allows `s3:GetObject` and `s3:ListBucket` on the operations log bucket and its objects. Its `IntakeSupport` statement additionally allows every action matching `s3:Get*` and `s3:List*` on every resource (`"Resource": "*"`). The latter is broader than the handover description; its effective reach still requires API validation.
-
-The inline document was returned by `aws iam get-user-policy --user-name svc-audit-intake --policy-name intake-ops-access` and is preserved in `evidence/iam-get-user-policy.json`. It grants self-inspection and IAM directory/policy/group read calls, inventory calls for SQS, Secrets Manager, and KMS, and S3 read access to the CloudTrail bucket. The `MaintainIntakePolicy` statement grants `iam:CreatePolicyVersion`, `iam:SetDefaultPolicyVersion`, and `iam:DeletePolicyVersion` on `CopperlineOpsLogsReadOnly`. This is a policy-change capability, not merely read-only intake access. Actual ability and impact must be confirmed by safe, reversible API tests; no destructive action is justified.
-
-The group calls were `aws iam list-attached-group-policies --group-name migration-readers` and `aws iam list-group-policies --group-name migration-readers`. They returned attached managed policy `MigrationReadOnly` and no inline policies. The attached group's JSON has not yet been retrieved, so its contribution remains undetermined.
-
-### Group managed policy: `MigrationReadOnly`
-
-The policy metadata call returned default version `v1` and attachment count `1`. The document was retrieved with `aws iam get-policy-version --policy-arn arn:aws:iam::418274639051:policy/MigrationReadOnly --version-id v1`; the response is preserved in `evidence/migration-readonly-policy.json`.
-
-Its `MigrationDescribe` statement allows `secretsmanager:DescribeSecret`, `kms:DescribeKey`, `kms:GetKeyPolicy`, `sqs:GetQueueAttributes`, and `sqs:GetQueueUrl` on `Resource: "*"`. This is the group's contribution. It allows describing resources and reading KMS key policy, but does not itself grant secret values or queue message access. Whether each call succeeds still needs confirmation against the account API.
-
-### Complete source list found so far
-
-The identity has one attached user managed policy (`CopperlineOpsLogsReadOnly`), one inline user policy (`intake-ops-access`), and group membership in `migration-readers`, which contributes attached policy `MigrationReadOnly` and no inline group policies. No other permission source has been established by the calls recorded here. Permissions boundary and organization-level controls have not yet been checked; effective permissions must account for any such restrictions if present.
+`get-user` returned no `PermissionsBoundary` field. The available calls did not establish organization-level service control policies, so this map is bounded by the identity and account APIs observed. The account's response to `aws ec2 describe-instances --region eu-west-1` was `AccessDenied`; that is an observed boundary, not evidence that the account has no EC2 resources. No inline group policy, second user attachment, or second membership was returned by the calls above.

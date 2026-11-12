@@ -1,0 +1,22 @@
+aws s3api get-bucket-policy-status --bucket copperline-migration-scratch-cl7f3a
+An error occurred (NoSuchBucketPolicy) when calling the GetBucketPolicyStatus operation: The bucket policy does not exist
+
+aws s3api get-bucket-acl --bucket copperline-migration-scratch-cl7f3a
+{
+    "Owner": {
+        "DisplayName": "webfile",
+        "ID": "75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a"
+    },
+    "Grants": [
+        {
+            "Grantee": {
+                "ID": "75aa57f09aa0c8caeab4f8c24e99d10f8e7faeebf76c078efc7c6caea54ba06a",
+                "Type": "CanonicalUser"
+            },
+            "Permission": "FULL_CONTROL"
+        }
+    ]
+}
+
+aws s3api get-bucket-policy --bucket copperline-migration-scratch-cl7f3a
+An error occurred (NoSuchBucketPolicy) when calling the GetBucketPolicy operation: The bucket policy does not exist

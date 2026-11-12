@@ -1,0 +1,10 @@
+Command attempted from: ~/16x00_the_control_plane/evidence
+
+aws iam create-policy-version \
+  --policy-arn arn:aws:iam::418274639051:policy/CopperlineOpsLogsReadOnly \
+  --policy-document file://5-remediation/narrowed-policy.json \
+  --set-as-default
+
+Error parsing parameter '--policy-document': Unable to load paramfile file://5-remediation/narrowed-policy.json: [Errno 2] No such file or directory: '5-remediation/narrowed-policy.json'
+
+This was a local AWS CLI file-loading error. No CreatePolicyVersion API call was made. The subsequent `aws iam get-policy` response still reported `DefaultVersionId: v1`.
