@@ -1,84 +1,79 @@
-# 3 — Account Inventory
+# 3 — What Is Actually in This Account
 
-Inventory is based on calls made as `arn:aws:iam::418274639051:user/svc-audit-intake`. Handover claims are treated as claims and compared with API results. Evidence files preserve the responses supplied for each call.
+## Scope and evidence
+
+Inventory calls were made as `arn:aws:iam::418274639051:user/svc-audit-intake` in `eu-west-1`. This is the estate visible through the calls below, not a claim that the identity could enumerate every service. The comparison source is the Copperline handover, especially `copperline-handover/02-storage.md` and `01-account-summary.md`.
+
+The tables keep the account's API response separate from what the handover says. “Not observed” means that this call did not return the item; it is not proof the item does not exist.
 
 ## S3
 
-Call: `aws s3api list-buckets`. Response: four buckets — `copperline-freight-manifests-cl7f3a`, `copperline-ops-logs-cl7f3a`, `copperline-migration-scratch-cl7f3a`, and `copperline-cloudtrail-cl7f3a` (`evidence/list-buckets.json`). The handover lists only three. `copperline-migration-scratch-cl7f3a` is an undocumented bucket and requires owner/content/purpose review.
+### Buckets returned by the account
 
-Calls: `aws s3api list-objects-v2 --bucket <bucket> --max-keys 5`:
+Call: `aws s3api list-buckets`. The response in `evidence/list-buckets.json` contains exactly these four bucket names:
 
-- `copperline-freight-manifests-cl7f3a` returned `manifests/2026-Q1.csv` (2,528 bytes) and `manifests/2026-Q2.csv` (2,556 bytes). This matches the documented freight manifest bucket and confirms object names are visible to this identity.
-- `copperline-ops-logs-cl7f3a` returned `access/2026-08.log` (3,569 bytes), consistent with the documented operations logs.
-- `copperline-cloudtrail-cl7f3a` returned five CloudTrail object keys and `IsTruncated: true`, consistent with the documented audit bucket.
-- Initial review listed the scratch bucket and found two migration artifact keys; after policy remediation, the operator's list request to that bucket returned `AccessDenied` (see `evidence/remediation-v2-session.txt`). Existing inventory observations remain historical evidence; no object bodies were retrieved.
+| Bucket returned by API | Handover status | Reconciliation |
+|---|---|---|
+| `copperline-freight-manifests-cl7f3a` | Listed in `02-storage.md` | Documented and confirmed present. |
+| `copperline-ops-logs-cl7f3a` | Listed in `02-storage.md` | Documented and confirmed present. |
+| `copperline-cloudtrail-cl7f3a` | Listed in `02-storage.md` | Documented and confirmed present. |
+| `copperline-migration-scratch-cl7f3a` | Not listed; the handover says its three-bucket list is complete | Undocumented fourth bucket. Its presence is confirmed by `list-buckets.json`; object listing below returned two keys. |
 
-Before remediation, the account returned successful listings for the documented buckets and the scratch bucket, consistent with the original wildcard `s3:List*` statement. After v2 became default, the ops-logs listing still succeeded while the scratch-bucket listing returned `AccessDenied`. Listing proves names and metadata are visible; it does not by itself prove object contents can be read.
+The handover's claim that the list is complete is directly contradicted by the fourth bucket in the provider response.
+
+### Object listings and metadata returned
+
+| Provider call and result | Evidence | Handover comparison |
+|---|---|---|
+| `list-objects-v2` on freight manifests returned `manifests/2026-Q1.csv` (2,528 bytes) and `manifests/2026-Q2.csv` (2,556 bytes). | The response was observed during the inventory call; the request is also present as `ListObjects` event `390a2f05-1f39-4ffc-a2c6-d8bbb9d9a6c1` in the collected CloudTrail event records. | The bucket and quarterly CSV description are documented. The returned key names fit that description; the API listing does not establish the CSV contents or whether they contain the handover's stated consignee data. |
+| `list-objects-v2 --bucket copperline-ops-logs-cl7f3a --max-keys 1` returned `access/2026-08.log` (3,569 bytes). The post-v2 response is recorded in `evidence/remediation-v2-session.txt`. | Same response; `HeadObject` response for this key is in `evidence/current-session-s3-results.json`. | Bucket and purpose are documented. The returned key name is an access log. The head response reports `ContentLength: 0` while listing reports 3,569 bytes; both results are retained without explaining the discrepancy. |
+| `list-objects-v2 --bucket copperline-cloudtrail-cl7f3a --max-keys 1` returned `AWSLogs/418274639051/CloudTrail/eu-west-1/2026/11/04/418274639051_CloudTrail_eu-west-1_20261104T0005Z_9e4C7EfEda34Ba8D.json.gz`, with `IsTruncated: true`. | `evidence/current-session-s3-results.json` | Bucket and CloudTrail purpose are documented. This call returned one object and indicated additional results; it was not a complete object inventory. |
+| Before policy remediation, `list-objects-v2 --bucket copperline-migration-scratch-cl7f3a --max-keys 5` returned `export/notes.txt` (278 bytes) and `export/pre-cutover-dump.json` (476 bytes). | `evidence/scratch-objects.json`; repeated in `evidence/current-session-s3-results.json` | Bucket and keys are absent from the handover, which says the three listed buckets are complete. This is the discovered inventory discrepancy. Key names alone do not establish contents or sensitivity. |
+
+For both scratch objects, `HeadObject` later returned `ContentLength: 0`; the `HeadObject` responses are in `evidence/scratch-head-notes.json` and `evidence/scratch-head-pre-cutover-dump.json`. Listing and head metadata disagree on size. No body was read for those objects, and the evidence does not resolve the discrepancy.
+
+After `CopperlineOpsLogsReadOnly` v2 became default, the same identity's scratch-bucket list request returned `AccessDenied`; its ops-logs list request succeeded. These are post-change permission results, not evidence that the scratch bucket or its objects disappeared. See `evidence/remediation-v2-session.txt`.
+
+### Bucket settings returned by control-plane calls
+
+The handover says all buckets block public access and are encrypted. The following API results are directly preserved:
+
+| Bucket | Account response | Evidence | Comparison with handover |
+|---|---|---|---|
+| `copperline-ops-logs-cl7f3a` | `GetBucketEncryption`: default `AES256`; `GetPublicAccessBlock`: all four flags `true`. | `evidence/ops-logs-encryption.json`, `evidence/ops-logs-public-access-block.json` | These two checked settings agree with the handover. |
+| `copperline-cloudtrail-cl7f3a` | `GetBucketEncryption`: default `AES256`; `GetPublicAccessBlock`: all four flags `true`. | `evidence/cloudtrail-encryption.json`, `evidence/cloudtrail-public-access-block.json` | These two checked settings agree with the handover. |
+| `copperline-migration-scratch-cl7f3a` | `GetBucketEncryption` returned `ServerSideEncryptionConfigurationNotFoundError`; `GetPublicAccessBlock` returned `NoSuchPublicAccessBlockConfiguration`. `GetBucketPolicy` and `GetBucketPolicyStatus` returned `NoSuchBucketPolicy`; `GetBucketAcl` returned owner-only `FULL_CONTROL`. | `evidence/scratch-encryption-error.txt`, `evidence/scratch-public-access-block-error.txt`, `evidence/scratch-public-access-checks.txt` | The bucket is omitted from the handover's inventory, while the handover's blanket settings claim covers “all buckets.” The API did not return bucket-level encryption or PAB configurations for this bucket. These responses do not establish whether its existing objects are encrypted or publicly readable. |
+| `copperline-freight-manifests-cl7f3a` | `HeadObject` for `manifests/2026-Q1.csv` returned `ServerSideEncryption: AES256`; `ContentLength: 0`. The inventory call also reported bucket-level encryption `AES256` and all four PAB flags true, but those two raw responses are not preserved as separate files in this checkout. | Object metadata summarized in this file; CloudTrail event `6fa7f83d-61c8-458e-b29e-9d72880a3851` records the `HeadObject` request. | Object metadata shows AES256 for this object. Because the bucket-level responses are not retained here, mark the handover's bucket-default/PAB claims for freight as not independently verifiable from the saved raw responses. |
+
+The freight and ops list/head size comparisons are also separate observations: freight listing reported Q1 as 2,528 bytes while `HeadObject` reported 0; ops listing reported 3,569 bytes while `HeadObject` reported 0. No cause is established by these API responses.
 
 ## SQS
 
-Call: `aws sqs list-queues`. Response: `http://127.0.0.1:4566/418274639051/copperline-dispatch-events`. This confirms one dispatch queue is in use, matching the handover's description. Queue attributes and access policy remain to be inspected.
+- `aws sqs list-queues` returned `http://127.0.0.1:4566/418274639051/copperline-dispatch-events` (`evidence/current-session-api-results.json`). The handover says a dispatch queue is used; one queue with that name was returned.
+- `get-queue-attributes --attribute-names All` returned `ApproximateNumberOfMessages: 3`, `MessageRetentionPeriod: 345600`, `VisibilityTimeout: 30`, and `SqsManagedSseEnabled: true`; the full response is in `evidence/current-session-api-results.json`.
+- The returned `Attributes` object did not contain a `Policy` key. The handover's open item says the queue may have an access policy; this call did not return one. No conclusion about other unqueried queue configuration is made.
 
 ## Secrets Manager
 
-Call: `aws secretsmanager list-secrets`. Response: two secrets: `copperline/carrier-api` (“Carrier rate-quote API token”) and `copperline/smtp` (“Dispatch notification relay”). This matches the two described secret purposes. Listing returns metadata, not secret values. No values were requested or accessed.
+`aws secretsmanager list-secrets` returned these two records in `evidence/current-session-api-results.json`:
+
+| Secret name | API-returned description | Handover comparison |
+|---|---|---|
+| `copperline/carrier-api` | `Carrier rate-quote API token` | Documented carrier API credential. |
+| `copperline/smtp` | `Dispatch notification relay` | Documented mail relay credential. |
+
+`describe-secret --secret-id copperline/carrier-api` returned metadata for the same secret (`evidence/current-session-api-results.json`). No `GetSecretValue` call was made; this inventory does not include secret contents.
 
 ## KMS
 
-Call: `aws kms list-keys`. Response: one key, ID `803db655-9754-4464-8822-eff23a3ba4e7`. `aws kms list-aliases` maps it to `alias/copperline-migration`, matching the handover. The API also returned AWS-managed aliases for ACM, DynamoDB, EBS, EFS, OpenSearch, Glue, Kinesis Video, Lambda, RDS, Redshift, S3, Secrets Manager, SSM, and X-Ray. The customer key policy and key metadata have not yet been examined.
+`aws kms list-keys` returned one customer key, ID `803db655-9754-4464-8822-eff23a3ba4e7`. `list-aliases` associated it with `alias/copperline-migration`; both responses are in `evidence/current-session-api-results.json`. This matches the handover's one migration key and alias. The same alias response included AWS-managed service aliases; it is not evidence of additional Copperline customer-managed keys.
 
-## Boundary observed
+`describe-key` returned the key as `Enabled`, `KeyManager: CUSTOMER`, `KeySpec: SYMMETRIC_DEFAULT`, with description `Migration-era data key (cutover exports)`. `get-key-policy --policy-name default` returned a statement allowing `kms:*` to `arn:aws:iam::418274639051:root` on `Resource: "*"` (`evidence/current-session-api-results.json`). The handover called this key policy unreviewed; this inventory retrieved it, but the response alone does not evaluate every principal's effective KMS access.
 
-These service inventory calls succeeded. The identity policy includes the matching list actions, and the group policy grants selected describe/get-attributes actions. Other service enumeration and object-content access have not yet been tested; this inventory is bounded by the calls and permissions available to this identity.
+## IAM directory visible to this identity
 
-### Newly discovered scratch bucket objects
+The API returned five users: `cl-platform-admin`, `svc-audit-intake`, `copperline-ci`, `dpearson`, and `rmalik`; two groups: `migration-readers` and `dispatch-staff`; four managed policies: `CopperlineDeploy`, `CopperlineOpsLogsReadOnly`, `CopperlinePlatformAdmin`, and `MigrationReadOnly`; and account alias `copperline-logistics`. Responses are in `evidence/current-session-api-results.json`. The five users and alias correspond to the handover's named principals/account alias. The handover does not name either group or inventory the four managed-policy names. This is an IAM directory listing, not a complete enumeration of roles or every account permission source.
 
-Call: `aws s3api list-objects-v2 --bucket copperline-migration-scratch-cl7f3a --max-keys 5`. It returned `export/notes.txt` (278 bytes) and `export/pre-cutover-dump.json` (476 bytes). The bucket and both objects are absent from the handover. Their names suggest migration artifacts, but the names alone do not establish contents or data sensitivity. This is a confirmed inventory discrepancy requiring owner validation.
+## Enumeration boundary
 
-### Object metadata and bucket controls
-
-`aws s3api head-object --bucket copperline-freight-manifests-cl7f3a --key manifests/2026-Q1.csv` succeeded and returned ETag `"4714a2a5ef1a2a17e34105833b11a9d5"`, `ContentLength: 0`, and `ServerSideEncryption: AES256`.
-
-`aws s3api head-object --bucket copperline-ops-logs-cl7f3a --key access/2026-08.log` succeeded and returned ETag `"e0886c0082f9f0cc64e7e430b91f550a"`, `ContentLength: 0`, and `ServerSideEncryption: AES256`.
-
-These successful metadata calls establish that the identity can address these named objects through `HeadObject`. Note the discrepancy that the earlier list responses reported sizes of 2,528 bytes and 3,569 bytes respectively, while `head-object` returned `ContentLength: 0` for both. The cause is not established; both responses are retained as returned.
-
-`aws s3api get-bucket-encryption --bucket copperline-freight-manifests-cl7f3a` returned default server-side encryption algorithm `AES256` (SSE-S3).
-
-`aws s3api get-public-access-block --bucket copperline-freight-manifests-cl7f3a` returned `BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, and `RestrictPublicBuckets` all `true`. For this bucket, the checked encryption and public access block controls are sound. Other buckets remain unchecked.
-
-### Remaining bucket control checks
-
-Operations logs: `get-bucket-encryption` returned SSE-S3 (`AES256`); `get-public-access-block` returned all four controls `true`. These checked controls are sound.
-
-CloudTrail: `get-bucket-encryption` returned SSE-S3 (`AES256`); `get-public-access-block` returned all four controls `true`. These checked controls are sound.
-
-Migration scratch: `get-bucket-encryption` returned `ServerSideEncryptionConfigurationNotFoundError`; `get-public-access-block` returned `NoSuchPublicAccessBlockConfiguration`. These are confirmed missing bucket-level configurations, but do not alone prove an object is unencrypted or public. Bucket policy status/ACL and object encryption need checking before classifying exposure.
-
-### Scratch bucket public-access validation
-
-`aws s3api get-bucket-policy-status --bucket copperline-migration-scratch-cl7f3a` and `get-bucket-policy` both returned `NoSuchBucketPolicy`. `get-bucket-acl` returned a single `FULL_CONTROL` grant to the bucket owner and no grants to other grantees. Based on these responses, public exposure is not demonstrated: no bucket policy exists and the ACL grants control only to the owner. The missing Public Access Block remains a defense-in-depth gap, but this bucket is a non-exploitable public-access candidate on the evidence collected so far. Object encryption still needs validation.
-
-### Follow-up validation: encryption, public access, and scratch object metadata
-
-The operator's command responses are preserved in `evidence/ops-logs-encryption.json`, `evidence/ops-logs-public-access-block.json`, `evidence/cloudtrail-encryption.json`, and `evidence/cloudtrail-public-access-block.json`. Both the operations-log and CloudTrail buckets report default SSE-S3 (`AES256`) and all four bucket-level Public Access Block settings enabled. These checked controls match the handover statement for those buckets.
-
-For `copperline-migration-scratch-cl7f3a`, `GetBucketEncryption` returned `ServerSideEncryptionConfigurationNotFoundError`, and `GetPublicAccessBlock` returned `NoSuchPublicAccessBlockConfiguration` (raw responses in the correspondingly named `evidence/scratch-*-error.txt` files). These responses establish missing bucket-level configurations only. They do not establish that its objects are unencrypted or publicly readable. `GetBucketPolicy` and `GetBucketPolicyStatus` returned `NoSuchBucketPolicy`; `GetBucketAcl` returned only the owner canonical user with `FULL_CONTROL` (see `evidence/scratch-public-access-checks.txt`). Thus public access is not demonstrated by the inspected policy and ACL. The absent Public Access Block is a hardening gap, not proof of public exposure.
-
-The original `list-objects-v2` response in `evidence/scratch-objects.json` reported 278 bytes for `export/notes.txt` and 476 bytes for `export/pre-cutover-dump.json`. Later `head-object` responses (saved as `evidence/scratch-head-notes.json` and `evidence/scratch-head-pre-cutover-dump.json`) reported `ContentLength: 0` for both keys, with matching ETags and a later `LastModified` timestamp. Preserve both observations: the object listing and metadata calls disagree about content length, and this evidence does not explain the discrepancy. The account's `HeadObject` response confirms the identity can retrieve metadata for these keys; object-body retrieval and object-level encryption remain unverified.
-
-The freight-manifest bucket has reported SSE-S3 and all four Public Access Block settings enabled in earlier operator responses documented above. The raw responses for those calls have not yet been added to `evidence/` in this checkout.
-
-### Current-session service and identity findings
-
-The current baseline calls identify the principal as `svc-audit-intake` in account `418274639051`. `iam:ListUsers` returned five users (`cl-platform-admin`, `svc-audit-intake`, `copperline-ci`, `dpearson`, `rmalik`); `ListGroups` returned `migration-readers` and `dispatch-staff`; `ListPolicies` returned `CopperlineDeploy`, `CopperlineOpsLogsReadOnly`, `CopperlinePlatformAdmin`, and `MigrationReadOnly`; the account alias is `copperline-logistics`. The user has one active access-key metadata entry. These responses are preserved in `evidence/current-session-api-results.json` and `evidence/current-session-iam-probes.md`.
-
-SQS inventory found `copperline-dispatch-events`. `GetQueueAttributes --attribute-names All` succeeded and returned `ApproximateNumberOfMessages: 3`, four-day message retention (`345600` seconds), 30-second visibility timeout, and `SqsManagedSseEnabled: true`. No `Policy` attribute appeared in that response, so a queue access policy was not observed in this call. This is evidence of the attributes returned at the time, not a claim about all queue behavior.
-
-Secrets Manager listed `copperline/carrier-api` and `copperline/smtp`. `DescribeSecret` succeeded for the carrier API secret and returned metadata only; no secret value was requested. KMS returned customer-managed key `803db655-9754-4464-8822-eff23a3ba4e7` (`alias/copperline-migration`); `DescribeKey` reports it enabled, customer-managed, and described as a migration-era data key for cutover exports. `GetKeyPolicy` returned the default key policy statement allowing `kms:*` to the account root principal. This is the provider API's response; it does not itself grant this user KMS actions beyond its IAM permissions.
-
-`ListObjectsV2` on CloudTrail returned a first object key and `IsTruncated: true`; only one object was requested. `ec2:DescribeInstances` was explicitly denied with `AccessDenied` for `svc-audit-intake`. This confirms an enumeration boundary for EC2 and does not establish that no instances exist.
-
-### Current object metadata discrepancy
-
-In the current session, S3 listing again reported scratch object sizes of 278 and 476 bytes, while the subsequent `HeadObject` results reported `ContentLength: 0`. Ops logs listing reported 3,569 bytes, while its `HeadObject` also returned `ContentLength: 0`. The matching ETags and timestamps are in `evidence/current-session-s3-results.json` and the individual head response files. Treat list-versus-head size as an unresolved response discrepancy; do not infer object body contents from it.
+`aws ec2 describe-instances --region eu-west-1` returned `AccessDenied` for `svc-audit-intake`; the exact error is in `evidence/current-session-api-results.json`. Therefore this identity could not enumerate EC2 instances in that region. The handover does not establish that no EC2 instances exist, and this denial must not be read as an empty inventory. The visible estate above is limited by the identity's enumeration permissions.

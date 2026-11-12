@@ -1,17 +1,24 @@
 # 8 — Review: The Label and the Evaluation
 
-The managed policy is named `CopperlineOpsLogsReadOnly`, which suggests read access to operations logs. Its `ReadOpsLogs` statement is scoped to `copperline-ops-logs-cl7f3a`. The gap is the separate statement with `"Sid": "IntakeSupport"`: it allows `"Action": ["s3:Get*", "s3:List*"]` and sets `"Resource": "*"` in `evidence/iam-get-policy-version.json`. That resource scope is every resource to which those S3 actions can apply, not just the operations-log bucket. The account's successful listing of the undocumented migration-scratch bucket and its keys, and successful `HeadObject` responses for those keys, demonstrate that the broader scope has practical effect. The zero-byte `HeadObject` results conflict with the earlier listed sizes, so they do not establish what the object bodies contain.
+## Exact source of the over-grant
 
-This is a plausible deadline-shaped mistake. The team was moving dispatch operations on a four-month schedule, and an intake/support role can appear to need read access across several buckets while migration artifacts are being located. A broad action wildcard and `Resource: "*"` make that request easy to express and keep working as new buckets appear. The policy name and the narrow `ReadOpsLogs` statement can then make a quick review feel complete, even though IAM evaluates every statement and the second one independently expands access. The issue is the policy's construction and review path: the support exception was not constrained to named buckets or checked with calls as the actual principal. The operator has now retained the operations-log statement and removed the wildcard support statement in v2. Post-change listing succeeded for ops logs and was denied for the previously accessible scratch bucket; see the remediation verification below.
+`CopperlineOpsLogsReadOnly` version **v1** was directly attached to IAM user `svc-audit-intake`; `list-attached-user-policies` returned that attachment. The actual document is `evidence/iam-get-policy-version.json`. Its `IntakeSupport` statement reads:
 
-## Remediation and verification status
+```json
+{
+  "Sid": "IntakeSupport",
+  "Effect": "Allow",
+  "Action": ["s3:Get*", "s3:List*"],
+  "Resource": "*"
+}
+```
 
-The operator created `CopperlineOpsLogsReadOnly` version `v2` from `5-remediation/narrowed-policy.json` and set it as default. The resulting document retains only `ReadOpsLogs`, scoped to `copperline-ops-logs-cl7f3a`. The operator then confirmed the default version is `v2`, listing the ops-logs bucket succeeds, and listing `copperline-migration-scratch-cl7f3a` returns `AccessDenied`. Evidence: `evidence/remediation-v2-session.txt`. This verifies the least-privilege policy change for the tested principal and `ListBucket` calls.
+`Condition` is absent. The permission path is IAM user `svc-audit-intake` → directly attached managed policy `CopperlineOpsLogsReadOnly` → default v1 → `IntakeSupport`. The separate `ReadOpsLogs` statement was scoped to one bucket, but did not limit this independent allow: `s3:List*` included bucket listing and `s3:Get*` included object reads on resources matched by `Resource: "*"`. Before remediation, the principal listed the scratch bucket and keys and successfully called `HeadObject` on scratch objects. Those responses demonstrate the statement's reach; their bodies were not read.
 
-## Remaining project follow-up
+## How this could happen in a real migration
 
-- Review and, if not operationally required, remove or further restrict `MaintainIntakePolicy` in the user's inline `intake-ops-access` policy. The same identity can still create and set default versions for this managed policy, which could reintroduce broad S3 access. Any change requires owner approval and should be separately recorded and tested.
-- Ask the bucket owner to confirm the purpose, owner, retention, and data classification of the undocumented migration-scratch bucket and its two listed keys. Do not infer content from key names or metadata.
-- Resolve the inconsistent object sizes: S3 listings reported nonzero sizes while `HeadObject` returned `ContentLength: 0`. Preserve the discrepancy; current evidence does not explain it.
-- If the review requires proving object-content access, arrange an authorized, content-safe `GetObject` check for an appropriate ops log object. The current post-remediation verification tested listing only; prior `HeadObject` checks establish metadata access, not body retrieval.
-- Record the remediation evidence in the project's change record and confirm the applicable reviewer's closure criteria. Based on the checks in this workspace, the scoped policy remediation is verified, while account-wide review follow-up remains open.
+During a four-month dispatch migration, an intake/support exception could seem useful for locating cutover artifacts across buckets. Broad action patterns and `Resource: "*"` are quick to write and keep covering new buckets. A reviewer focused on the narrow `ReadOpsLogs` rule or the policy's name could miss that IAM evaluates `IntakeSupport` separately. This is a policy-design and review gap, not individual blame: the exception had no named resource limits or negative test against an out-of-scope bucket.
+
+## Remediation
+
+The operator created v2, removed `IntakeSupport`, and made v2 default. The exact v2 document is in `evidence/iam-get-policy-version-v2.json`. Ops-logs listing and a one-byte `GetObject` read succeeded afterward; scratch listing returned `AccessDenied` (`evidence/remediation-v2-session.txt`, `evidence/ops-logs-get-object-range.json`). The inline `MaintainIntakePolicy` statement still lets this identity create and activate another policy version, so the account owner should review whether that self-modification permission is required.
