@@ -1,0 +1,14 @@
+{
+    "Policy": {
+        "PolicyName": "CopperlineOpsLogsReadOnly",
+        "PolicyId": "AY78XTBUI6R0B0X91TLO7",
+        "Arn": "arn:aws:iam::418274639051:policy/CopperlineOpsLogsReadOnly",
+        "Path": "/",
+        "DefaultVersionId": "v1",
+        "AttachmentCount": 1,
+        "IsAttachable": true,
+        "CreateDate": "2026-11-12T18:14:23.450269+00:00",
+        "UpdateDate": "2026-11-12T18:14:23.450274+00:00",
+        "Tags": []
+    }
+}

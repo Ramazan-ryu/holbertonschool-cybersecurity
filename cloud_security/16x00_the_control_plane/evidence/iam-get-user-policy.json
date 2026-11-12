@@ -1,0 +1,16 @@
+{
+    "UserName": "svc-audit-intake",
+    "PolicyName": "intake-ops-access",
+    "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+            {"Sid":"SelfIntrospection","Effect":"Allow","Action":["iam:GetUser","iam:ListAttachedUserPolicies","iam:ListUserPolicies","iam:GetUserPolicy","iam:ListGroupsForUser","iam:ListAccessKeys"],"Resource":"arn:aws:iam::418274639051:user/svc-audit-intake"},
+            {"Sid":"DirectoryRead","Effect":"Allow","Action":["iam:ListUsers","iam:ListGroups","iam:ListPolicies","iam:ListAccountAliases"],"Resource":"*"},
+            {"Sid":"PolicyRead","Effect":"Allow","Action":["iam:GetPolicy","iam:GetPolicyVersion","iam:ListPolicyVersions"],"Resource":"arn:aws:iam::418274639051:policy/*"},
+            {"Sid":"GroupRead","Effect":"Allow","Action":["iam:GetGroup","iam:ListAttachedGroupPolicies","iam:ListGroupPolicies"],"Resource":"arn:aws:iam::418274639051:group/migration-readers"},
+            {"Sid":"ServiceInventory","Effect":"Allow","Action":["sqs:ListQueues","secretsmanager:ListSecrets","kms:ListKeys","kms:ListAliases"],"Resource":"*"},
+            {"Sid":"AuditTrailRead","Effect":"Allow","Action":["s3:GetObject","s3:ListBucket"],"Resource":["arn:aws:s3:::copperline-cloudtrail-cl7f3a","arn:aws:s3:::copperline-cloudtrail-cl7f3a/*"]},
+            {"Sid":"MaintainIntakePolicy","Effect":"Allow","Action":["iam:CreatePolicyVersion","iam:SetDefaultPolicyVersion","iam:DeletePolicyVersion"],"Resource":"arn:aws:iam::418274639051:policy/CopperlineOpsLogsReadOnly"}
+        ]
+    }
+}

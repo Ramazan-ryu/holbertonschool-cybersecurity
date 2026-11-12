@@ -1,0 +1,33 @@
+{
+    "PolicyVersion": {
+        "Document": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "ReadOpsLogs",
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:GetObject",
+                        "s3:ListBucket"
+                    ],
+                    "Resource": [
+                        "arn:aws:s3:::copperline-ops-logs-cl7f3a",
+                        "arn:aws:s3:::copperline-ops-logs-cl7f3a/*"
+                    ]
+                },
+                {
+                    "Sid": "IntakeSupport",
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:Get*",
+                        "s3:List*"
+                    ],
+                    "Resource": "*"
+                }
+            ]
+        },
+        "VersionId": "v1",
+        "IsDefaultVersion": true,
+        "CreateDate": "2026-11-12T18:14:23.450256+00:00"
+    }
+}
