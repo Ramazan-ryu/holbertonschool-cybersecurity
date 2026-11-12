@@ -1,6 +1,6 @@
 # 8 — Review: The Label and the Evaluation
 
-`CopperlineOpsLogsReadOnly` promises a reasonable reviewer read-only access to Copperline operations logs. Its `ReadOpsLogs` statement does name only the ops-logs bucket. But default version **v1**, directly attached to IAM user `svc-audit-intake`, also contained this independent statement (`evidence/iam-get-policy-version.json`):
+`CopperlineOpsLogsReadOnly` suggests read-only access to operations logs. In default version **v1**, directly attached to `svc-audit-intake`, a separate statement granted broader access (`evidence/iam-get-policy-version.json`):
 
 ```json
 {
@@ -11,8 +11,6 @@
 }
 ```
 
-No `Condition` is present. This is the precise gap: `s3:List*` and `s3:Get*` match S3 list and get actions across resources matched by `Resource: "*"`, rather than only the operations-log bucket. The narrow `ReadOpsLogs` statement does not restrict this separate allow. As `svc-audit-intake`, the reviewer listed `copperline-migration-scratch-cl7f3a` and its keys and successfully called `HeadObject` on its objects. That proves the effective scope reached outside ops logs; the object bodies were not read.
+There is no `Condition`. The path is user → attached managed policy → v1 → `IntakeSupport`. These action and resource patterns are not limited to the ops-logs bucket. The user listed the undocumented migration-scratch bucket and successfully called `HeadObject` on its objects; the bodies were not read. The separate `ReadOpsLogs` statement did not narrow this grant.
 
-This can happen during a four-month freight migration without anyone acting carelessly. While locating cutover artifacts, an intake/support exception across buckets can appear practical. A separately administered statement with reusable `Get*`/`List*` actions and `Resource: "*"` is faster to add and keeps working as buckets appear. The policy name and narrow `ReadOpsLogs` statement make the result look more limited unless someone evaluates every statement together and tests a bucket outside the stated purpose. The corrective lesson is to scope each exception to named resources and test both an intended allow and an out-of-scope denial.
-
-The operator removed `IntakeSupport` in v2 and verified ops-log access still worked while scratch listing was denied (`evidence/iam-get-policy-version-v2.json`, `evidence/remediation-v2-session.txt`). The inline `MaintainIntakePolicy` permission still lets this identity change the policy version, so Copperline should review that separate capability.
+During a four-month freight migration, a reusable intake exception could reasonably seem like a way to find cutover files across changing buckets. Wildcards keep work moving as resources appear, while the policy name and narrower statement can make the overall access look limited. The gap is in the policy and review process, not an individual’s competence: the broad exception shipped without a resource limit or a test against an out-of-scope bucket. For future exceptions, name the resources and test both the intended access and a boundary denial.
