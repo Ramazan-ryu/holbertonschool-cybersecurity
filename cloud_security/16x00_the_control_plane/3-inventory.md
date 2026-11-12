@@ -11,9 +11,9 @@ Calls: `aws s3api list-objects-v2 --bucket <bucket> --max-keys 5`:
 - `copperline-freight-manifests-cl7f3a` returned `manifests/2026-Q1.csv` (2,528 bytes) and `manifests/2026-Q2.csv` (2,556 bytes). This matches the documented freight manifest bucket and confirms object names are visible to this identity.
 - `copperline-ops-logs-cl7f3a` returned `access/2026-08.log` (3,569 bytes), consistent with the documented operations logs.
 - `copperline-cloudtrail-cl7f3a` returned five CloudTrail object keys and `IsTruncated: true`, consistent with the documented audit bucket.
-- The scratch bucket was not yet listed; its contents are unknown.
+- Initial review listed the scratch bucket and found two migration artifact keys; after policy remediation, the operator's list request to that bucket returned `AccessDenied` (see `evidence/remediation-v2-session.txt`). Existing inventory observations remain historical evidence; no object bodies were retrieved.
 
-The account returned a successful bucket listing and successful object listings for all three documented buckets. These results are consistent with the wildcard `s3:List*` statement on `Resource: "*"` in `CopperlineOpsLogsReadOnly`. Listing proves names and metadata are visible; it does not by itself prove object contents can be read. Encryption and public access block settings have not yet been checked.
+Before remediation, the account returned successful listings for the documented buckets and the scratch bucket, consistent with the original wildcard `s3:List*` statement. After v2 became default, the ops-logs listing still succeeded while the scratch-bucket listing returned `AccessDenied`. Listing proves names and metadata are visible; it does not by itself prove object contents can be read.
 
 ## SQS
 

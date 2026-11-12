@@ -1,0 +1,24 @@
+# Remediation evidence supplied by the operator
+
+Principal: arn:aws:iam::418274639051:user/svc-audit-intake
+Policy: arn:aws:iam::418274639051:policy/CopperlineOpsLogsReadOnly
+
+## Policy version creation
+
+Command: `aws iam create-policy-version --policy-arn arn:aws:iam::418274639051:policy/CopperlineOpsLogsReadOnly --policy-document file://5-remediation/narrowed-policy.json --set-as-default`
+
+The account returned `VersionId: v2` and `IsDefaultVersion: true`. The returned document contains only `ReadOpsLogs`, allowing `s3:GetObject` and `s3:ListBucket` on `copperline-ops-logs-cl7f3a` and its objects.
+
+## Default version check
+
+Command: `aws iam get-policy --policy-arn arn:aws:iam::418274639051:policy/CopperlineOpsLogsReadOnly --query 'Policy.DefaultVersionId' --output text`
+
+Output: `v2`.
+
+## Post-change S3 checks
+
+`aws s3api list-objects-v2 --bucket copperline-ops-logs-cl7f3a --max-keys 1` succeeded and returned key `access/2026-08.log` (listed size 3569 bytes).
+
+`aws s3api list-objects-v2 --bucket copperline-migration-scratch-cl7f3a --max-keys 1` returned `AccessDenied` (the operator supplied a truncated terminal transcript, without the complete error line).
+
+These are point-in-time results from the operator's session. They establish list access to the ops logs bucket and denied list access to the scratch bucket after v2 became default. They do not test `GetObject` body access or other principals.
