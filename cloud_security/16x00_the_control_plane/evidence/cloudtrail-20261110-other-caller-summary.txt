@@ -1,0 +1,13 @@
+Source queried by operator:
+s3://copperline-cloudtrail-cl7f3a/AWSLogs/418274639051/CloudTrail/eu-west-1/2026/11/10/
+
+The operator synchronized and decompressed the date's CloudTrail objects, aggregated their Records arrays, and filtered out user ARN arn:aws:iam::418274639051:user/svc-audit-intake and principal ID AIDA59C2ACB2A2DB59159. Grouped command output:
+
+6       arn:aws:iam::418274639051:user/copperline-ci    s3.amazonaws.com        ListBuckets     success bbd08759-05c4-45ee-bc99-9ef649c17590
+2       arn:aws:iam::418274639051:user/copperline-ci    s3.amazonaws.com        PutObject       success 9092ec8d-9de6-4618-977a-9eb486fad77d
+2       arn:aws:sts::418274639051:assumed-role/copperline-backup/AWSBackup-20261110     s3.amazonaws.com        GetObject       success f0db698d-a260-4728-9053-a5f8dec6fa18
+12      arn:aws:sts::418274639051:assumed-role/copperline-batch-runner/batch-b1fb8f8744cf       s3.amazonaws.com       GetObject        success 3ab5f9ba-be51-4146-bd5e-9c96b99a4552
+17      arn:aws:sts::418274639051:assumed-role/copperline-batch-runner/batch-b1fb8f8744cf       sqs.amazonaws.com      ReceiveMessage   success fc735de5-8a95-4bcf-8e2a-337fe901f428
+1       unknown sts.amazonaws.com       AssumeRole      success 85328ceb-8bf9-42cc-9e28-972b9555a0f1
+
+These are representative event IDs from each grouped result, not a complete index of other principals' events. The audit-trail task concerns the svc-audit-intake caller's work; this summary is included only to distinguish ordinary account activity from that work.

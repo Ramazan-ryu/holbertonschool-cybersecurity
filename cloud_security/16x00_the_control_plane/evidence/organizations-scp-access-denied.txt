@@ -1,0 +1,15 @@
+Principal: arn:aws:iam::418274639051:user/svc-audit-intake
+
+Command:
+aws organizations list-policies-for-target --target-id 418274639051 --filter SERVICE_CONTROL_POLICY
+
+Response:
+An error occurred (AccessDeniedException) when calling the ListPoliciesForTarget operation: User: arn:aws:iam::418274639051:user/svc-audit-intake is not authorized to perform: organizations:ListPoliciesForTarget
+
+Command:
+aws organizations list-parents --child-id 418274639051 --query 'Parents[0].Id' --output text
+
+Response:
+An error occurred (AccessDeniedException) when calling the ListParents operation: User: arn:aws:iam::418274639051:user/svc-audit-intake is not authorized to perform: organizations:ListParents
+
+Conclusion: SCP attachments and the account's parent path could not be enumerated by this principal. SCP presence or absence remains unknown.
