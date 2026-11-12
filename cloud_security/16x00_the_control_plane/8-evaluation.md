@@ -1,8 +1,6 @@
 # 8 — Review: The Label and the Evaluation
 
-## Exact source of the over-grant
-
-`CopperlineOpsLogsReadOnly` version **v1** was directly attached to IAM user `svc-audit-intake`; `list-attached-user-policies` returned that attachment. The actual document is `evidence/iam-get-policy-version.json`. Its `IntakeSupport` statement reads:
+`CopperlineOpsLogsReadOnly` promises a reasonable reviewer read-only access to Copperline operations logs. Its `ReadOpsLogs` statement does name only the ops-logs bucket. But default version **v1**, directly attached to IAM user `svc-audit-intake`, also contained this independent statement (`evidence/iam-get-policy-version.json`):
 
 ```json
 {
@@ -13,12 +11,8 @@
 }
 ```
 
-`Condition` is absent. The permission path is IAM user `svc-audit-intake` → directly attached managed policy `CopperlineOpsLogsReadOnly` → default v1 → `IntakeSupport`. The separate `ReadOpsLogs` statement was scoped to one bucket, but did not limit this independent allow: `s3:List*` included bucket listing and `s3:Get*` included object reads on resources matched by `Resource: "*"`. Before remediation, the principal listed the scratch bucket and keys and successfully called `HeadObject` on scratch objects. Those responses demonstrate the statement's reach; their bodies were not read.
+No `Condition` is present. This is the precise gap: `s3:List*` and `s3:Get*` match S3 list and get actions across resources matched by `Resource: "*"`, rather than only the operations-log bucket. The narrow `ReadOpsLogs` statement does not restrict this separate allow. As `svc-audit-intake`, the reviewer listed `copperline-migration-scratch-cl7f3a` and its keys and successfully called `HeadObject` on its objects. That proves the effective scope reached outside ops logs; the object bodies were not read.
 
-## How this could happen in a real migration
+This can happen during a four-month freight migration without anyone acting carelessly. While locating cutover artifacts, an intake/support exception across buckets can appear practical. A separately administered statement with reusable `Get*`/`List*` actions and `Resource: "*"` is faster to add and keeps working as buckets appear. The policy name and narrow `ReadOpsLogs` statement make the result look more limited unless someone evaluates every statement together and tests a bucket outside the stated purpose. The corrective lesson is to scope each exception to named resources and test both an intended allow and an out-of-scope denial.
 
-During a four-month dispatch migration, an intake/support exception could seem useful for locating cutover artifacts across buckets. Broad action patterns and `Resource: "*"` are quick to write and keep covering new buckets. A reviewer focused on the narrow `ReadOpsLogs` rule or the policy's name could miss that IAM evaluates `IntakeSupport` separately. This is a policy-design and review gap, not individual blame: the exception had no named resource limits or negative test against an out-of-scope bucket.
-
-## Remediation
-
-The operator created v2, removed `IntakeSupport`, and made v2 default. The exact v2 document is in `evidence/iam-get-policy-version-v2.json`. Ops-logs listing and a one-byte `GetObject` read succeeded afterward; scratch listing returned `AccessDenied` (`evidence/remediation-v2-session.txt`, `evidence/ops-logs-get-object-range.json`). The inline `MaintainIntakePolicy` statement still lets this identity create and activate another policy version, so the account owner should review whether that self-modification permission is required.
+The operator removed `IntakeSupport` in v2 and verified ops-log access still worked while scratch listing was denied (`evidence/iam-get-policy-version-v2.json`, `evidence/remediation-v2-session.txt`). The inline `MaintainIntakePolicy` permission still lets this identity change the policy version, so Copperline should review that separate capability.
