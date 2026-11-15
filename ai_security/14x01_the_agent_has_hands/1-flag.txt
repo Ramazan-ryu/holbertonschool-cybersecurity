@@ -1,4 +1,5 @@
-FLAG_INDIRECT: NOT CAPTURED. The literal `<FLAG_INDIRECT>` in the planted text is a placeholder, not a recovered flag.
+FLAG{f5f14b3287fa334783039bbe44558a80}
+
 
 Payload artifact: `evidence/1-poison.md`. POST `/kb/ticket` accepted it as id `user-75e89a9e766f`, provenance `customer_ticket`, count 40.
 
