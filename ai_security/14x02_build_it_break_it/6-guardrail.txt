@@ -1,6 +1,6 @@
-# Task 6 — Deploy a Guardrail and Measure It
+# Deploy a Guardrail and Measure It
 
-**Guard and class:** Input filter on the `message` channel, aimed at prompt injection and instruction extraction. Normalization and decode scanning were enabled; three deny patterns were configured; the model-based guard was disabled.
+**Guard and class:** Input filter scope was `message` only; it targeted prompt injection and instruction extraction. Normalization and decode scanning were enabled; three deny patterns were configured; the model-based guard was disabled. Ticket and retrieved channels were outside this guard scope.
 
 CLASS: prompt_injection (LLM01) K=60
 

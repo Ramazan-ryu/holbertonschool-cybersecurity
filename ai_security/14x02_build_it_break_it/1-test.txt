@@ -1,4 +1,4 @@
-# Task 1 — Parameterise the Tool Output
+# Parameterise the Tool Output
 
 **Control applied:** `tools.output_handling=parameterized` on the build. The database tool accepts a registered statement and named parameters rather than model-supplied executable SQL.
 

@@ -1,4 +1,4 @@
-# Task 3 — Gate the Consequential Actions
+# Gate the Consequential Actions
 
 **The gate:** Human approval is enabled for `issue_refund` and `delete_record`. The proof configuration reported both consequential tools gated.
 

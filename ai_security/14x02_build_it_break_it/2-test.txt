@@ -1,4 +1,4 @@
-# Task 2 — Scope the Tools
+# Scope the Tools
 
 **Scoping applied:** `tools.per_tool_authz=true`. Authorization is enforced by each tool call against the session's allowed target, rather than inferred from the model's explanation or claimed authority.
 

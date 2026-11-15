@@ -1,4 +1,4 @@
-# Task 5 — Cap Consumption
+# Cap Consumption
 
 **Caps configured:** `resource_caps.enabled=true`, `max_tokens_per_session=8000`, `max_requests_per_min=20`, `max_tool_iterations=6`, and `max_output_tokens=512`.
 

@@ -1,0 +1,11 @@
+# Model provenance
+
+Configured model identifier: `gemini-3.8-flash`
+Provider: Google Gemini API (`generativelanguage.googleapis.com`)
+API version: `v1beta`
+Pin source: `~/lab/shipped/pin.json`, read at container startup
+Pin file verification date: 2026-11-15
+Own-build `GET /config` model.resolved_version: `null`
+Own-build metrics model_version: `null`
+
+The pin identifies the configured provider/model name. This review run did not receive a successful model response from the student's build, so it cannot attest to the exact serving revision. A reference response elsewhere reported `gemini-3.8-flash`, but that is not evidence of the student's build's resolved version. The hosted model weights are not present in the project and no model artifact checksum or signed provider revision was supplied. The pin and API metadata can reveal an unexpected configured name or provider change; they cannot prove which backend revision answered a particular request unless a successful response's modelVersion is recorded.
