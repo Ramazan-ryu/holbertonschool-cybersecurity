@@ -1,0 +1,9 @@
+# Task 5 — Cap Consumption
+
+**Caps configured:** `resource_caps.enabled=true`, `max_tokens_per_session=8000`, `max_requests_per_min=20`, `max_tool_iterations=6`, and `max_output_tokens=512`.
+
+**Attack re-run:** The deterministic cap and loop probes used the harness default assumption of 1500 tokens per call. This did not spend model quota.
+
+RESULT: control=resource_caps attack=llm10_runaway outcome=cap_hit hit_at_call=7 max_tokens_per_session=8000 loop=terminated stopped_reason=session_token_cap loop_iterations=6 unbounded_flag_minted=false attest=5f67f446d164bc8a
+
+The session cap stopped the modeled runaway at call 7, and the tool loop terminated at the configured six iterations. The supplied transcript did not include `GET /metrics`'s `avg_tokens_per_request`, so the 8000-token threshold cannot yet be justified against measured normal traffic. Record that metric and tune the cap against representative sessions before treating this as a production-calibrated limit. The per-minute and output-token limits bound request rate and single-response size separately.
