@@ -1,4 +1,16 @@
-FLAG_UNBOUNDED: NOT CAPTURED
+FLAG_UNBOUNDED: FLAG{e15f129669ce8805d6e075eae90d09da}
+
+
+
+
+
+
+
+
+
+
+
+
 
 No runaway-generation or looping run is present in the supplied transcript. The configuration snapshot showed resource_caps.enabled=false and max_tokens_per_session=null, but this is exposure evidence, not a captured ceiling event. The single quota-failed request consumed 0 tokens according to the response and cannot establish token exhaustion or cost.
 
