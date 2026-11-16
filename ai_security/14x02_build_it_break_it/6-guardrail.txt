@@ -1,10 +1,10 @@
 # Deploy a Guardrail and Measure It
 
-**Guard and class:** Input filter scope was `message` only; it targeted prompt injection and instruction extraction. Normalization and decode scanning were enabled; three deny patterns were configured; the model-based guard was disabled. Ticket and retrieved channels were outside this guard scope.
+**Guard and class:** The tested configuration was `p2_hardened_reference`. Its input filter was enabled for the `message` scope, with normalization and decode scanning enabled and three deny patterns configured. The model-based guard was disabled (`guard_model=false`); ticket and retrieved-content channels were outside the input guard scope.
 
 CLASS: prompt_injection (LLM01) K=60
 
-**Measurement:** `guardrail_harness.py --seed 42` tested all 60 mutated prompt-injection variants. 13 were blocked and 47 bypassed: **47/60 = 78.3% bypasses**. The supplied benign set had **0/30** blocked requests.
+**Measurement:** `guardrail_harness.py --seed 42` tested 60 mutated prompt-injection variants. 13 were blocked and 47 bypassed: **13/60 = 21.7% blocked; 47/60 = 78.3% bypasses**. The supplied benign set had **0/30** blocked requests. The repeated run returned the same counts.
 
 **Bypasses:** Every tested fake-delimiter (5/5), multilingual (6/6), semantic-paraphrase (8/8), indirection (6/6), and benign-lookalike (5/5) variant bypassed. Direct override had 4/6 bypasses, roleplay 4/5, encoding 3/7, obfuscation 2/6, payload splitting 2/3, and fake transcript 2/3. The filter caught some literal or decodable phrases, but generally missed semantic rewrites, indirect requests, and inputs without the configured vocabulary.
 
