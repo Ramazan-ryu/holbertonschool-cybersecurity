@@ -1,0 +1,23 @@
+# Model provenance
+
+## Configured identity and source
+
+- Configured model identifier: `gemini-3.8-flash`
+- Provider: Google Gemini API (`generativelanguage.googleapis.com`)
+- API version: `v1beta`
+- Pin file: `~/lab/shipped/pin.json`, loaded at container startup into `MODEL_NAME`
+- Pin file SHA-256: `6753c0a1b60028ac44d0c4246f0d025e04c825262ecda0462b0ee196df0cb25d`
+- Verification date: 2026-11-16
+- Own-build owner-authenticated `GET /config` profile: `p2_hardened_reference`
+- Own-build `GET /config` `model.name`: `gemini-3.8-flash`
+- Own-build `GET /config` `model.resolved_version`: `gemini-3.8-flash` (same string as the configured identifier)
+- Provider-reported `modelVersion` from a successful response: unavailable; the captured live request returned `upstream_error_502` before the model was reached
+- Model weights, provider-signed revision, or model artifact checksum: not supplied in the captured evidence
+
+The configuration endpoint reports `resolved_version` as the configured model identifier, but the recorded live request did not reach the model and produced no Google response. Therefore this record does not treat the configuration value as a provider-confirmed serving revision. No immutable model revision or checksum is available in the supplied evidence; none is inferred or invented.
+
+## Drift detection and limits
+
+Retain this record with the deployment. Compare the configured identifier, provider, API version, and SHA-256 digest of `pin.json` against a later deployment; differences can reveal a changed model selection, pin file, or provider configuration. If a successful provider response supplies `modelVersion` or another immutable revision, record it and compare it with later responses to identify a provider-side revision change. The current evidence cannot detect a silent provider update reliably because it contains no successful provider-reported version, immutable model revision, or model-weight hash.
+
+Even an immutable model revision would not prove identical nondeterministic outputs or model safety. This record does not attest prompt contents, tool code, runtime settings, retrieval data, or other application changes; those must be versioned and reviewed separately.
