@@ -1,11 +1,23 @@
 # Model provenance
 
-Configured model identifier: `gemini-3.8-flash`
-Provider: Google Gemini API (`generativelanguage.googleapis.com`)
-API version: `v1beta`
-Pin source: `~/lab/shipped/pin.json`, read at container startup
-Pin file verification date: 2026-11-15
-Own-build `GET /config` model.resolved_version: `null`
-Own-build metrics model_version: `null`
+## Configured identity and source
 
-The pin identifies the configured provider/model name. This review run did not receive a successful model response from the student's build, so it cannot attest to the exact serving revision. A reference response elsewhere reported `gemini-3.8-flash`, but that is not evidence of the student's build's resolved version. The hosted model weights are not present in the project and no model artifact checksum or signed provider revision was supplied. The pin and API metadata can reveal an unexpected configured name or provider change; they cannot prove which backend revision answered a particular request unless a successful response's modelVersion is recorded.
+- Configured model identifier: `gemini-3.8-flash`
+- Provider: Google Gemini API (`generativelanguage.googleapis.com`)
+- API version: `v1beta`
+- Pin file: `~/lab/shipped/pin.json`, loaded at container startup into `MODEL_NAME`
+- Pin file SHA-256: not captured in the supplied evidence
+- Verification date recorded by the lab: 2026-11-15
+- Own-build `GET /config` `model.name`: `gemini-3.8-flash`
+- Own-build `GET /config` `model.resolved_version`: `null`
+- Own-build metrics `model_version`: `null`
+- Provider-reported `modelVersion` from this build: unavailable; the captured model requests failed upstream with HTTP 502
+- Model weights or provider-signed model digest: not supplied and not exposed in the captured evidence
+
+The configured identifier and provider are known, but the exact serving revision for this build is not established. Do not treat a reference build’s response or the configured identifier alone as proof of the revision that served this build. A successful response carrying the provider’s `modelVersion`, plus any immutable revision or digest the provider exposes, is needed to complete that evidence. No model checksum or revision is invented here.
+
+## Drift detection and limits
+
+Retain this record with the deployed configuration. Compare the configured identifier, provider, API version, and pin-file digest against a later deployment; differences can reveal a changed model selection or substituted provider endpoint. If a successful provider response supplies an immutable `modelVersion`, revision, snapshot, or digest, record it and compare it with later responses to detect a provider-side revision or altered model artifact. The supplied evidence has no pin-file digest, resolved version, immutable revision, or model-weight hash, so silent provider updates cannot currently be detected reliably from this record.
+
+Even with an immutable model revision, provenance does not prove identical nondeterministic outputs or model safety. It does not attest prompt contents, tool code, runtime settings, retrieval data, or other application changes. Those must be versioned and reviewed separately.
