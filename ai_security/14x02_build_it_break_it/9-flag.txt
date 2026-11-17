@@ -1,1 +1,6 @@
-FLAG_RESIDUAL_4 FLAG{40bf0bdd3ad6680d79c93ca501a36f23}
+partial_gating FLAG{08adb661bee5e7f2988a8e63d9fd44e4}
+single_family_guard FLAG{f4e508552ce6ca8fa422b71c483ac232}
+exploitable_parameters FLAG{8972248fc6e0dd4128c769a9a76bb777}
+stale_store FLAG{8136e0e2d541ea9558dca968edc006ac}
+per_session_cap FLAG{a3e55b3cef66794d5633298e7225e548}
+provenance_by_source_tag FLAG{40bf0bdd3ad6680d79c93ca501a36f23}
