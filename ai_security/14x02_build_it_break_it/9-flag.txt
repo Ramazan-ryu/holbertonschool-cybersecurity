@@ -1,2 +1,1 @@
-No `FLAG_RESIDUAL_*` was earned in the supplied attempts. The reference `GET /audit/log` returned `[]`; there is no live flag to report.
-FLAG
+ `FLAG_RESIDUAL_*`      FLAG
