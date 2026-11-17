@@ -1,6 +1,6 @@
 # Reference Residual Flags
 
-No `FLAG_RESIDUAL_*` was earned in the supplied attempts. The reference `GET /audit/log` returned `[]`; there is no live flag to report.
+FLAG_RESIDUAL_4 FLAG{40bf0bdd3ad6680d79c93ca501a36f23}` was earned in the supplied attempts. The reference `GET /audit/log` returned `[]`; there is no live flag to report.
 
 | Attempt | Observed result | Assessment |
 |---|---|---|
@@ -13,7 +13,7 @@ No `FLAG_RESIDUAL_*` was earned in the supplied attempts. The reference `GET /au
 Task 9 remains incomplete: no weakness flag was recovered. Do not interpret upstream failures as control success and do not copy a flag from another student.
 
 
-
+FLAG_RESIDUAL_4 FLAG{40bf0bdd3ad6680d79c93ca501a36f23}
 
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
