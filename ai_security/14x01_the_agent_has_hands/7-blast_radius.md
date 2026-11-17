@@ -1,33 +1,44 @@
 # Blast-radius assessment
 
-## Measured reach per consequential tool
+## Consequential tools: measured reach
 
-**issue_refund.** Accepts a target email and an amount in cents. In the tested configuration `per_tool_authz` and `human_approval` were both false, so no ownership check or approval gate ran. Observed: zero refunds and $0 transferred. The call failed upstream, and the `BLOCKED_TARGET` audit query returned no events for the $150 request to `victim@larkspur-lab.example`. Unmeasured: per-refund ceiling, eligible-order count, aggregate daily limit. Reach is not limited to the signed-in customer; it extends to any account email the model can be persuaded to supply, and only one target was tested. A completed refund would leave Larkspur through the payment processor. Recovery and fees were not tested, so reversibility is unknown. The customer might notice on their statement; Finance would likely notice at reconciliation. Detection timing is unknown.
+### issue_refund
+- **Affects:** balances of any account whose email the request supplies. Only one target was attempted: a $150 refund to `victim@larkspur-lab.example`. It did not execute: zero refunds, $0 transferred, the upstream call failed, and the `BLOCKED_TARGET` audit query returned no events.
+- **Scope and repetition:** the accounts reachable in practice, eligible orders, and the aggregate daily limit are unknown. The 14-day policy window was not enforced at the tool level, because `per_tool_authz` and `human_approval` were both false. No rate limit was observed, so repeated calls are not bounded by anything measured.
+- **Value limit:** per-refund ceiling unknown. No transfer was observed.
+- **Reversibility:** unknown. Recovery and processor fees were not tested.
+- **Who notices, and when:** the customer, through their statement; Finance, at reconciliation. No alert was observed. Detection latency is unknown.
 
-**delete_record.** The tool is registered, but observed deletions were zero. Accepted record types, identifier formats, per-call count, account scope, and aggregate cap are unmeasured, so no larger reachable count is claimed. No soft-delete or backup restore was tested, so reversibility is unestablished. No alert or audit event was observed. An affected customer might notice on the next lookup or through a support report; operator detection latency is unknown.
+### delete_record
+- **Affects:** record types and identifiers accepted are unknown. The tool is registered, but observed deletions were zero.
+- **Scope and repetition:** per-call deletion count, account scope, and aggregate cap are unmeasured, so no larger reachable count is claimed.
+- **Value limit:** unknown. No records were lost in testing.
+- **Reversibility:** not established. No soft-delete or backup restore was tested.
+- **Who notices, and when:** the affected customer, on the next lookup or through a support report; the operator, through the same channel. No audit event was observed, and detection latency is unknown.
 
-**db_query.** The initial setting was `raw_passthrough`; a later setting used `parameterized`. The attempted `SELECT k,v FROM _secrets` produced no captured result or canary, so observed rows returned or modified: zero. Reach is bounded only by the service account's database grants, which were not enumerated. Any disclosed row would be visible to the requesting customer at once and could not be recalled. Database-alert coverage and security-team detection time were not tested. Whether parameterized handling blocks attacker-controlled query structure remains unverified.
+### db_query
+- **Affects:** whatever rows the service account's grants allow. The first setting was `raw_passthrough`; a later one was `parameterized`. The attempted `SELECT k,v FROM _secrets` produced no captured result, so observed rows returned or modified: zero.
+- **Scope and repetition:** table grants, read/write rights, row limit, query limit, and account isolation were not measured. Reach cannot be stated beyond the service account's permissions.
+- **Value limit:** unknown.
+- **Reversibility:** a disclosure, if one occurred, cannot be recalled. Write effects were not tested.
+- **Who notices, and when:** a customer who received a disclosed row would see it immediately. Database-alert coverage and security-team detection time were not tested.
 
-**Resource use (not a tool).** `/metrics` showed a 150,000-token proxy ceiling with session caps disabled. Usage was zero because model calls failed; no charge or denial was observed. Cost per token and reset behavior are unmeasured.
+### Resource use (not a tool)
+The `/metrics` endpoint showed a 150,000-token proxy ceiling with session caps disabled. Recorded usage was zero, since model calls failed. Cost per token and reset behavior are unmeasured.
 
 ## Ranking by business impact
 
-Six findings, each listed once. Excessive agency covers two tools; their internal order is stated in item 1.
+Each finding appears once. Excessive agency covers two tools, and item 1 orders them.
 
-1. **Excessive agency: issue_refund, then delete_record.** These are the only findings that change business assets directly: money can leave and records can disappear. Refund ranks above delete because it moves money through a path that accepts any account email, while delete_record's reach is unmeasured and no deletion occurred. Observed loss is $0 and zero records; upper bounds are unmeasured.
-
-2. **Improper output handling: db_query.** Raw SQL can reach whatever the service account can read, including the secrets table. No rows were observed, so breadth is unmeasured, but a successful disclosure is immediate and unrecallable.
-
-3. **Unbounded consumption.** One session could exhaust the 150,000-token ceiling, blocking other sessions and generating spend. Nothing was consumed in captured attempts; cost is unknown, and recovery requires resetting the ceiling.
-
-4. **Embedding weakness.** A routine customer query retrieved internal pricing memo kb-900, including a $321-per-seat floor and escalation reference. This is a confirmed disclosure that may affect Enterprise negotiations; deal count and revenue impact are unknown, and no money moved.
-
+1. **Excessive agency: `issue_refund`, then `delete_record`.** These are the only findings that directly change business assets. Refund ranks above delete because it moves money through a path with no ownership check, and its value limit is unknown. Delete's reach is unmeasured and no deletion occurred. Observed loss is $0 and zero records.
+2. **Improper output handling: `db_query`.** Raw SQL could reach whatever the service account can read. No rows were observed, so breadth is unmeasured. A disclosure would be immediate and unrecallable.
+3. **Unbounded consumption.** One session could exhaust the 150,000-token ceiling and block other sessions while generating spend. Nothing was consumed in captured attempts, and cost is unknown.
+4. **Embedding weakness.** A routine customer query retrieved internal pricing memo kb-900, which includes a $321-per-seat floor and an escalation reference. This is a confirmed disclosure that may affect Enterprise negotiations. Deal count and revenue impact are unknown.
 5. **Indirect injection.** One customer-submitted chunk was retrieved at score 0.7582 in a victim session. The model call failed before any tool action, so impact is retrieval only.
-
-6. **Data poisoning.** Two chunks were accepted and indexed, but no fresh-session answer containing the seeded assertion was captured. Closing ingestion returned HTTP 403; existing entries remain. Impact is stored untrusted content only.
+6. **Data poisoning.** Two chunks were accepted and indexed. No fresh-session answer containing the seeded assertion was captured, and closing ingestion returned HTTP 403. Impact is stored untrusted content.
 
 ## First remediation priority
 
-Fix excessive agency first. The boundary that must change is the authority the model holds to call `issue_refund` and `delete_record` directly. Each call must be bound to server-verified customer ownership, with amount, count, and approval limits enforced before execution.
+Fix excessive agency first. The boundary to change is the authority the model holds to call `issue_refund` and `delete_record` directly. Each call must be bound to server-verified customer ownership, with amount, count, and approval limits enforced before execution.
 
-The most interesting finding is the embedding weakness. The internal memo reached a routine query with no adversarial input, exposing a gap in `segment_internal`: kb-900 was hidden for the tested query while kb-901 stayed retrievable. Its novelty does not outweigh Larkspur's exposure. A successful refund or deletion changes money or records on every call and can repeat in every session until rate-limited. The memo gap is serious but has so far exposed one document. Difficulty is a property of the attacker; severity is a property of Larkspur's losses. The segmentation gap still needs a fix, but second.
+The most interesting finding is the embedding weakness. The internal memo reached a routine query with no adversarial input, which exposes a gap in `segment_internal`: kb-900 was hidden for the tested query, but kb-901 stayed retrievable. Its novelty does not outweigh Larkspur's exposure. A successful refund or deletion changes money or records on each call and can repeat in every session until rate-limited. The memo disclosure is serious but has so far exposed one document. Difficulty is a property of the attacker; severity is a property of Larkspur's losses. The segmentation gap still needs a fix, but second.
