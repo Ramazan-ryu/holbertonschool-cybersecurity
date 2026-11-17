@@ -1,83 +1,83 @@
 # Design Defense
 
-The controls sit at different points because the model is an unreliable decision maker. No single layer absorbs every failure, so each control is defended by the class it addresses and the residual it leaves.
+The controls sit at different points because the model is an unreliable decision maker. Each section names the class, the mechanism, and what the control leaves open, tied to the residual in the Task 10 report. No control is claimed as complete protection.
 
 ## Owned system prompt
 
 **Class:** instruction-data confusion and disclosure of privileged context.
 
-**Mechanism:** The prompt limits the assistant to the signed-in customer's account and treats retrieved content as reference, not instructions.
+**Mechanism:** Sets the support role, limits discussion to the signed-in customer's account, and treats retrieved content as reference.
 
-**Does not cover:** The prompt is model-visible text and enforces nothing; authorization must come from the tools. A persuasive input can still induce paraphrase or disclosure of context the model already holds, including restricted chunks returned by search (LLM08 is falls). Prompt extraction (LLM07) was not measured successfully.
+**Does not cover:** The prompt is model-visible text and cannot enforce authorization. Prompt extraction (LLM07) was not measured: attempts returned upstream_error_502, so resistance is unknown.
 
-**Residual:** Instruction-following is probabilistic. The control raises the effort needed for disclosure but does not eliminate it.
+**Residual:** A successful override or extraction exposes the prompt and any secret in context, with no measured bound. A model update can change compliance.
 
 ## Parameterized tool output
 
 **Class:** executable-output injection (LLM05).
 
-**Mechanism:** The model supplies parameter values to a registered statement, not SQL text. A value containing quote marks or operators is bound as data.
+**Mechanism:** The model supplies parameter values to registered statements, not SQL text. Values are bound as data.
 
-**Does not cover:** It does not limit which statements exist, which columns they return, or which targets they accept. Model-directed exploitation was not measured successfully (LLM05 is partial).
+**Does not cover:** It does not limit which statements exist or which columns they return. A well-formed call to a registered statement passes this control, so over-broad reads remain open here. LLM05 is partial: no model-directed exploitation was measured successfully.
 
-**Residual:** Any data a registered statement exposes is reachable through a valid parameter. The control closes syntax injection, not over-retrieval.
+**Residual:** Over-broad reads through permitted statements. The class is reduced at the database boundary, not eliminated.
 
 ## Per-tool authorization
 
 **Class:** broken authorization and excessive agency (LLM06).
 
-**Mechanism:** Each tool checks the session's identity against the requested target before executing. Authority comes from the server, not the model's explanation.
+**Mechanism:** Each tool checks the session's identity against the requested target before executing. Authority comes from the server.
 
-**Does not cover:** It decides whether a call may run, not what an allowed call returns. It depends on correct identity binding and on every future tool implementing the check. The denial tests ran in plan mode, so live mutation behavior is unverified (LLM06 is partial).
+**Does not cover:** It depends on correct identity binding and on every future tool implementing the check. Denial tests ran in plan mode, so live mutation behavior is unverified. It does not judge whether an allowed action is prudent.
 
-**Residual:** A permitted but harmful call is not screened by this control.
+**Residual:** LLM06 is partial. A correctly bound session can still act within its own account, and one missing check reopens the class for a new tool.
 
 ## Human approval
 
 **Class:** high-consequence action taken without a decision about intent.
 
-**Mechanism:** Refund and delete requests are held for a person and change no state until approved.
+**Mechanism:** Refund and delete requests are queued until a reviewer approves them. The queued test request changed no state.
 
-**Does not cover:** It applies only to the two listed tools. A reviewer can approve a harmful request if the screen omits context. One consequential request remains pending, so the decision path is not verified end to end.
+**Does not cover:** It applies only to the two listed tools. A reviewer may approve a harmful request if the screen omits context. One own-order deletion remains pending, so the approve-and-execute path is not verified end to end.
 
-**Residual:** Safety of refunds and deletions depends on reviewer judgment, which this control does not measure.
+**Residual:** A reviewer error turns a queued refund into a real transfer. No reviewer error rate was measured.
 
 ## Retrieval provenance and ingestion restriction
 
 **Class:** untrusted retrieval and persistent poisoning (LLM04, LLM08).
 
-**Mechanism:** Public user ingestion is disabled, and provenance is checked at write time. The planted ticket was quarantined.
+**Mechanism:** Public user ingestion is disabled, and provenance is checked at write time.
 
-**Does not cover:** This is the weakest control. The FAQ-suggestion path reached retrieval, so provenance did not stop poisoning there (LLM04 is falls). Segmentation is disabled (`segment_internal=false`), and restricted chunks were returned in 3 of 3 embedding searches on my build and a peer endpoint (LLM08 is falls). Provenance can be laundered when untrusted text is republished into a trusted-looking source. The victim response was inferred, not observed live.
+**Does not cover:** It does not stop retrieval of restricted content. Segmentation is off (`segment_internal=false`), and restricted chunks were returned in 3 of 3 internal searches on my build and 3 of 3 on a peer endpoint (LLM08 falls). The FAQ-suggestion path reached retrieval, so provenance checks did not stop poisoning there (LLM04 falls). Provenance can be laundered when untrusted text is republished into a trusted-looking source. The victim response was inferred, not observed live.
 
-**Residual:** A customer making semantically related support queries can reach internal pricing and escalation chunks, including the $321-per-seat floor. Poisoned FAQ content can enter retrieval. The control raises the effort for a crafted ticket but does not eliminate the class.
+**Residual:** Any support user can retrieve internal pricing, including the $321-per-seat floor, and poisoned FAQ content can be served. No other kept control covers this. It is the weakest control.
 
 ## Resource caps
 
 **Class:** unbounded consumption (LLM10).
 
-**Mechanism:** Session token, request-rate, tool-iteration, and output-token limits bound cost and loop length.
+**Mechanism:** Session token, request-rate, tool-iteration, and output limits.
 
-**Does not cover:** Caps limit consumption, not what a permitted request discloses, and can cut off a legitimate long request. Thresholds are uncalibrated because `avg_tokens_per_request` is null. The stop was shown only under a 1500-tokens-per-call assumption.
+**Does not cover:** Caps bound volume, not content. A single request within the token cap can still disclose whatever retrieval supplies. Thresholds are uncalibrated because `avg_tokens_per_request` is null, and the LLM10 result holds only under the 1500-tokens-per-call assumption.
 
-**Residual:** One session can spend up to 8000 tokens, and new sessions are possible within the rate limit. The dollar cost is unknown.
+**Residual:** Sustained provider cost within the cap, with no dollar figure. A legitimate long request can be cut off.
 
 ## Input guardrail and output filtering
 
 **Class:** adversarial-input evasion (input side) and sensitive-output leakage (output side).
 
-**Mechanism:** The input filter catches some literal or decodable injection phrases in user messages. Output redaction and schema validation reduce accidental exposure of secret-shaped strings.
+**Mechanism:** The input filter catches some literal or decodable injection phrases in the message. Output redaction and schema validation catch secret-shaped strings and malformed results.
 
-**Does not cover:** The input filter bypassed 47 of 60 mutated variants (78.3%) and screens only the message channel. Output filtering runs after retrieval and tool calls, so it cannot stop data being fetched or an action executing. It must not be credited for retrieval or tool risk.
+**Does not cover:** 47 of 60 mutated variants (78.3%) bypassed the input filter, including every semantic, indirect, multilingual, fake-delimiter, and benign-lookalike sample. It screens only the message channel, not tickets or retrieved text. Output filtering runs after retrieval and tool calls, so it cannot stop data being fetched or an action executing.
 
-**Residual:** Injection through tickets and retrieved content is unscreened, and most mutated attempts in the test set reached the agent. LLM01 is falls.
+**Residual:** LLM01 is falls; about four in five mutated attempts reached the agent. This control raises attacker effort and removes no class.
 
 ## Removal order under a two-control reduction
 
-**First to remove: the input guardrail.** Its measured coverage is lowest, and it screens only the message channel, not the ticket and retrieval channels where the largest residual lies. Its cost is real: obvious injection phrases reach the model. Measured LLM01 exposure barely changes, since 47 of 60 variants already bypass it, but the cheap signal and the block on obvious attempts are lost. Per-tool authorization and human approval bound what a manipulated request can do to the listed actions. New residual: more obvious injections reach the model unflagged. This is accepted, not eliminated.
+**First: the input guardrail.** It has the lowest measured coverage and does not screen the channels where the residual sits. Its loss adds no retrieval risk, since it never covered retrieval. Cost: obvious injection attempts reach the model. Per-tool authorization and human approval still limit what a manipulated request can do, though they do not stop the manipulation. The increase is accepted, not eliminated.
 
-**Second to remove: the prompt's secrecy wording.** It is guidance, not enforcement. The cost is weaker resistance to casual extraction, which cannot be quantified because LLM07 was not measured. Parameterized output and per-tool authorization remain, but neither addresses retrieval disclosure, so casual extraction of context becomes easier.
+**Second: the prompt's secrecy wording.** It is guidance, not enforcement, and covers no tool. Cost: weaker resistance to casual extraction. Because LLM07 was not measured, this loss cannot be quantified. Parameterized output and per-tool authorization remain as compensating controls, and the residual rises for LLM07 only.
 
-**Load-bearing, preserved longest:** per-tool authorization, the only control that decides whether a session may act on a target. Human approval, because refunds and deletions cannot be reversed by the model. Parameterized output, because it closes syntax injection at the database boundary.
+**Preserved longest:** per-tool authorization, the only control deciding whether a session may act on a target; human approval, for refunds and deletions the model cannot reverse; and parameterized output, which closes executable injection at the database boundary.
 
-**Weakest control:** retrieval provenance. It targets the class with measured failures on two paths, and no other layer covers retrieval disclosure. Fix it before any decision that touches ingestion or retrieval.
+**Weakest:** retrieval provenance. No remaining control stops restricted chunks or poisoned FAQ content from reaching the model. This must be fixed before any change to ingestion or retrieval is approved.
