@@ -66,7 +66,7 @@ Controls sit at separate boundaries because the model is an unreliable decision 
 
 **Class:** adversarial-input evasion and sensitive-output leakage. Both are attacked by variation, so pattern matching raises effort without closing either class.
 
-**Mechanism:** The input filter blocks known literal and decodable injection patterns in messages. Output redaction and schema checks remove matched secret formats and malformed replies.
+**Mechanism:** The input filter blocks known injection patterns in messages. Output redaction and schema checks remove matched secret formats and malformed replies.
 
 **Does not cover:** Paraphrase, indirection, and other languages pass the filter. It ignores tickets and retrieved text. Output filtering runs after retrieval and tool calls, so it cannot stop data being fetched or actions executing. Secrets without a matched format pass unredacted.
 
