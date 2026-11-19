@@ -1,23 +1,21 @@
 # 8. Review: Nothing Was Broken
 
-## The chain
+## The exercised chain
 
-Start: `reporting-analyst`, a Finance Ops reporting analyst.
+The starting principal was `arn:aws:iam::418274630117:user/reporting-analyst`, a Finance Ops reporting analyst. `ChainB_AmendReaderPolicy` allowed this user to create and set the default version of `AshfordCrossAcctReaderAccess), attached to `ashford-crossacct-reader). The user made the default `Effect: Allow`, `Action: "*"`, `Resource: "*"` (CloudTrail event `470c5222-ec60-4d00-9baf-526cee5857aa`, 06:15:55Z).
 
-1. **Policy edit.** `ChainB_AmendReaderPolicy` grants `iam:CreatePolicyVersion` and `iam:SetDefaultPolicyVersion` on `AshfordCrossAcctReaderAccess`, attached to `ashford-crossacct-reader`. The analyst set a default version granting `Action: "*"` on `Resource: "*"` (event `470c5222-ec60-4d00-9baf-526cee5857aa`).
-2. **Assume role.** `ChainB_AssumeReader` grants `sts:AssumeRole` on that role, and its trust names the analyst. The analyst assumed it (event `37c3d6ff-b7af-46bd-a454-462e3b944c7b`), gaining a session with the edited policy.
-3. **IAM user management (not observed).** The session's policy would allow `iam:CreateUser` and `iam:DeleteUser`, but the export contains no such calls under the assumed role.
+`ChainB_AssumeReader` and the role trust allowed the same user to assume that role. The call succeeded (event `37c3d6ff-b7af-46bd-a454-462e3b944c7b`, 06:15:56Z). Task 7 records the resulting session as `arn:aws:sts::418274630117:assumed-role/ashford-crossacct-reader/task0-prediction-replay` (event `37fec8b1-3a62-4e35-9e07-9f9c74c438d6`). Under that session, `CreateUser` and `DeleteUser` succeeded (events `3a924e0e-2f16-44d0-a67a-773a36d87b58` and `063cc197-ca58-473e-aee7-f6f1dcd3aba2`). Task 7 locates them in `AWSLogs/418274630117/CloudTrail/eu-west-1/2026/11/19/418274630117_CloudTrail_eu-west-1_20261119T0616Z_041F727DBEDbDa41.json.gz`.
 
-Bounds: the SCP denies access-key creation, login profiles and organisation exit. The administrative outcome is expected, not established.
+The demonstrated administrative authority is IAM user creation and deletion. The wildcard role policy remains subject to SCP denies on access-key creation, login profiles, organization exit, and account closure.
 
-## Why it composed
+## Why valid permissions composed
 
-Each grant had an ordinary purpose: one reporting policy, one reporting role. The seam is that the role's authority comes from a policy this principal can edit, and the principal can assume that role. No single grant approved that combination.
+Policy-version management let the analyst change the authority attached to a role; role assumption let the same analyst obtain that changed authority. Each grant had a plausible isolated purpose, but together they produced IAM user-management capability that neither grant described alone.
 
 ## What the clean scan measured
 
-A clean scan shows that no single configuration is defective. It does not show that effective permissions stay safe when edits, trust and role assumption combine. Ashford's scan measured isolated defects; the property that failed was reachable authority.
+A monthly scan with no findings means it detected no individual configuration defects within its checks and scope. It does not establish that valid policy edits, trust relationships, and role assumptions cannot compose into high-impact access. Ashford measured isolated defects, while this chain depended on effective permissions across identities and state changes.
 
-## What would find it
+## A budgetable detection activity
 
-A scheduled effective-permission analysis models principals, policies, trust, assume-role edges, boundaries and SCPs, and lists paths from a non-administrative principal to high-impact actions. It runs on each policy or trust change and monthly. Top paths are validated by hand in a lab. Its input, output and cost per run are fixed, so it can be budgeted.
+Run effective-permission and identity attack-path analysis monthly and after policy, trust, or role-attachment changes. Model principals, policy attachments and versions, trusts, boundaries, SCPs, state changes, and cross-account transitions; rank paths from ordinary principals to high-impact actions. Validate the highest-risk multi-hop paths in a lab. Budget by account count, scan cadence, and validation hours.
