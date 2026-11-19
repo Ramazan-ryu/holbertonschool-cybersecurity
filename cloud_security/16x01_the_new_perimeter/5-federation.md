@@ -2,10 +2,29 @@
 
 ## Exact admitted set
 
-Let P be the registered OIDC provider `arn:aws:iam::418274630117:oidc-provider/token.actions.githubusercontent.example`. Let Valid_P(t) mean AWS validates token t as an unexpired token signed by provider `token.actions.githubusercontent.example`. The admitted token set is:
+The role trust statement is:
+
+```json
+{
+  "Effect": "Allow",
+  "Principal": {
+    "Federated": "arn:aws:iam::418274630117:oidc-provider/token.actions.githubusercontent.example"
+  },
+  "Action": "sts:AssumeRoleWithWebIdentity",
+  "Condition": {
+    "StringEquals": {
+      "token.actions.githubusercontent.example:aud": "sts.amazonaws.com"
+    }
+  }
+}
+```
+
+Let P be the registered OIDC provider `arn:aws:iam::418274630117:oidc-provider/token.actions.githubusercontent.example`. Let Valid_P(t) mean AWS validates t as an unexpired token signed by registered provider `token.actions.githubusercontent.example`. The exact admitted token set is:
 
 ```text
 A = { t | Valid_P(t) AND aud(t) = "sts.amazonaws.com" }
+
+A caller is admitted if and only if its token belongs to A.
 ```
 
 Equivalently, the admitted external identities are the subjects of those tokens:
@@ -14,7 +33,7 @@ Equivalently, the admitted external identities are the subjects of those tokens:
 A_ids = { sub(t) | t in A }
 ```
 
-Thus every subject that this provider authenticates and issues a valid token to is admitted when that token has the specified audience. This includes any provider-issued subject regardless of repository, owner, ref, workflow, or environment. The provider restriction means this is not an arbitrary issuer or forged-token set.
+The provider field fixes the issuer; the predicate fixes the only claim value tested by the condition. Every other subject value issued by P is admitted when the token satisfies the predicate.
 
 ## Condition analysis
 
@@ -28,14 +47,14 @@ The trust statement has one condition operator and one key/value pair:
 
 ## Intended identity and gap
 
-**Assumption, not verified configuration:** the handover identifies this as the production deploy role, but the supplied files do not include Ashford's CI workflow or the literal organization, repository, branch, or environment values. I therefore cannot claim an exact Ashford subject. The assumed intended subject S has one of these full forms, depending on the workflow configuration:
+**Intended identity (assumption):** the handover context identifies this as the production deploy role. The intended subject S is assumed to be one of the following full forms, depending on whether Ashford gates deployment by branch or environment:
 
 ```text
 S_branch = "repo:OWNER/REPO:ref:refs/heads/PROTECTED_BRANCH"
 S_environment = "repo:OWNER/REPO:environment:PRODUCTION_ENV"
 ```
 
-`OWNER`, `REPO`, `PROTECTED_BRANCH`, and `PRODUCTION_ENV` are placeholders for unverified values. If the workflow is branch-gated, assume S = S_branch; if environment-gated, assume S = S_environment. The intended set under either assumption is I = {t in A : sub(t) = S}. The excess admitted set is:
+`OWNER`, `REPO`, `PROTECTED_BRANCH`, and `PRODUCTION_ENV` are assumption placeholders, not values asserted to be Ashford configuration. Let S be the selected intended subject: S_branch for branch-gated deployment or S_environment for environment-gated deployment. Then I = {t in A : sub(t) = S}, and the excess admitted set is:
 
 ```text
 A \ I = { t | Valid_P(t) AND aud(t) = "sts.amazonaws.com" AND sub(t) != S }
