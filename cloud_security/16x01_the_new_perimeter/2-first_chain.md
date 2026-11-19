@@ -1,18 +1,16 @@
 # 2. The Unremarkable Administrator
 
-## Starting principal and result
+## Evidence scope and starting principal
 
-Starting principal: `arn:aws:iam::418274630117:user/reporting-analyst`, the Finance Ops monthly regulatory reporting analyst. The replay's initial `GetCallerIdentity` returned this ARN (CloudTrail event `325b2b66-93bc-4882-9c05-87a083f70bb8`, 2026-11-19T06:15:55Z).
+The signed source of truth for this replay is `evidence/audit-export-replay.json`. It identifies the initial caller as `arn:aws:iam::418274630117:user/reporting-analyst` (STS `GetCallerIdentity`, 2026-11-19T06:15:55Z, event ID `325b2b66-93bc-4882-9c05-87a083f70bb8`, request ID `NuZlt8a37iepibyilObnnLmf0bNDrqMkefd0Ii0FUpL9iBdFKkVI`). This is the Finance Ops monthly regulatory reporting analyst.
 
-The chain reached `arn:aws:sts::418274630117:assumed-role/ashford-crossacct-reader/task0-prediction-replay`. Using that session, the test created and deleted an IAM user. This proves IAM user administration through this role; it does not prove unrestricted control of every AWS service. SCP denies remain in force.
+## Edge 1: change the reader policy
 
-## Edge 1: change the policy attached to the reader role
+**Caller:** `reporting-analyst`.
 
-**Current principal:** `reporting-analyst`.
+**Permission and target:** `iam:CreatePolicyVersion` on `arn:aws:iam::418274630117:policy/AshfordCrossAcctReaderAccess`. `ReportingAnalystAccess`, statement `ChainB_AmendReaderPolicy`, allows `iam:CreatePolicyVersion`, `iam:SetDefaultPolicyVersion`, and `iam:DeletePolicyVersion` on that policy ARN without a condition. The user's `ReportingAnalystBoundary` statement `CapRead` includes `iam:*`; the account SCP has no matching deny.
 
-**Permission and target:** `iam:CreatePolicyVersion` on `arn:aws:iam::418274630117:policy/AshfordCrossAcctReaderAccess`, with the new version set as default. `ReportingAnalystAccess`, statement `ChainB_AmendReaderPolicy`, allows `iam:CreatePolicyVersion`, `iam:SetDefaultPolicyVersion`, and `iam:DeletePolicyVersion` on this exact policy ARN, without a condition. The user's boundary `CapRead` includes `iam:*`; `AshfordGuardrails` has no matching deny. The reader role has no permissions boundary.
-
-**Executed call:**
+**Request made:**
 
 ```bash
 aws iam create-policy-version \
@@ -21,15 +19,15 @@ aws iam create-policy-version \
   --set-as-default
 ```
 
-**Response:** success, `VersionId: v2`, `IsDefaultVersion: true`. CloudTrail: `iam.amazonaws.com / CreatePolicyVersion`, event ID `470c5222-ec60-4d00-9baf-526cee5857aa`, request ID `NgqdI4RzkdgnQaa9bmDbdWaJvzyEVbKNUnFxmYyGbikgpdPyW36O`, time `2026-11-19T06:15:55Z`. The request includes the policy ARN and the submitted wildcard policy document. `list-attached-role-policies` confirmed this policy is attached to `ashford-crossacct-reader`; `get-policy-version` confirmed default v2.
+**Audit result:** CloudTrail records `iam.amazonaws.com / CreatePolicyVersion` with no error at `2026-11-19T06:15:55Z`. Event ID: `470c5222-ec60-4d00-9baf-526cee5857aa`. Request ID: `NgqdI4RzkdgnQaa9bmDbdWaJvzyEVbKNUnFxmYyGbikgpdPyW36O`. The event's request parameters name the policy ARN, include `setAsDefault: true`, and contain `Effect: Allow`, `Action: "*"`, `Resource: "*"`. Its responseElements are null, so this export does not provide a version ID or raw CLI response.
 
-**Capability created:** the user can replace the default permission document attached to the reader role; this version grants all actions on all resources, subject to higher-level controls.
+**Capability established:** the successful request set a wildcard policy document as the policy's default. The policy-to-role attachment is described by the role inventory in the project; the export event itself records the policy mutation, not the attachment lookup.
 
-## Edge 2: assume the role whose policy was changed
+## Edge 2: request the reader role
 
-**Caller before request:** `arn:aws:iam::418274630117:user/reporting-analyst`. `ReportingAnalystAccess`, statement `ChainB_AssumeReader`, allows `sts:AssumeRole` on `arn:aws:iam::418274630117:role/ashford-crossacct-reader`, without a condition. The role trust accepts this user. The boundary allows `sts:AssumeRole`; the SCP has no matching deny.
+**Caller:** the same IAM user. `ReportingAnalystAccess`, statement `ChainB_AssumeReader`, allows `sts:AssumeRole` on `arn:aws:iam::418274630117:role/ashford-crossacct-reader` without a condition. The role trust document accepts the user; the user's boundary allows `sts:AssumeRole`, and the SCP has no matching deny.
 
-**Executed call:**
+**Request made:**
 
 ```bash
 aws sts assume-role \
@@ -37,31 +35,16 @@ aws sts assume-role \
   --role-session-name task0-prediction-replay
 ```
 
-**Response:** STS returned temporary credentials successfully; secret fields are omitted. CloudTrail: `sts.amazonaws.com / AssumeRole`, event ID `37c3d6ff-b7af-46bd-a454-462e3b944c7b`, request ID `MLOS51HUgDSQRMK5SDv68kroX5lVd5DME6MVgcCx3b5ZOGxGZy3j`, time `2026-11-19T06:15:56Z`; the event records the target role and session name.
+**Audit result:** CloudTrail records `sts.amazonaws.com / AssumeRole` with no error at `2026-11-19T06:15:56Z`. Event ID: `37c3d6ff-b7af-46bd-a454-462e3b944c7b`. Request ID: `MLOS51HUgDSQRMK5SDv68kroX5lVd5DME6MVgcCx3b5ZOGxGZy3j`. The request names the reader role and session name `task0-prediction-replay`.
 
-**Identity verification:** `GetCallerIdentity` using the returned credentials reported `arn:aws:sts::418274630117:assumed-role/ashford-crossacct-reader/task0-prediction-replay`. Task 7 records event ID `37fec8b1-3a62-4e35-9e07-9f9c74c438d6`, request ID `8sEw8VHgxzoTCyf4o54itzOqnUp3mQwINQKQd6T3zlDVk0FmcRuP`. The recorded STS access-key identifier matches the following IAM events.
+This record supports a successful AssumeRole request. The export does not contain a subsequent `GetCallerIdentity` event for the assumed-role ARN or the returned STS credentials, so this report does not claim an independently verified session identity.
 
-**Capability created:** the caller is now a session of the role whose attached policy was widened in Edge 1.
+## Edge 3: privileged use is not evidenced in this export
 
-## Edge 3: exercise the role's IAM authority
+Neither `CreateUser` nor `DeleteUser` under the assumed role appears in `audit-export-replay.json`. The only `CreateUser` event in that export is a denial at `2026-11-19T06:15:05Z`, event ID `09d135bf-0589-419d-b20e-351f33ecea64`, request ID `MsjACIWaVVItfV4INLBDh8T189Ebf4Xt8SrRcZcz5fXTXDmQpYUk`; its caller is still `reporting-analyst`. It is not proof of role-based IAM administration.
 
-**Current principal:** the verified `ashford-crossacct-reader/task0-prediction-replay` session.
+**Status:** policy mutation and the AssumeRole request are evidenced. The assumed-role identity verification and privileged IAM use are not evidenced by this signed export. Therefore this file does not claim the chain reached or exercised administrative authority.
 
-**Permission and target:** the new default policy allows `iam:CreateUser` and `iam:DeleteUser` on `*`; neither action is denied by the SCP.
+## Composition supported by the available records
 
-**Executed calls with the returned role credentials:**
-
-```python
-iam.create_user(UserName="ashford-prediction-proof")
-iam.delete_user(UserName="ashford-prediction-proof")
-```
-
-**Responses:** `CreateUser` succeeded and returned `arn:aws:iam::418274630117:user/ashford-prediction-proof`; `DeleteUser` then succeeded with HTTP 200. Task 7 correlates both to the verified session's STS access-key identifier:
-- `CreateUser`: event ID `3a924e0e-2f16-44d0-a67a-773a36d87b58`, request ID `fUJmUMS3BysvxLVuS3qxyOXFbbxeg3QHbiWaEihd1c2AJC7I0b6A`.
-- `DeleteUser`: event ID `063cc197-ca58-473e-aee7-f6f1dcd3aba2`, request ID `3HWbz4Kjx62nlUfCvEshSWNtDARdjJtxI7FGmoOqLJqwKaaHPtlo`.
-
-Task 7 locates the records in `AWSLogs/418274630117/CloudTrail/eu-west-1/2026/11/19/418274630117_CloudTrail_eu-west-1_20261119T0616Z_041F727DBEDbDa41.json.gz`. This proves IAM user management, not every possible administrator action.
-
-## Dangerous composition
-
-Maintaining versions of one policy and assuming one reader role can each have a legitimate purpose. The analyst could change the policy attached to the same role the analyst could assume. The edit changed the role's authority; the permitted assumption changed the analyst's effective identity and permissions. Each permission behaved as configured, but their relationship enabled IAM administration that neither grant described in isolation.
+The export shows the same ordinary principal successfully changing the default document of a named managed policy to `Allow * on *`, then successfully requesting `ashford-crossacct-reader`. These are the two verified actions that create a plausible escalation path. Because this export does not prove the resulting session identity or any privileged action under it, the administrative outcome remains unverified here.
