@@ -1,8 +1,8 @@
 # 5. Who Is Allowed to Become This Role
 
-## Trust document and exact admitted set
+## Trust statement and admitted token set
 
-`aws iam get-role --role-name ashford-deploy-pipeline` returned a trust policy whose relevant statement is:
+The `ashford-deploy-pipeline` trust document contains this statement:
 
 ```json
 {
@@ -19,26 +19,16 @@
 }
 ```
 
-There is one operator: `StringEquals`. It compares the OIDC token's `aud` claim exactly with the string `sts.amazonaws.com`. It constrains the audience claim only. It does not compare `sub`, repository, owner/organization, branch/ref, workflow, environment, or any other identity claim; none of those keys appears in this statement. The `Principal.Federated` field separately restricts the issuer/provider to the registered provider `token.actions.githubusercontent.example` in account `418274630117`.
+The admitted set is precisely the tokens AWS validates for the configured federated provider `token.actions.githubusercontent.example` in account `418274630117`, for which the token claim `aud` equals `sts.amazonaws.com`. The condition has one operator, `StringEquals`, one key, and one exact value. The `Principal.Federated` field restricts the issuer/provider. The trust statement adds no condition on these claims: `sub`, `repository`, `repository_owner`, `ref`, `workflow`, and `environment`. Thus any otherwise-valid token from that provider with the required audience matches, regardless of those claim values.
 
-The full admissible set is therefore:
+## Intended workload and evidence limits
 
-```text
-{ valid OIDC tokens issued by the registered provider
-  for every subject/identity that provider can issue a token to,
-  where aud is exactly "sts.amazonaws.com" }
-```
+The intended identity is inferred from the lab handover context, which describes this as a production deployment role; it is not verified from Ashford's CI configuration. This repository contains no workflow or handover file showing the organization, repository, protected ref, or environment values. Under a branch-bound GitHub subject, the assumed intended form is `repo:<organization>/<repository>:ref:refs/heads/<protected-branch>`; if deployment is gated by a GitHub environment, the assumed form is `repo:<organization>/<repository>:environment:<production-environment>`. The actual values and which form Ashford uses remain unverified, so no exact Ashford subject can be asserted here. The alleged handover sentence “Only our deploy pipeline can use that role” cannot be verified word for word from the files available in this repository and is not treated as a quotation.
 
-Equivalently, for every issuer-permitted `sub` value and every associated repo, organization/owner, ref/branch, workflow, environment, and other claim combination, the role trust admits the identity if the token is valid for that provider and `aud == "sts.amazonaws.com"`. The issuer's own token-issuance rules still constrain which tokens exist; this IAM trust adds no Ashford-specific filter over those subjects. It is not literally every internet identity or every arbitrary forged token. It is the entire population the named provider can authenticate under that one audience, including identities outside Ashford's deployment repository because no subject or repository condition excludes them.
+CloudTrail can identify the role-assumption event, target role, session, and caller fields it records. This export does not establish the complete OIDC token claims or prove which repository, ref, workflow, or environment produced the subject. Attribute those values using the issuer's token claims or the corresponding GitHub Actions workflow run; do not infer them from the role-assumption event alone.
 
-## Intended identity versus actual trust
+## Role reach and durable risk
 
-The handover says production deploys use an OIDC CI identity and claims “Only our deploy pipeline can use that role.” That is the documented intent. The supplied estate documents do not name the repository, branch, workflow file, or deployment environment, so an exact intended `sub` string cannot honestly be inferred. A correct remediation must obtain that value from Ashford's actual CI configuration and restrict `sub` (and any relevant repo/ref/environment claims) to the protected deployment workflow.
+The role has the attached `AshfordBatchExecAdmin` policy. Its v1 statement is `Effect: Allow`, `Action: "*"`, `Resource: "*"`, and the role has no permissions boundary. An admitted caller therefore receives that broad role permission set, subject to the account's `AshfordGuardrails` SCP denies, including long-lived key creation and the specified organization/account actions.
 
-The current trust accepts other provider-authenticated subjects with the same audience, including tokens from other repositories, organizations, refs, workflows, or environments whenever the provider can issue them. These are the unintended identities admitted by the missing subject constraints.
-
-## Reach and durable risk
-
-`list-attached-role-policies --role-name ashford-deploy-pipeline` returned `AshfordBatchExecAdmin`. Its v1 policy document is `Effect:Allow`, `Action:"*"`, `Resource:"*"`; the role response showed no permissions boundary. A caller admitted by the trust receives that role's broad AWS authority, subject to the organization's `AshfordGuardrails` SCP denies (`CreateAccessKey`, `CreateLoginProfile`, organization exit, account closure). This reach follows from the attached policy, not the role name.
-
-Each OIDC token and STS session is short-lived and expires. The durable risk is the unchanged role trust: any matching subject can obtain a fresh session repeatedly. Rotating a static key cannot close this path because the role has no static key; employee offboarding also does not alter the issuer's subject population or the trust statement. The persistent fix is to scope and maintain the trust conditions, then test allowed and disallowed subjects.
+Individual OIDC tokens and STS sessions expire, but the trust configuration persists and can issue new sessions to any matching token subject. Rotating a static key or offboarding an employee does not remove this admission path. The durable fix is to bind the trust to the verified repository and protected deployment context, then test both the intended subject and a disallowed subject.
