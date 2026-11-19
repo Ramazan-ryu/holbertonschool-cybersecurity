@@ -1,34 +1,56 @@
-# 5. Who Is Allowed to Become This Role
+# 5. Who Is Allowed to Assume the Deploy Role
 
-## Trust statement and admitted token set
+## Exact admitted set
 
-The `ashford-deploy-pipeline` trust document contains this statement:
+Let P be the registered OIDC provider `arn:aws:iam::418274630117:oidc-provider/token.actions.githubusercontent.example`. Let Valid_P(t) mean AWS validates token t as an unexpired token signed by provider `token.actions.githubusercontent.example`. The admitted token set is:
 
-```json
-{
-  "Effect": "Allow",
-  "Principal": {
-    "Federated": "arn:aws:iam::418274630117:oidc-provider/token.actions.githubusercontent.example"
-  },
-  "Action": "sts:AssumeRoleWithWebIdentity",
-  "Condition": {
-    "StringEquals": {
-      "token.actions.githubusercontent.example:aud": "sts.amazonaws.com"
-    }
-  }
-}
+```text
+A = { t | Valid_P(t) AND aud(t) = "sts.amazonaws.com" }
 ```
 
-The admitted set is precisely the tokens AWS validates for the configured federated provider `token.actions.githubusercontent.example` in account `418274630117`, for which the token claim `aud` equals `sts.amazonaws.com`. The condition has one operator, `StringEquals`, one key, and one exact value. The `Principal.Federated` field restricts the issuer/provider. The trust statement adds no condition on these claims: `sub`, `repository`, `repository_owner`, `ref`, `workflow`, and `environment`. Thus any otherwise-valid token from that provider with the required audience matches, regardless of those claim values.
+Equivalently, the admitted external identities are the subjects of those tokens:
 
-## Intended workload and evidence limits
+```text
+A_ids = { sub(t) | t in A }
+```
 
-The intended workload is inferred from the lab handover context to be one protected production deployment job; it is not verified from Ashford CI configuration. I checked the repository files and Git history and found no handover or workflow with the organization, repository, protected branch, or environment values. For a branch-based deployment, the assumed full subject form is `sub = "repo:" + OWNER + "/" + REPOSITORY + ":ref:refs/heads/" + PROTECTED_BRANCH`. For a GitHub environment deployment, the assumed full form is `sub = "repo:" + OWNER + "/" + REPOSITORY + ":environment:" + PRODUCTION_ENVIRONMENT`. These names denote unknown values, not verified Ashford identifiers; the available evidence cannot establish which form or values apply. I therefore do not quote the reported handover sentence as verified wording.
+Thus every subject that this provider authenticates and issues a valid token to is admitted when that token has the specified audience. This includes any provider-issued subject regardless of repository, owner, ref, workflow, or environment. The provider restriction means this is not an arbitrary issuer or forged-token set.
 
-CloudTrail can identify the role-assumption event, target role, session, and caller fields it records. This export does not establish the complete OIDC token claims or prove which repository, ref, workflow, or environment produced the subject. Attribute those values using the issuer's token claims or the corresponding GitHub Actions workflow run; do not infer them from the role-assumption event alone.
+## Condition analysis
 
-## Role reach and durable risk
+The trust statement has one condition operator and one key/value pair:
 
-The role has the attached `AshfordBatchExecAdmin` policy. Its v1 statement is `Effect: Allow`, `Action: "*"`, `Resource: "*"`, and the role has no permissions boundary. An admitted caller therefore receives that broad role permission set, subject to the account's `AshfordGuardrails` SCP denies, including long-lived key creation and the specified organization/account actions.
+| Operator | Key | Value | What it constrains |
+|---|---|---|---|
+| `StringEquals` | `token.actions.githubusercontent.example:aud` | `sts.amazonaws.com` | Requires the token's audience claim to equal this exact value. |
 
-Individual OIDC tokens and STS sessions expire, but the trust configuration persists and can issue new sessions to any matching token subject. Rotating a static key or offboarding an employee does not remove this admission path. The durable fix is to bind the trust to the verified repository and protected deployment context, then test both the intended subject and a disallowed subject.
+`Principal.Federated` separately limits the trusted issuer to the registered provider in account `418274630117`. The statement has no condition on `sub`, `repository`, `repository_owner`, `repository_id`, `ref`, `workflow`, or `environment`. Those claims do not narrow this admitted set.
+
+## Intended identity and gap
+
+**Assumption, not verified configuration:** the handover identifies this as the production deploy role, but the supplied files do not include Ashford's CI workflow or the literal organization, repository, branch, or environment values. I therefore cannot claim an exact Ashford subject. The assumed intended subject S has one of these full forms, depending on the workflow configuration:
+
+```text
+S_branch = "repo:OWNER/REPO:ref:refs/heads/PROTECTED_BRANCH"
+S_environment = "repo:OWNER/REPO:environment:PRODUCTION_ENV"
+```
+
+`OWNER`, `REPO`, `PROTECTED_BRANCH`, and `PRODUCTION_ENV` are placeholders for unverified values. If the workflow is branch-gated, assume S = S_branch; if environment-gated, assume S = S_environment. The intended set under either assumption is I = {t in A : sub(t) = S}. The excess admitted set is:
+
+```text
+A \ I = { t | Valid_P(t) AND aud(t) = "sts.amazonaws.com" AND sub(t) != S }
+```
+
+This includes every otherwise-valid token with the required audience whose subject is not the intended deploy subject: other repositories, owners, branches/refs, workflows, environments, and any other subject value issued by P.
+
+## Role reach
+
+The role has the attached managed policy `AshfordBatchExecAdmin` v1: `Effect: Allow`, `Action: "*"`, `Resource: "*"`. The role has no permissions boundary. An admitted session therefore receives that broad role permission set, subject to the account SCP `AshfordGuardrails`, which denies `iam:CreateAccessKey`, `iam:CreateLoginProfile`, organization exit, and account closure. The reach comes from the attached policy and the lack of a boundary, not from the role name.
+
+## Why the exposure persists
+
+OIDC tokens and STS sessions expire, but the trust statement remains and can admit new matching tokens repeatedly. This is more durable than one leaked static key: there is no key on this role to rotate, and employee offboarding does not change which repository subjects the provider can issue tokens to or alter the trust.
+
+## Fix
+
+Add a `StringEquals` condition for `token.actions.githubusercontent.example:sub` using the verified deploy subject (S); optionally constrain `repository_owner` or the immutable `repository_id` as well. Replace `Action: "*"` with the deploy job's required actions and add a permissions boundary. Test that the intended protected deploy job succeeds and that another repository, a pull request/fork, and a non-deploy ref are refused.
