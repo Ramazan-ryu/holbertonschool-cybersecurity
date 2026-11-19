@@ -1,9 +1,8 @@
 # 5. Who Is Allowed to Assume the Deploy Role
 
-## Trust statement
+## Trust statement and exact admitted set
 
-<<<<<<< HEAD
-The role trust statement is:
+The trust statement for `ashford-deploy-pipeline` is:
 
 ```json
 {
@@ -20,106 +19,54 @@ The role trust statement is:
 }
 ```
 
-Let P be the registered OIDC provider `arn:aws:iam::418274630117:oidc-provider/token.actions.githubusercontent.example`. Let Valid_P(t) mean AWS validates t as an unexpired token signed by registered provider `token.actions.githubusercontent.example`. The exact admitted token set is:
+Let `P` be the registered provider `token.actions.githubusercontent.example` in account `418274630117`. A caller is admitted if and only if AWS validates the presented token as unexpired and signed by `P`, and `aud(t) = "sts.amazonaws.com"`.
 
 ```text
 A = { t | Valid_P(t) AND aud(t) = "sts.amazonaws.com" }
-
-A caller is admitted if and only if its token belongs to A.
-```
-
-Equivalently, the admitted external identities are the subjects of those tokens:
-
-```text
 A_ids = { sub(t) | t in A }
 ```
 
-The provider field fixes the issuer; the predicate fixes the only claim value tested by the condition. Every other subject value issued by P is admitted when the token satisfies the predicate.
+This is the full admitted set: every subject to which `P` issues a valid token with that audience is admitted. The federated principal fixes the provider; the audience condition fixes the only token claim value checked by the trust.
 
-=======
-`aws iam get-role --role-name ashford-deploy-pipeline` returned this trust statement:
-
-```json
-{
-  "Effect": "Allow",
-  "Principal": {
-    "Federated": "arn:aws:iam::418274630117:oidc-provider/token.actions.githubusercontent.example"
-  },
-  "Action": "sts:AssumeRoleWithWebIdentity",
-  "Condition": {
-    "StringEquals": {
-      "token.actions.githubusercontent.example:aud": "sts.amazonaws.com"
-    }
-  }
-}
-```
-
->>>>>>> refs/remotes/origin/main
 ## Condition analysis
 
-| Element | Value | Claim population it constrains |
+| Element | Value | What it constrains |
 |---|---|---|
-| `Principal.Federated` | OIDC provider `token.actions.githubusercontent.example` in account `418274630117` | The issuer. The token must be signed by this provider. |
-| `Action` | `sts:AssumeRoleWithWebIdentity` | The entry path. Only web-identity exchange is admitted. |
-| Operator | `StringEquals` | Exact, case-sensitive equality. No wildcard or pattern matching. |
-| Key | `token.actions.githubusercontent.example:aud` | The `aud` claim of the presented token. |
-| Value | `sts.amazonaws.com` | `aud` must equal this string exactly. |
+| `Principal.Federated` | Provider ARN above | The token issuer/provider. |
+| `Action` | `sts:AssumeRoleWithWebIdentity` | The web-identity role-assumption operation. |
+| Operator | `StringEquals` | Exact equality. |
+| Key | `token.actions.githubusercontent.example:aud` | The token's `aud` claim. |
+| Value | `sts.amazonaws.com` | Requires `aud` to equal this value. |
 
-The statement has no condition on `sub`, `repository`, `repository_owner`, `repository_id`, `ref`, `workflow`, `environment`, `actor`, `event_name`, or `job_workflow_ref`. Each of these claims is unconstrained.
+There is no trust condition on `sub`, `repository`, `repository_owner`, `repository_id`, `ref`, `workflow`, `environment`, `actor`, `event_name`, or `job_workflow_ref`. These claims are unconstrained. Thus any provider-issued subject with the required audience is admitted, regardless of repository, owner, ref, workflow, or environment.
 
-## Exact admitted set
+## Intended identity (assumption) and gap
 
-Let `P` be the provider `token.actions.githubusercontent.example` in account `418274630117`, and let `Valid_P(t)` mean that `t` is an unexpired token signed by `P`. The admitted token set is:
+The handover context identifies this as the production deploy role. The intended workload is assumed to be the protected production deploy job. Its subject takes one of these forms, according to how the job is gated:
 
-<<<<<<< HEAD
-**Intended identity (assumption):** the handover context identifies this as the production deploy role. The intended subject S is assumed to be one of the following full forms, depending on whether Ashford gates deployment by branch or environment:
-=======
-`A = { t : Valid_P(t) AND aud(t) = "sts.amazonaws.com" }`
->>>>>>> refs/remotes/origin/main
+```text
+S_branch = "repo:OWNER/REPO:ref:refs/heads/PROTECTED_BRANCH"
+S_environment = "repo:OWNER/REPO:environment:PRODUCTION_ENV"
+```
 
-A caller is admitted if and only if both conditions hold. The admitted external identities are the subjects of those tokens:
+`OWNER`, `REPO`, `PROTECTED_BRANCH`, and `PRODUCTION_ENV` are explicitly assumed values, not extracted CI configuration. Let `S` be `S_branch` for branch gating or `S_environment` for environment gating. The intended set is `I = { t in A : sub(t) = S }`. The excess admitted set is:
 
-<<<<<<< HEAD
-`OWNER`, `REPO`, `PROTECTED_BRANCH`, and `PRODUCTION_ENV` are assumption placeholders, not values asserted to be Ashford configuration. Let S be the selected intended subject: S_branch for branch-gated deployment or S_environment for environment-gated deployment. Then I = {t in A : sub(t) = S}, and the excess admitted set is:
-=======
-`A_ids = { sub(t) : t in A }`
->>>>>>> refs/remotes/origin/main
+```text
+A \ I = { t | Valid_P(t) AND aud(t) = "sts.amazonaws.com" AND sub(t) != S }
+```
 
-Because no condition references `sub`, `repository`, `repository_owner`, `repository_id`, `ref`, `workflow`, `environment`, `actor`, `event_name`, or `job_workflow_ref`, every value of those claims that `P` issues a token for is included in `A`. This includes tokens for any repository, owner, ref, workflow, environment, and triggering event that `P` will issue under that audience. The provider restriction excludes tokens from other issuers and forged tokens.
+This excess set contains all other subjects to which `P` issues a valid token with that audience, including other repositories, owners, refs, workflows, and environments. The repository copy contains no deploy workflow or handover document with the literal values, so the subject forms above are assumptions.
 
-## Intended identity (assumption)
-
-The handover describes this role as the production deploy role. The workflow file that would confirm the subject is not among the supplied files, so the intended subject below is an assumption. It takes one of two forms, depending on how deployment is gated:
-
-- Branch-gated: `S_branch = "repo:OWNER/REPO:ref:refs/heads/PROTECTED_BRANCH"`
-- Environment-gated: `S_env = "repo:OWNER/REPO:environment:PRODUCTION_ENV"`
-
-`OWNER`, `REPO`, `PROTECTED_BRANCH`, and `PRODUCTION_ENV` are placeholders. They are not verified values. Under the branch-gated assumption, the intended set is `I = { t in A : sub(t) = S_branch }`.
-
-## Gap between intent and admission
-
-The admitted identities that the intent excludes are:
-
-`A \ I = { t : Valid_P(t) AND aud(t) = "sts.amazonaws.com" AND sub(t) != S_branch }`
-
-This set includes tokens from every other repository, owner, branch, tag, pull-request ref, workflow file, and environment that `P` issues under that audience. None of these is excluded by the trust.
-
-CloudTrail records the `AssumeRoleWithWebIdentity` call, the target role, and the session. The export does not contain the token claims, so it cannot show which repository, ref, workflow, or environment produced a given session. Those values come from the issuer's token claims or the GitHub Actions run record.
+CloudTrail can record the role-assumption event, target role, session, and caller fields. The available export does not provide the full OIDC token claims; use the issuer token claims or the matching GitHub Actions run to attribute the subject, repository, ref, workflow, and environment.
 
 ## Role reach
 
-The role has one attached policy, `AshfordBatchExecAdmin`, version 1: `Effect: Allow`, `Action: "*"`, `Resource: "*"`. The role has no permissions boundary. An admitted session therefore receives full permissions in the account, limited only by the organisation SCP `AshfordGuardrails`, which denies `iam:CreateAccessKey`, `iam:CreateLoginProfile`, leaving the organisation, and closing the account. This reach comes from the attached policy and the missing boundary, not from the role name.
+The role has the attached managed policy `AshfordBatchExecAdmin` v1: `Effect: Allow`, `Action: "*"`, `Resource: "*"`. It has no permissions boundary. An admitted session receives that broad permission set, subject to SCP `AshfordGuardrails`, which denies `iam:CreateAccessKey`, `iam:CreateLoginProfile`, leaving the organization, and closing the account. This reach follows from the attached policy and missing boundary, not from the role name.
 
-## Why this is more durable than a leaked key
+## Why the risk persists
 
-- **Tokens and sessions expire, but the admission does not.** Each OIDC token and STS session is short-lived. The trust statement is persistent. Any valid token in `A` can mint a new session at any time.
-- **There is no key to rotate.** The role has no static credential. Admission depends on which subjects the provider issues tokens to, not on a secret.
-- **Offboarding does not apply.** The callers are repositories and workflows, not employees. Removing a user or reviewing human credentials does not change the trust or the provider's subject population.
-- **The population grows.** A new repository under a permitted owner becomes admitted with no change to the trust.
+OIDC tokens and STS sessions expire, but the trust statement persists and can admit new matching tokens repeatedly. There is no static key on the role to rotate, and employee offboarding does not change the provider's repository subjects or the trust.
 
-## Remediation
+## Fix
 
-1. Add a `StringEquals` condition on `token.actions.githubusercontent.example:sub` with the verified intended subject `S` from the deploy workflow. Optionally add `repository_owner` or the immutable `repository_id`.
-2. Keep the `aud` check as a format requirement.
-3. Replace `Action: "*"` and `Resource: "*"` with the actions the deploy needs, and attach a permissions boundary.
-4. Test both directions. The protected deploy job must succeed. A job from another repository, a pull-request or fork run, and a non-deploy ref must be refused.
+Add a `StringEquals` condition for `token.actions.githubusercontent.example:sub` with the intended subject after replacing the labeled assumption values with the deploy workflow's actual values. Optionally constrain `repository_owner` or immutable `repository_id`. Replace `Action: "*"` and `Resource: "*"` with the deploy job's required permissions and add a permissions boundary. Test that the intended deploy job succeeds and that another repository, a pull-request or fork run, and a non-deploy ref are refused.
