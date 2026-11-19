@@ -1,7 +1,22 @@
 # 8. Review: Nothing Was Broken
 
-`reporting-analyst` was allowed to create a policy version on the specific managed policy `AshfordCrossAcctReaderAccess` (`ChainB_AmendReaderPolicy`). That policy was attached to `ashford-crossacct-reader`. The analyst made a default v2 allowing `Action:"*"` on `Resource:"*"`. Separately, `ChainB_AssumeReader` allowed the analyst to call `sts:AssumeRole` on that exact role, and the role trust named the analyst. A fresh `GetCallerIdentity` before the policy change returned the user ARN; after the assume-role response, it returned `assumed-role/ashford-crossacct-reader/task0-prediction-replay`. With those credentials, `CreateUser` created `ashford-prediction-proof` and `DeleteUser` removed it. The resulting authority was the role's wildcard AWS policy, subject to Ashford's SCP denies.
+## The chain
 
-The two permissions had plausible isolated purposes: maintaining one reporting policy and assuming one reporting role. Policy-version control changed the authority the role supplied; the trust and caller grant then converted that changed policy into the user's session. Neither permission alone appeared to grant IAM administration. The seam was the policy attached to a role the same principal was allowed to assume.
+Starting principal: `reporting-analyst`, the Finance Ops regulatory reporting analyst. Every permission below behaved as its statement says.
 
-Ashford's monthly clean scan showed that its checks found no individually defective configuration; it did not show that effective permissions remained safe when composed across policy mutation, role trust, and account transitions. A repeatable identity attack-path assessment can calculate effective permissions through principal → policy-edit permission → attached role → trust → assumed session, including boundaries, SCPs, and cross-account hops. Run it on policy/trust changes and periodically, then manually validate only the highest-impact multi-hop paths. That measures reachable authority rather than isolated policy defects.
+1. `ChainB_AmendReaderPolicy` allows `iam:CreatePolicyVersion` and `iam:SetDefaultPolicyVersion` on `AshfordCrossAcctReaderAccess`, the policy attached to `ashford-crossacct-reader`. The analyst made a default version allowing `*` on `*` (CloudTrail `470c5222-ec60-4d00-9baf-526cee5857aa`).
+2. `ChainB_AssumeReader` allows `sts:AssumeRole` on that role, and the role's trust names the analyst. The analyst assumed the role (CloudTrail `37c3d6ff-b7af-46bd-a454-462e3b944c7b`).
+
+The session carries the role's wildcard policy, bounded by the SCP's denials on access keys and organisation exit. The export does not yet show the assumed-role identity check or any privileged action under the session, so administrative control is the expected result of these permissions, not yet an observed one.
+
+## Why it composed
+
+Each grant had a plausible purpose: maintaining one reporting policy and reading through one reporting role. The seam is that the role's authority comes from a policy the same principal can edit, and the principal can become that role. No single grant describes that combination, so no one approved it.
+
+## What the clean scan measured
+
+A clean scan shows that no configuration is individually defective. It does not show that effective permissions stay safe when combined across policy edits, trust, and role assumption. Ashford's scan measured isolated defects. The property that failed here was reachable authority.
+
+## What would find it
+
+A scheduled effective-permission analysis that models principals, policies, trust, assume-role edges, boundaries, and SCPs, and lists every path from a non-administrative principal to administrative control. Graph tools such as PMapper can run it against the account. Run it after each policy or trust change and on a fixed schedule. Validate the highest-impact paths by hand in a lab and record their event IDs. It has a defined input, output, and cost per run, unlike open-ended manual review.
