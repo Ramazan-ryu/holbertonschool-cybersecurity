@@ -1,0 +1,7 @@
+# 4 — Encryption and the key
+
+The object `records/patients-2026.ndjson` is reported by S3 as encrypted with `aws:kms` and key alias `alias/alderbrook-phi`. The executed call was `aws s3api get-object --bucket alderbrook-phi-records-ab7f3a --key records/patients-2026.ndjson /dev/null`; the account returned success with `ContentLength: 6625`, `ServerSideEncryption: aws:kms`, and `SSEKMSKeyId: alias/alderbrook-phi`. CloudTrail event `c5ad1054-168a-4c70-9769-5a28bd7ee6b4` records the successful S3 `GetObject` by `arn:aws:iam::734112396500:user/sec-reviewer`. No record contents were copied into this deliverable.
+
+This proves that the tested `sec-reviewer` S3 read path returned the encrypted object successfully. Encryption at rest did not prevent this principal from receiving the object through S3. The actual KMS key policy and a direct `kms:Decrypt` event/response are not present in the supplied evidence, so I cannot quote the policy statement or identify every principal the key permits. The seven CloudTrail objects currently copied for November 20 contain S3 events through `00:11:57Z` and no KMS `Decrypt` event.
+
+**Protection provided:** the KMS key protects ciphertext from principals that cannot use the key through an authorized decrypt path. It provided no protection against the successful `sec-reviewer` read path demonstrated above. The precise excluded-principal set remains undetermined until the key policy and key-usage event are collected.
