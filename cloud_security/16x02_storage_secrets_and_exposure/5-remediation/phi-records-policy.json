@@ -1,0 +1,20 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ClinicReportingRead",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::734112396500:user/reporting-role-key"
+      },
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::alderbrook-phi-records-ab7f3a",
+        "arn:aws:s3:::alderbrook-phi-records-ab7f3a/*"
+      ]
+    }
+  ]
+}

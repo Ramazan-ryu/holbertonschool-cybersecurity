@@ -1,22 +1,19 @@
 # 3 — Secret candidate triage
 
-## Scan results
+## Scanner results
 
-- `trufflehog git file://$HOME/alderbrook-app --results=verified,unknown`: the supplied terminal transcript shows no findings printed. This is evidence of no tool output in that run, not proof that the repository contains no usable credentials.
-- `gitleaks detect --source ~/alderbrook-app --no-banner`: the supplied output reports three leaks across five commits. The per-finding report was not retained, so two candidate locations and their fingerprints are unavailable here.
-- `checkov` over the Terraform directory: one infrastructure check passed and one secret check failed. The secret candidate is `infra/terraform/variables.tf`, the `grafana_api_token` default (reported as `CKV_SECRET_2`, “AWS Access Key”). The secret value is intentionally omitted.
-- The checked-in application history also contains credential-bearing files in historical revisions (`.env.local` and `infra/staging.env` appear in the five-commit history). The supplied scanner summary does not map the other two gitleaks hits to exact revisions or lines.
+- Gitleaks scanned five commits and reported three findings. The sanitized report identifies each finding below; no raw value is included.
+- Checkov's Terraform and secrets frameworks reported one failed secrets check, `CKV_SECRET_2`, on the same Terraform variable as Gitleaks candidate G1. Its attempted call to fetch online Bridgecrew guidance failed because the workstation has no internet route; the local scan still completed.
+- Trufflehog ran with `--results=verified,unknown` and printed no findings. This is recorded as no output from that scan, not as proof that credentials are invalid.
 
-## Candidate disposition
+## Candidate-by-candidate disposition
 
-| Candidate | Scanner evidence | Live? | What it opens | Disposition |
-|---|---|---|---|---|
-| Terraform `grafana_api_token` default in `infra/terraform/variables.tf` | Checkov `CKV_SECRET_2`; the file is in the current tree | **Unknown**: no authentication attempt or service response supplied | **Unknown**: no target service was queried | Do not report as a confirmed credential finding yet |
-| Gitleaks hit 2 | Included in count of three; location/fingerprint not retained | **Unknown** | **Unknown** | Untriaged; cannot honestly classify live or dead |
-| Gitleaks hit 3 | Included in count of three; location/fingerprint not retained | **Unknown** | **Unknown** | Untriaged; cannot honestly classify live or dead |
+| ID | Safe location and scanner reference | Candidate type / relevant context | Authentication verdict | Reachable scope | Current disposition |
+|---|---|---|---|---|---|
+| G1 | `infra/terraform/variables.tf:7`, commit `67469e180285`; Gitleaks `aws-access-token`; fingerprint `67469e180285aa5848e2a50bfb307fbf27dc5c70:infra/terraform/variables.tf:aws-access-token:7`; Checkov `CKV_SECRET_2`, resource `e744855f8d65578630ac18183df4516b07d4350a`, lines 7–8 | Variable is named `grafana_api_token` and described as a read-only dashboards token; Checkov labels its format as “AWS Access Key.” | **Live as AWS credentials in the lab** — STS returned `arn:aws:iam::734112396500:user/dashboards-ro`; Grafana API validity was not tested. | `ListBucket` allowed on phi; `HeadObject` allowed on the PHI record and exports rollup; list/read metadata denied on partner, ops, and CloudTrail. A body-discarding PHI `GetObject` succeeded for 6,625 bytes with SSE-KMS alias `alias/alderbrook-phi`. | **Confirmed credential exposure:** this candidate is usable as AWS credentials and retrieves the protected PHI object. It is described as a Grafana token in Terraform, but Grafana authentication remains untested. |
+| G2 | `.env.local:2`, commit `c7066ad89e6d`; Gitleaks `aws-access-token`; fingerprint `c7066ad89e6d8a2d902f70c917bc4bb500e332b1:.env.local:aws-access-token:2` | `REPORTING_AWS_ACCESS_KEY_ID`; its paired `REPORTING_AWS_SECRET_ACCESS_KEY` is on line 3 of the same historical file. | **Live in the lab** — `GetCallerIdentity` succeeded as `arn:aws:iam::734112396500:user/reporting-role-key`. | `ListBucket` succeeded on phi; `HeadObject` succeeded for the phi record and exports rollup. Listing denied on the other four buckets; object metadata requests denied for partner, ops, and CloudTrail. | **Confirmed credential exposure:** the historical pair authenticates and has read-capable `s3:GetObject` authorization for the phi record and exports rollup. A `GetObject` request under this identity then succeeded for the full 6,625-byte object; `ServerSideEncryption` was `aws:kms` and `SSEKMSKeyId` was `alias/alderbrook-phi`. The body was streamed and discarded. |
+| G3 | `sync/clinic_sync.py:4`, commit `5ff242361b1842a0816c145988542a76a2142b95`; Gitleaks `aws-access-token`; fingerprint `5ff242361b1842a0816c145988542a76a2142b95:sync/clinic_sync.py:aws-access-token:4` | Hard-coded `AWS_ACCESS_KEY_ID`; paired `AWS_SECRET_ACCESS_KEY` is on line 5. The script calls `s3.list_buckets()`. | **Invalid in the lab at test time** — STS returned `InvalidClientTokenId`. | No scope test was performed after that authentication failure. | Exclude from live findings for the tested lab endpoint; do not generalize the response to other credential services. |
 
-The historical files `.env.local` and `infra/staging.env` are candidate sources, but the evidence does not map each scanner record to a particular file. No credential value is reproduced. No candidate can be called live, dead, or low-value from a scanner match alone.
+## Findings reported
 
-## Findings actually reported
-
-**None confirmed from the evidence supplied.** The required credential-by-credential authentication and reach tests were not captured. Treating any of these scanner hits as a live finding would overstate the evidence. Re-run the scanners with a local report file, retain only sanitized path/commit/rule identifiers, then validate each candidate against its intended service without pasting secrets into this report.
+**Confirmed findings: G1 and G2 are live AWS credential pairs in the lab and both retrieved the 6,625-byte KMS-encrypted PHI object.** G1 authenticates as `dashboards-ro`; G2 authenticates as `reporting-role-key`. Both can list the records bucket and successfully access the records object. Both also received successful `HeadObject` responses for the exports rollup. The response bodies were discarded. G3 is invalid in the lab at test time and is excluded from live findings. G1’s stated Grafana API use remains untested; its demonstrated AWS use is confirmed. Do not paste credential values into a report or chat.
