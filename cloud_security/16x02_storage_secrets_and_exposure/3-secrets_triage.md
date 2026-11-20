@@ -1,19 +1,49 @@
 # 3 — Secret candidate triage
 
-## Scanner results
+## Scan coverage
 
-- Gitleaks scanned five commits and reported three findings. The sanitized report identifies each finding below; no raw value is included.
-- Checkov's Terraform and secrets frameworks reported one failed secrets check, `CKV_SECRET_2`, on the same Terraform variable as Gitleaks candidate G1. Its attempted call to fetch online Bridgecrew guidance failed because the workstation has no internet route; the local scan still completed.
-- Trufflehog ran with `--results=verified,unknown` and printed no findings. This is recorded as no output from that scan, not as proof that credentials are invalid.
+- Gitleaks scanned five commits and returned three findings.
+- Checkov's local Terraform secrets scan returned one `CKV_SECRET_2` result. It points to the same Terraform default as Gitleaks G1; it is a second scanner finding for the same underlying credential, not a fourth distinct credential value.
+- Trufflehog ran with `--results=verified,unknown` and printed no findings. No conclusion about credential validity is drawn from that absence.
+- Scanner reports contained secret material. This report keeps only file, commit, rule, safe fingerprint, principal, and result; no raw key or secret value is reproduced.
 
-## Candidate-by-candidate disposition
+## Individual scanner findings and verdicts
 
-| ID | Safe location and scanner reference | Candidate type / relevant context | Authentication verdict | Reachable scope | Current disposition |
-|---|---|---|---|---|---|
-| G1 | `infra/terraform/variables.tf:7`, commit `67469e180285`; Gitleaks `aws-access-token`; fingerprint `67469e180285aa5848e2a50bfb307fbf27dc5c70:infra/terraform/variables.tf:aws-access-token:7`; Checkov `CKV_SECRET_2`, resource `e744855f8d65578630ac18183df4516b07d4350a`, lines 7–8 | Variable is named `grafana_api_token` and described as a read-only dashboards token; Checkov labels its format as “AWS Access Key.” | **Live as AWS credentials in the lab** — STS returned `arn:aws:iam::734112396500:user/dashboards-ro`; Grafana API validity was not tested. | `ListBucket` allowed on phi; `HeadObject` allowed on the PHI record and exports rollup; list/read metadata denied on partner, ops, and CloudTrail. A body-discarding PHI `GetObject` succeeded for 6,625 bytes with SSE-KMS alias `alias/alderbrook-phi`. | **Confirmed credential exposure:** this candidate is usable as AWS credentials and retrieves the protected PHI object. It is described as a Grafana token in Terraform, but Grafana authentication remains untested. |
-| G2 | `.env.local:2`, commit `c7066ad89e6d`; Gitleaks `aws-access-token`; fingerprint `c7066ad89e6d8a2d902f70c917bc4bb500e332b1:.env.local:aws-access-token:2` | `REPORTING_AWS_ACCESS_KEY_ID`; its paired `REPORTING_AWS_SECRET_ACCESS_KEY` is on line 3 of the same historical file. | **Live in the lab** — `GetCallerIdentity` succeeded as `arn:aws:iam::734112396500:user/reporting-role-key`. | `ListBucket` succeeded on phi; `HeadObject` succeeded for the phi record and exports rollup. Listing denied on the other four buckets; object metadata requests denied for partner, ops, and CloudTrail. | **Confirmed credential exposure:** the historical pair authenticates and has read-capable `s3:GetObject` authorization for the phi record and exports rollup. A `GetObject` request under this identity then succeeded for the full 6,625-byte object; `ServerSideEncryption` was `aws:kms` and `SSEKMSKeyId` was `alias/alderbrook-phi`. The body was streamed and discarded. |
-| G3 | `sync/clinic_sync.py:4`, commit `5ff242361b1842a0816c145988542a76a2142b95`; Gitleaks `aws-access-token`; fingerprint `5ff242361b1842a0816c145988542a76a2142b95:sync/clinic_sync.py:aws-access-token:4` | Hard-coded `AWS_ACCESS_KEY_ID`; paired `AWS_SECRET_ACCESS_KEY` is on line 5. The script calls `s3.list_buckets()`. | **Invalid in the lab at test time** — STS returned `InvalidClientTokenId`. | No scope test was performed after that authentication failure. | Exclude from live findings for the tested lab endpoint; do not generalize the response to other credential services. |
+### Gitleaks G1 — Terraform dashboard variable
 
-## Findings reported
+- **Reference:** `infra/terraform/variables.tf:7`, commit `67469e180285aa5848e2a50bfb307fbf27dc5c70`, rule `aws-access-token`, fingerprint `67469e180285aa5848e2a50bfb307fbf27dc5c70:infra/terraform/variables.tf:aws-access-token:7`.
+- **Candidate context:** Terraform variable `grafana_api_token`; the value was formatted as an AWS access-key pair. Grafana authentication was not tested.
+- **Authentication test/result:** the pair was used for `GetCallerIdentity` against the lab STS endpoint. STS succeeded and returned `arn:aws:iam::734112396500:user/dashboards-ro`. **Verdict: live AWS credentials in the lab.**
+- **Reach test/result:** a body-discarding S3 `GetObject` test against the lab PHI record succeeded under this identity. No response body or patient data is reproduced here.
+- **Disposition:** **reportable exposed AWS credential** because it retrieves the PHI object. Its intended Grafana use remains unresolved.
 
-**Confirmed findings: G1 and G2 are live AWS credential pairs in the lab and both retrieved the 6,625-byte KMS-encrypted PHI object.** G1 authenticates as `dashboards-ro`; G2 authenticates as `reporting-role-key`. Both can list the records bucket and successfully access the records object. Both also received successful `HeadObject` responses for the exports rollup. The response bodies were discarded. G3 is invalid in the lab at test time and is excluded from live findings. G1’s stated Grafana API use remains untested; its demonstrated AWS use is confirmed. Do not paste credential values into a report or chat.
+### Gitleaks G2 — historical reporting credential
+
+- **Reference:** `.env.local:2`, commit `c7066ad89e6d8a2d902f70c917bc4bb500e332b1`, rule `aws-access-token`, fingerprint `c7066ad89e6d8a2d902f70c917bc4bb500e332b1:.env.local:aws-access-token:2`. The paired secret assignment is on line 3 of the same revision.
+- **Candidate context:** variables are named `REPORTING_AWS_ACCESS_KEY_ID` and `REPORTING_AWS_SECRET_ACCESS_KEY`.
+- **Authentication test/result:** `GetCallerIdentity` succeeded and returned `arn:aws:iam::734112396500:user/reporting-role-key`. **Verdict: live AWS credentials in the lab.**
+- **Reach test/result:** a body-discarding S3 `GetObject` test against the lab PHI record succeeded under this identity. No response body or patient data is reproduced here.
+- **Disposition:** **reportable exposed AWS credential** because it retrieves the PHI object.
+
+### Gitleaks G3 — historical clinic-sync credential
+
+- **Reference:** `sync/clinic_sync.py:4`, commit `5ff242361b1842a0816c145988542a76a2142b95`, rule `aws-access-token`, fingerprint `5ff242361b1842a0816c145988542a76a2142b95:sync/clinic_sync.py:aws-access-token:4`. The paired secret assignment is on line 5.
+- **Candidate context:** hard-coded AWS key variables; the script calls `s3.list_buckets()`.
+- **Authentication test/result:** the pair was tested with STS against the lab endpoint. STS returned `InvalidClientTokenId`. **Verdict: invalid for this lab endpoint at test time.**
+- **Reach test/result:** none; authentication failed before scope testing.
+- **Disposition:** **not a confirmed live finding**. This result does not establish validity against any service other than the tested lab STS endpoint.
+
+### Checkov C1 — overlapping Terraform secret finding
+
+- **Reference:** `CKV_SECRET_2`, resource `e744855f8d65578630ac18183df4516b07d4350a`, `infra/terraform/variables.tf:7–8` (`variables.tf:7–8` in the scan output). Checkov labels the finding “AWS Access Key.”
+- **Candidate identity:** the same Terraform default and same secret fingerprint as Gitleaks G1, rather than a separate credential.
+- **Authentication test/result:** the candidate was validated through the G1 STS test, which returned `arn:aws:iam::734112396500:user/dashboards-ro`. **Verdict: live as AWS credentials in the lab.**
+- **Reach test/result:** the G1 scope tests apply: PHI `GetObject` succeeded; exports object `HeadObject` succeeded; tested partner, ops, and CloudTrail reads were denied.
+- **Disposition:** **reportable under G1; duplicate scanner detection, not a fourth distinct secret.**
+
+## Findings set
+
+- **G1 — live:** AWS principal `dashboards-ro`; PHI object retrieval proven; reportable.
+- **G2 — live:** AWS principal `reporting-role-key`; PHI object retrieval proven; reportable.
+- **G3 — invalid at test time:** lab STS returned `InvalidClientTokenId`; not reported as live exposure.
+- **C1 — live duplicate detection of G1:** same Terraform candidate, authentication, scope, and disposition as G1; not counted as an additional credential.
