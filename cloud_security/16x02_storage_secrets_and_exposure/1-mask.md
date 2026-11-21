@@ -6,13 +6,15 @@
 
 The exact statement has `Effect: Allow`, `Principal: "*"`, and grants `s3:ListBucket` on `arn:aws:s3:::alderbrook-phi-records-ab7f3a` plus `s3:GetObject` on `arn:aws:s3:::alderbrook-phi-records-ab7f3a/*`. Standing alone, this policy allows an unauthenticated internet caller to list the bucket and read any object key, including `records/patients-2026.ndjson`. The successful `get-bucket-policy` response is recorded as CloudTrail event `017352bb-1c18-4f02-b1d8-0bb7883dae29`.
 
-## The mask that currently wins
+## Masking control: not in place
 
-The handover says account-level S3 Block Public Access is enabled. The unsigned `ListBucket` and `GetObject` probes against the records bucket returned HTTP 403 from the workstation’s `http://127.0.0.1:4566` lab endpoint. The bucket’s own public-access-block setting was explicitly set to all `false` by `sec-reviewer` at `2026-11-20T00:09:49Z` (CloudTrail `c6b65cb5-7937-49a6-b08e-4333cc7abb42`), and the later unsigned probes to that endpoint still returned 403. This establishes the lab endpoint’s response; it does not establish reachability from an external Internet client. The object ACL and bucket ACL grant only owner `FULL_CONTROL`; neither is the source of the public-looking permission.
+The handover states that account-level S3 Block Public Access is enabled. The signed account-level request (`GET /v20180820/configuration/publicAccessBlock`, `x-amz-account-id: 734112396500`) returned HTTP 404 `NoSuchPublicAccessBlockConfiguration` (request ID `G5MK2jRLvaAC4XsYhOt01JiiyuQVFKC3jCRAvazro7RQcU6K3Msx`). That response means no account-level configuration is set, so `RestrictPublicBuckets` is not active at account scope. The handover and the observed account state conflict, and the observed state is the one this review relies on.
 
-For an existing public bucket policy, the relevant Block Public Access component is `RestrictPublicBuckets`: when enabled at account scope, it restricts access through a public policy to authorized users in the bucket owner’s account and AWS service principals, blocking an anonymous caller. `BlockPublicPolicy` alone would not undo an already stored policy. AWS documents these differences in its [configuration reference](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PublicAccessBlockConfiguration.html).
+The bucket-level block on `alderbrook-phi-records-ab7f3a` was set to all four flags `false` by `sec-reviewer` at `2026-11-20T00:09:49Z` (CloudTrail `c6b65cb5-7937-49a6-b08e-4333cc7abb42`). No mask is therefore in place at either level.
 
-The account-level `aws s3control get-public-access-block --account-id 734112396500` did not return a configuration, even with `--endpoint-url http://127.0.0.1:4566`; the CLI and boto3 (even with `inject_host_prefix=False`) still formed `http://734112396500.127.0.0.1:4566/...`. Bucket-level reads returned HTTP 500 for phi and `NoSuchPublicAccessBlockConfiguration` for exports, partner, ops and CloudTrail. The CloudTrail write event does establish that the phi bucket flags were set to all `false` at 00:09:49Z. Thus the unsigned denial is established at the lab endpoint after the bucket-level flags were disabled. The handover identifies account-level Block Public Access as the intended mask, and the observed result is consistent with it, but the failed account-level query does not independently establish which account flag is set or prove that this control caused the 403.
+The unsigned 403s from `http://127.0.0.1:4566` are lab-endpoint results. The cause of those denials is not isolated: no account-level or bucket-level mask explains them, and the KMS and endpoint-evaluation explanations are untested. The 403s do not show that the bucket is private.
+
+**Verdict:** the policy `LegacyClinicSync` grants public list and read by configuration. No verified mask suppresses it. The lab denial is unexplained and must not be read as protection.
 
 ## Who can unmask the policy
 
