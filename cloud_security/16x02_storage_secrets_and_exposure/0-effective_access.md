@@ -1,88 +1,105 @@
 # 0 — Effective S3 access review
 
-## Scope and evaluation method
+## Scope and method
 
 **Caller under review:** `arn:aws:iam::734112396500:user/sec-reviewer`
-**S3-compatible lab endpoint:** `http://127.0.0.1:4566`
-**Reachability limit:** the service listens on loopback. Requests to `192.168.1.94:4566` failed to connect, so the unsigned 403 results below describe the local lab endpoint, not Internet reachability.
+**Lab endpoint:** `http://127.0.0.1:4566` (S3-compatible)
+**Reachability limit:** the service listens on loopback. Requests to `192.168.1.94:4566` failed to connect. Every unsigned 403 below is a result from the local lab endpoint, not evidence of Internet reachability.
 
-For each request I evaluated the account-level Block Public Access (BPA), bucket-level BPA, bucket policy (including any matching explicit `Deny`), bucket and object ACLs, and KMS authorization for SSE-KMS objects. An applicable explicit `Deny` overrides an `Allow`; BPA can suppress public-policy or public-ACL access. KMS authorization is additionally required to return an SSE-KMS object's plaintext. I distinguish configured permission from the executed request result.
+For each question I evaluated, in precedence order: account-level Block Public Access (BPA), bucket-level BPA, bucket policy (an explicit `Deny` overrides an `Allow`), bucket and object ACLs, and KMS authorization for SSE-KMS objects. Each entry gives a **Verdict** (what the configuration and results support) and an **Evidence** level (what was actually executed). Successful S3 reads wrote their bodies to `/dev/null`; no patient-record contents appear in this report.
 
-The successful S3 reads recorded here wrote response bodies to `/dev/null`; no patient-record contents are included. This report records configuration evidence and observed request results from the supplied workstation transcript and CloudTrail.
-
-**Account-level BPA result:** the correctly signed `GetPublicAccessBlock` request to `GET /v20180820/configuration/publicAccessBlock` with `x-amz-account-id: 734112396500` returned HTTP 404 `NoSuchPublicAccessBlockConfiguration` (request ID `G5MK2jRLvaAC4XsYhOt01JiiyuQVFKC3jCRAvazro7RQcU6K3Msx`). AWS documents this response when the account has no `PublicAccessBlockConfiguration` set. Thus no account-level BPA configuration is present in the lab response; no individual flags were returned. The earlier unsigned `MissingAuthenticationToken`, malformed-path 404, AWS CLI host-prefix connection failure, and `SignatureDoesNotMatch` were failed attempts and are superseded by this signed result. Organization-level controls were not independently retrieved. See AWS's [GetPublicAccessBlock API](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_GetPublicAccessBlock.html).
+**Account-level BPA:** a signed `GET /v20180820/configuration/publicAccessBlock` with `x-amz-account-id: 734112396500` returned HTTP 404 `NoSuchPublicAccessBlockConfiguration` (request ID `G5MK2jRLvaAC4XsYhOt01JiiyuQVFKC3jCRAvazro7RQcU6K3Msx`). No account-level BPA configuration is set. This contradicts the handover's statement that account-level BPA is enabled. Earlier unsigned, malformed-path, host-prefix and `SignatureDoesNotMatch` attempts failed and are superseded by this response. Organization-level controls were not retrieved. Reference: [GetPublicAccessBlock](https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_GetPublicAccessBlock.html).
 
 ## Results
 
-### 1. PHI record — `alderbrook-phi-records-ab7f3a/records/patients-2026.ndjson`
+### 1. PHI records: `alderbrook-phi-records-ab7f3a` / `records/patients-2026.ndjson`
 
-**Question A — Can `sec-reviewer` read the object?**
-**Observed result: allowed.** `GetObject` to `/dev/null` succeeded with 6,625 bytes and reported `ServerSideEncryption=aws:kms` and `SSEKMSKeyId=alias/alderbrook-phi`. CloudTrail event `c5ad1054-168a-4c70-9769-5a28bd7ee6b4` records a successful read by `sec-reviewer` of this object. The exact identity policy or KMS grant that participates in `sec-reviewer`'s decrypt path was not retrieved. The key policy directly names `reporting-role-key` for `kms:Decrypt`; that is a different principal. The successful object read establishes effective access for `sec-reviewer` despite this missing policy detail.
+**1A. `sec-reviewer` → GetObject**
+- **Verdict:** Allowed.
+- **Evidence (executed):** `get-object` to `/dev/null` succeeded: 6,625 bytes, `ServerSideEncryption=aws:kms`, `SSEKMSKeyId=alias/alderbrook-phi`. CloudTrail `c5ad1054-168a-4c70-9769-5a28bd7ee6b4`.
+- **Note:** the identity-side policy and KMS grant on `sec-reviewer`'s decrypt path were not retrieved. The successful read establishes effective access regardless.
 
-**Question B — Can an unsigned caller list the bucket or read the object?**
-**Observed configuration:** the bucket policy `LegacyClinicSync` grants `Principal: "*"` `s3:ListBucket` on `arn:aws:s3:::alderbrook-phi-records-ab7f3a` and `s3:GetObject` on `arn:aws:s3:::alderbrook-phi-records-ab7f3a/*`. The bucket and object ACLs are owner-only. The bucket-level BPA configuration was set with all four flags `false` by `sec-reviewer` at `2026-11-20T00:09:49Z` (CloudTrail event `c6b65cb5-7937-49a6-b08e-4333cc7abb42`). At the resource-policy/ACL layer, the wildcard statement allows anonymous list and get; a higher-level block or KMS denial may still prevent a successful read.
+**1B. Anonymous → ListBucket and GetObject**
+- **Verdict:** Exposed by configuration. The bucket policy `LegacyClinicSync` grants `Principal: "*"` `s3:ListBucket` on the bucket ARN and `s3:GetObject` on `arn:aws:s3:::alderbrook-phi-records-ab7f3a/*`. Bucket-level BPA was set to all four flags `false` by `sec-reviewer` at `2026-11-20T00:09:49Z` (CloudTrail `c6b65cb5-7937-49a6-b08e-4333cc7abb42`). The object is SSE-KMS, so an anonymous read would also need `kms:Decrypt`; no anonymous decrypt grant was found in the key policy.
+- **Evidence (executed):** unsigned `ListBucket` and `GetObject` probes to the lab endpoint returned HTTP 403, after the flags were set to `false`.
+- **Unresolved:** the 403s are not explained. Account-level BPA is not set (see above), so it cannot be the cause. The remaining candidates are the lab endpoint's own policy evaluation or a KMS denial. KMS cannot explain the bucket-list denial. This verdict rests on configuration, not on a reproduced read.
+- **Finding:** a wildcard read policy on a bucket holding PHI, with bucket-level BPA disabled. Authorization for the BPA change is unknown and needs review.
 
-**Observed result: denied at the loopback endpoint; controlling layer unresolved.** Unsigned `ListBucket` and `GetObject` probes returned HTTP 403 after the bucket flags were set false. No account-level BPA configuration is present in the signed response, and the anonymous GET also requires KMS decrypt authorization. The evidence does not isolate the layer causing either denial; KMS cannot explain the bucket-list denial. This does not establish public Internet access.
+**KMS:** `alias/alderbrook-phi` resolves to `arn:aws:kms:eu-west-1:734112396500:key/256370d9-4f10-45e2-92e4-121eda29a14f`. The emulator rejected `GetKeyPolicy` by alias, so the policy was retrieved by key ID. `AllowReportingDecrypt` grants `arn:aws:iam::734112396500:user/reporting-role-key` `kms:Decrypt` and `kms:DescribeKey`, with no `Condition`. The `Root` statement delegates to IAM. No statement grants decrypt to anonymous callers.
 
-**KMS check:** `alias/alderbrook-phi` resolves to `arn:aws:kms:eu-west-1:734112396500:key/256370d9-4f10-45e2-92e4-121eda29a14f`. The emulator rejected `GetKeyPolicy` using the alias; the policy was retrieved using the resolved key ID. `AllowReportingDecrypt` grants `arn:aws:iam::734112396500:user/reporting-role-key` `kms:Decrypt` and `kms:DescribeKey`, with no `Condition`. The `Root` statement enables IAM delegation for the account; it does not itself grant every account identity direct decrypt access. This establishes an explicit decrypt grant for `reporting-role-key`, not a direct key-policy grant to anonymous callers or `sec-reviewer`. The successful `sec-reviewer` S3 read proves effective object retrieval, but the `sec-reviewer` identity-side KMS path remains unspecified.
+### 2. Exports rollup: `alderbrook-exports-ab7f3a` / `exports/clinic-rollup.csv`
 
-### 2. Exports rollup — `alderbrook-exports-ab7f3a/exports/clinic-rollup.csv`
+**2A. `sec-reviewer` → GetObject**
+- **Verdict:** Allowed.
+- **Evidence (executed):** `get-object` succeeded. CloudTrail `e7be1a6c-9a4e-4539-9566-609ada90e4a1`.
 
-**Question A — Can `sec-reviewer` read the object?**
-**Observed result: allowed.** `GetObject` to `/dev/null` succeeded; CloudTrail event `e7be1a6c-9a4e-4539-9566-609ada90e4a1` records the read.
+**2B. Anonymous → GetObject**
+- **Verdict:** Exposed by object ACL. The object ACL grants `READ` to the `AllUsers` group. Bucket policy `DenyBroad` covers only `private/*`, so no deny matches this key. No bucket-level BPA is configured.
+- **Evidence (executed):** unsigned GET to the lab endpoint returned HTTP 403.
+- **Unresolved:** the cause of the 403 is not isolated. Account-level BPA is not set, so it does not explain the denial. Endpoint-specific behavior is the remaining candidate. `DenyBroad` is not the cause, because it does not match this key.
 
-**Question B — Can an unsigned caller read this object?**
-**Observed configuration:** the object ACL grants `READ` to the `AllUsers` group. Bucket policy `DenyBroad` covers only `private/*`, so it does not deny this key. No bucket-level BPA configuration was returned, and no account-level BPA configuration is set in the signed response.
+**2C. Anonymous → ListBucket**
+- **Verdict:** Not granted. The `AllUsers` ACL is on the object, not the bucket, and the bucket ACL is owner-only.
+- **Evidence (executed):** unsigned list returned HTTP 403.
 
-**Observed result: denied at the loopback endpoint; controlling layer unresolved.** The unsigned GET returned HTTP 403. This is not proof that `DenyBroad` caused the denial and is not an Internet-vantage test. The object ACL is a real public-read grant, but effective public reach is not established; organization-level controls and endpoint-specific behavior were not retrieved.
+### 3. Partner feed: `alderbrook-partner-share-ab7f3a` / `share/partner-feed.json`
 
-**Question C — Can an unsigned caller list the exports bucket?**
-**Observed configuration/result: denied.** The object's `AllUsers READ` ACL applies to object reads, not bucket listing, and no public listing grant is established by that ACL. The unsigned bucket-list probe returned HTTP 403.
+**3A. Northmoor principal `arn:aws:iam::905501234789:root` → GetObject and ListBucket**
+- **Verdict:** Not verified for any Northmoor identity. The resource policy `PartnerFeed` delegates both actions to that account with no `Condition`. Whether a Northmoor principal can use them also depends on its own identity policy and any organization controls, which were not checked.
+- **Evidence:** none executed. No Northmoor credentials or profile were available, and an unsigned 403 does not answer this question.
 
-### 3. Partner feed — `alderbrook-partner-share-ab7f3a/share/partner-feed.json`
+**3B. Holder of the presigned URL → GetObject**
+- **Verdict:** Allowed by bearer URL. Anyone holding the URL can read the object without an AWS identity.
+- **Evidence (executed):** the workstation test returned HTTP 200 and 68 bytes; the body was discarded. CloudTrail `f94fa759-101b-4113-841a-884e30d530a4` records the read, signed by `arn:aws:iam::734112396500:user/grant-issuer`, from `127.0.0.1`. This shows the URL works in the local lab. It does not show that Northmoor used it or that a remote recipient received the data. The URL itself is omitted.
+- **Finding:** expiry and recipient list for the URL need review.
 
-**Question A — Can a Northmoor principal in account `905501234789` read the object or list the bucket?**
-**Observed configuration:** `PartnerFeed` grants principal `arn:aws:iam::905501234789:root` `s3:GetObject` and `s3:ListBucket` on the partner bucket and its objects, with no `Condition`. This is a resource-side delegation; the actual Northmoor principal must also be authorized by its identity-side policy and any applicable boundary or organization controls.
+**3C. Anonymous, no URL → GetObject and ListBucket**
+- **Verdict:** Denied. The partner policy grants only the named Northmoor account, and the ACLs are owner-only.
+- **Evidence (executed):** unsigned GET and list returned HTTP 403.
 
-**Observed result: unverified.** No Northmoor credentials/profile were available and no request was made as a Northmoor principal. An unsigned 403 does not answer the cross-account question. The statement alone is not proof of effective Northmoor access.
+### 4. Ops retention report: `alderbrook-ops-ab7f3a` / `ops/retention-report.md`
 
-**Question B — Can a holder of the ticket's pre-signed URL read the object?**
-**Observed result: allowed.** The supplied workstation test returned HTTP 200 and 68 bytes; the body was discarded. CloudTrail event `f94fa759-101b-4113-841a-884e30d530a4` records a successful `GetObject` for this object by signing identity `arn:aws:iam::734112396500:user/grant-issuer`, source `127.0.0.1`, user agent `Python-urllib/3.12 (presigned)`. This proves use of the bearer URL in the local lab, not that Northmoor used it or that a remote recipient received the data. The raw URL is omitted.
+**4A. `sec-reviewer` → GetObject**
+- **Verdict:** Allowed.
+- **Evidence (executed):** `get-object` succeeded. CloudTrail `47492a44-3e73-4847-ad06-dc4ab0d3c9de`.
 
-**Question C — Can an unsigned caller without the URL read or list?**
-**Observed result: denied at the loopback endpoint.** Unsigned GET and list probes returned HTTP 403. The bucket and object ACLs grant owner `FULL_CONTROL`; the partner resource-policy grant names Northmoor, not `Principal: "*"`. No bucket-level or account-level BPA configuration is present in the retrieved lab responses.
+**4B. Anonymous → ListBucket and GetObject**
+- **Verdict:** Denied, and clean. No bucket policy exists (`NoSuchBucketPolicy`, CloudTrail `8c1ae8ea-ba7f-4874-b343-a0a5d4893a57`). The bucket and object ACLs grant only owner `FULL_CONTROL`. No bucket-level BPA is configured.
+- **Evidence (executed):** unsigned list and GET returned HTTP 403, consistent with the configuration.
 
-### 4. Ops retention report — `alderbrook-ops-ab7f3a/ops/retention-report.md`
+**Clean resource:** `alderbrook-ops-ab7f3a/ops/retention-report.md`. Every layer reviewed agrees, and there is nothing to report for this resource within the tested scope.
 
-**Question A — Can `sec-reviewer` read the object?**
-**Observed result: allowed.** `GetObject` to `/dev/null` succeeded; CloudTrail event `47492a44-3e73-4847-ad06-dc4ab0d3c9de` records the read.
+### 5. CloudTrail log object: `alderbrook-cloudtrail-ab7f3a` / `AWSLogs/734112396500/CloudTrail/eu-west-1/2026/11/02/734112396500_CloudTrail_eu-west-1_20261102T0005Z_97B04De44f15FDB0.json.gz`
 
-**Question B — Can an unsigned caller list the bucket or read the object?**
-**Observed configuration/result: denied at the loopback endpoint.** No public bucket policy exists (`NoSuchBucketPolicy`); the bucket and object ACLs grant only owner `FULL_CONTROL`; no bucket-level BPA configuration was returned. Unsigned list and GET probes returned HTTP 403. No account-level BPA configuration is present in the signed response, and no public grant was found in the reviewed bucket policy or ACLs.
+**5A. `sec-reviewer` → GetObject**
+- **Verdict:** Allowed.
+- **Evidence (executed):** `get-object` succeeded, 508 bytes. No log contents reproduced.
 
-**Clean-resource verdict:** `alderbrook-ops-ab7f3a/ops/retention-report.md` is the explicitly identified clean resource in this review: the reviewed resource-side policy and ACL layers contain no public grant, and the unsigned lab probes were denied.
+**5B. Anonymous → ListBucket and GetObject**
+- **Verdict:** Denied. No bucket policy (`NoSuchBucketPolicy`), owner-only ACLs, no bucket-level BPA.
+- **Evidence (executed):** unsigned list and GET returned HTTP 403.
 
-### 5. CloudTrail log object — `alderbrook-cloudtrail-ab7f3a/AWSLogs/734112396500/CloudTrail/eu-west-1/2026/11/02/734112396500_CloudTrail_eu-west-1_20261102T0005Z_97B04De44f15FDB0.json.gz`
+## Summary
 
-**Question A — Can `sec-reviewer` read this log object?**
-**Observed result: allowed.** `GetObject` to `/dev/null` succeeded; response metadata reported 508 bytes. No log contents are reproduced here.
+| # | Resource / question | Verdict | Evidence |
+|---|---|---|---|
+| 1A | PHI, `sec-reviewer` GetObject | Allowed | Executed, 200 |
+| 1B | PHI, anonymous list and get | **Exposed by configuration** (cause of 403 unresolved) | Policy and BPA read; lab 403 |
+| 2A | Exports, `sec-reviewer` GetObject | Allowed | Executed, 200 |
+| 2B | Exports, anonymous GetObject | **Exposed by object ACL** (cause of 403 unresolved) | ACL read; lab 403 |
+| 2C | Exports, anonymous ListBucket | Not granted | ACL read; lab 403 |
+| 3A | Partner, Northmoor GetObject and ListBucket | Not verified for any Northmoor identity | Resource policy read; not executed |
+| 3B | Partner, presigned URL holder | Allowed by bearer URL | Executed, 200 in local lab |
+| 3C | Partner, anonymous without URL | Denied | Lab 403 |
+| 4A | Ops, `sec-reviewer` GetObject | Allowed | Executed, 200 |
+| 4B | Ops, anonymous list and get | **Denied (clean)** | Policy and ACL read; lab 403 |
+| 5A | CloudTrail, `sec-reviewer` GetObject | Allowed | Executed, 200 |
+| 5B | CloudTrail, anonymous list and get | Denied | Policy and ACL read; lab 403 |
 
-**Question B — Can an unsigned caller list the bucket or read this object?**
-**Observed configuration/result: denied at the loopback endpoint.** No bucket policy exists (`NoSuchBucketPolicy`); the bucket and listed object ACLs grant only owner `FULL_CONTROL`; no bucket-level BPA configuration was returned. Unsigned list and GET probes returned HTTP 403. No account-level BPA configuration is present in the signed response; this remains a local result, not evidence of Internet reachability.
+## Open items
 
-## Open checks and disposition
-
-| Check | Result |
-|---|---|
-| Account-level BPA via `GET /v20180820/configuration/publicAccessBlock` with `x-amz-account-id: 734112396500` | **No account configuration set.** Signed response was `404 NoSuchPublicAccessBlockConfiguration`, request ID `G5MK2jRLvaAC4XsYhOt01JiiyuQVFKC3jCRAvazro7RQcU6K3Msx`; no individual flag values returned. |
-| PHI KMS key policy | **Retrieved by resolved key ID.** The requested alias form was rejected by the emulator; the returned policy includes a direct `reporting-role-key` decrypt grant and a root-account IAM-delegation statement. It does not directly grant anonymous decrypt. |
-| Northmoor `GetObject` and `ListBucket` | **Unverified.** Requires an authorized identity in account `905501234789`; no Northmoor credentials were available. |
-| Internet reachability | **Not tested.** The service is loopback-only from the workstation; unsigned 403s are lab endpoint results. |
-
-## Overall verdicts
-
-- **PHI:** authenticated `sec-reviewer` read allowed; wildcard policy configures anonymous list/get, but both unsigned probes were denied and the governing higher-level layer is unresolved. Internet exposure is not proven.
-- **Exports:** authenticated read allowed; public object ACL is configured, but unsigned GET was denied and its controlling layer is unresolved. Anonymous listing was denied and is not granted by the object ACL.
-- **Partner:** Northmoor effective access unverified; the ticketed bearer URL successfully read the object in the local lab; ordinary unsigned probes were denied.
-- **Ops:** authenticated read allowed; unsigned list/read denied; no public resource-side grant found. **Clean resource: `alderbrook-ops-ab7f3a/ops/retention-report.md`.**
-- **CloudTrail:** authenticated read allowed; unsigned list/read denied; no public resource-side grant found. No account-level BPA configuration is set in the signed lab response.
+1. **Account-level BPA conflict:** the handover says it is enabled; the signed response says it is not set. Confirm with whoever owns the account, and check whether the lab endpoint implements this API faithfully.
+2. **Cause of the PHI and exports 403s:** isolate by testing whether the lab endpoint evaluates bucket policies and object ACLs at all, using a control bucket with a known public grant.
+3. **BPA change on PHI (CloudTrail `c6b65cb5-7937-49a6-b08e-4333cc7abb42`):** confirm who authorized it and why.
+4. **Northmoor (3A):** test with a real identity in account `905501234789`.
+5. **Partner presigned URL (3B):** confirm expiry, and who received the URL.
