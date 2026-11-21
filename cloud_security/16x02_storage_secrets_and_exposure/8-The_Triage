@@ -1,0 +1,16 @@
+Triage method: credentials and candidates
+
+I did not forward the scanner output. Each candidate went through three questions, in order.
+
+1. Is it still live? I checked each credential with a read-only identity call (sts get-caller-identity) under its own profile. A credential that fails authentication is recorded as dead and dropped from the findings. A credential that authenticates is live, and its findings are kept.
+
+2. What does it reach? For each live identity I checked what it can do, using the bucket policies, key policy and CloudTrail records rather than assumptions about its role. I then confirmed reach with a single bounded test (for example, one get-object to /dev/null) and checked the trail for the matching event. Reach claimed without an executed test and a trail record is recorded as unverified.
+
+3. What do I do with the unresolved ones? Some candidates were live but their purpose was unknown, such as dashboards-ro, which read the PHI object at 20:08 UTC and is not in the review's scope. I did not classify it as harmless to close the question, and I did not inflate it into a confirmed breach. It is reported as a critical open item, with the evidence and the steps that would resolve it: owner confirmation, its IAM policies, and a 30-day trail search. Candidates I could not resolve are listed with what is missing, not dropped.
+
+What handing over the raw output would have cost
+
+To Alderbrook: a list of dozens of hits, most of them dead or irrelevant, would bury the two live credentials that matter. The client would have to repeat the triage to find the real exposure, and the critical dashboards-ro read would sit among noise until it was too late to act on it quickly.
+To Latchkey: the report's credibility. Once a client finds one dead key in a list we called "findings," it discounts the rest, including the real ones. Forwarding unverified output converts our judgment into the client's work and teaches them to weigh our reports by volume rather than by content.
+
+The two damages are different: one is delayed response to live exposure at Alderbrook, the other is the loss of trust in our findings at Latchkey.
