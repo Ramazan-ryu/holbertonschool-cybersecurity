@@ -1,0 +1,15 @@
+The encryption is real and did protect against some things, but it did not protect against the access we found.
+
+What it protects against: someone who copies the encrypted object (a backup, snapshot, or disk) without a valid key grant cannot read the records. It does nothing against a principal that holds a decrypt permission, because SSE-KMS decrypts transparently for that principal.
+
+Why it did not protect this data: the key policy for alias/alderbrook-phi contains AllowReportingDecrypt, which grants kms:Decrypt to the IAM user reporting-role-key with no conditions. Anyone holding that user's access keys could decrypt. Those keys were stored in plaintext in a local file (.env.local), so the grant was usable by anyone who could read that file.
+
+Who could decrypt, and from when:
+
+reporting-role-key: a recorded decrypt on 3 November 2026, and a successful read of the PHI object at 20:03 UTC on 20 November.
+dashboards-ro, outside this review's scope: a successful read of the same object at 20:08 UTC on 20 November. Its decrypt permission has not been traced, so I cannot yet say how it was authorised.
+Earlier reads have not been searched for.
+
+Separately, a bucket policy grants anonymous read on the same data. Our lab tests returned denials, so whether anonymous callers could actually read it is not established.
+
+What follows: the records were readable by identities whose authority is unconfirmed, and the period before this review is unknown. Whether that creates any notification obligation is a question for counsel. I have not assessed it. Counsel will need the facts above, plus the results of the 30-day trail search, to answer it.
