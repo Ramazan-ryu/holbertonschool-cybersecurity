@@ -56,7 +56,7 @@ The `default` key policy contains two statements:
 
 - **A corresponding `Decrypt` event for the 2026-11-20 reads.** In the adjacent CloudTrail batches reviewed, the 20:03 object-read batch contains the S3 `GetObject` but no KMS `Decrypt`; the 20:08 batch also contains no KMS `Decrypt`. The 2026-11-03 pair proves the earlier `reporting-role-key` path, not the KMS event for either later read.
 - **Full-day and 30-day searches.** These have not been run.
-- **The exact authorization path for `dashboards-ro`.** Its identity-side IAM policies and KMS grants have not been retrieved. Its successful S3 response proves effective retrieval, but not which authorization statement or grant supplied KMS permission.
+- **The exact authorization path for `dashboards-ro`.** Discovery calls were made as `arn:aws:iam::734112396500:user/sec-reviewer`: `iam:GetUser`, `iam:ListAttachedUserPolicies`, `iam:ListUserPolicies`, and `iam:ListGroupsForUser` each returned `AccessDenied`; `kms:ListGrants` returned `AccessDeniedException`. These are denials of the reviewer's inspection calls. They do not deny or explain `dashboards-ro`'s S3/KMS request, and they expose no governing statement for that request. The successful S3 response proves effective retrieval, but the specific IAM policy or KMS grant remains unknown.
 - **Direct authorization test.** No minimally scoped decrypt test has been run as either principal.
 - **Trail search from `sec-reviewer`.** `cloudtrail:LookupEvents` returned `AccessDeniedException`, so the search relied on reading trail objects from S3.
 
