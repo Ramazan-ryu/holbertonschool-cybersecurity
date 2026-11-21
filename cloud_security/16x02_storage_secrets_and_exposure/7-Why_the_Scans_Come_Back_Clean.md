@@ -1,0 +1,9 @@
+# 7 — Why the scans come back clean
+
+The CloudTrail log object `alderbrook-cloudtrail-ab7f3a/AWSLogs/734112396500/CloudTrail/eu-west-1/2026/11/02/734112396500_CloudTrail_eu-west-1_20261102T0005Z_97B04De44f15FDB0.json.gz` is protected at the permission-bearing layers: it has no public bucket policy, and its ACL grants access only to the owner. Removing a separate control would not create a public grant.
+
+The exports object `alderbrook-exports-ab7f3a/exports/clinic-rollup.csv` has an `AllUsers READ` object ACL. If account-level S3 Block Public Access is active, it can suppress that grant, making a current-state scan accurately report no effective public exposure. That result would describe the present combination of permissions and block settings; it would not mean the object ACL is safe. Removing the block through an ordinary administrative change would expose the existing grant without changing the object ACL.
+
+There is an evidence conflict to resolve before calling exports currently masked: the handover says account-level Block Public Access is enabled, but the signed account-level read returned `404 NoSuchPublicAccessBlockConfiguration`. No bucket-level block is recorded for exports, and its anonymous loopback `403` did not identify the denying layer. So the scan may accurately report its measured state, but the collected evidence does not establish that a higher-level block currently suppresses this ACL.
+
+Keep the monthly effective-access scan. Add a monthly latent-access report that inventories wildcard bucket policies and public object or bucket ACL grants, identifies who can change account- and bucket-level Block Public Access, and calculates which grants would become effective if those controls were removed. Assign platform security to alert on changes to bucket policies, ACLs, and Block Public Access settings, with a named owner to review each alert.
