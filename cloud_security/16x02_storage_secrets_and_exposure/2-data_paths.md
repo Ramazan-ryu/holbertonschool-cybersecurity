@@ -12,6 +12,12 @@ Three different authorization mechanisms appear in the Alderbrook evidence: a wi
 
 The public-policy/ACL route, Northmoor resource-policy route, and pre-signed URL are separate grants and use different S3 authorization mechanisms. The first two are configuration findings, not executed successful routes. Only the signed URL has a successful access result, and it delivered the response to a local process; no external recipient or remote delivery is confirmed. Therefore, the evidence does **not** establish three exfiltration routes under a criterion requiring each route to have a successful execution and confirmed recipient.
 
+## Route verdicts
+
+- **Wildcard policy / public ACL:** public-read permissions are present in configuration (`Principal: "*"` and `AllUsers READ`). Anonymous requests to the loopback lab endpoint did not succeed, so effective anonymous access and data delivery to an outside recipient are **not established**.
+- **Northmoor cross-account policy:** the bucket policy delegates to account `905501234789`, but no authenticated request from that account was made. Whether a particular Northmoor identity can list the bucket or read `share/partner-feed.json` is **unverified**.
+- **Pre-signed URL:** `GetObject` succeeded from this workstation and returned 68 bytes to its local process. This is the only executed successful retrieval; remote use and delivery to an external recipient are **not established**.
+
 ## Pre-signed URL: lifetime, use, and limits
 
 The ticket URL's query parameters record `X-Amz-Date=20261119T234926Z` and `X-Amz-Expires=604800`, for a stated expiry of `2026-11-26T23:49:26Z`, subject to earlier invalidation of the signing credentials. The raw URL and signature are intentionally omitted here.
