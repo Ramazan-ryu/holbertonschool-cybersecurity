@@ -1,0 +1,41 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadOrderDocuments",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::marlowe-orders-mc4e21/orders/*"
+    },
+    {
+      "Sid": "WriteProcessedDocuments",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::marlowe-orders-mc4e21/processed/*"
+    },
+    {
+      "Sid": "ProcessCustomerMessages",
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:DeleteMessage"
+      ],
+      "Resource": "arn:aws:sqs:eu-west-1:500100200300:marlowe-customer-events"
+    },
+    {
+      "Sid": "ProcessOrderRecords",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem"
+      ],
+      "Resource": "arn:aws:dynamodb:eu-west-1:500100200300:table/marlowe-orders"
+    },
+    {
+      "Sid": "ReadWebhookSigningSecret",
+      "Effect": "Allow",
+      "Action": "secretsmanager:GetSecretValue",
+      "Resource": "arn:aws:secretsmanager:eu-west-1:500100200300:secret:marlowe/stripe-webhook-signing-OZUeBE"
+    }
+  ]
+}
