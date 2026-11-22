@@ -2,76 +2,48 @@
 
 ## Result
 
-The workload identity obtained through the SSRF in `1-door.md` is `marlowe-web-instance-role`, confirmed by an STS call made with the returned credentials. Under that identity, `s3:GetObject`, `sqs:ReceiveMessage` and `secretsmanager:GetSecretValue` succeeded, and `iam:ListUsers` was denied. Strong IMDS mode defeats the identical credential request.
+The workload identity obtained through the SSRF in `1-door.md` is `marlowe-web-instance-role`, confirmed by STS in two separate calls. Under that identity the following succeeded: `s3:GetObject`, `s3:ListBucket`, `sqs:ReceiveMessage`, `sqs:GetQueueUrl`, `sqs:GetQueueAttributes`, `secretsmanager:GetSecretValue`, and `sts:AssumeRole` into `marlowe-order-processor-role`. `iam:ListUsers` was denied. Strong IMDS mode defeats the identical credential request.
 
-The endpoint used for these calls, `http://127.0.0.1:4566`, is not confirmed as forwarding to AWS account `500100200300`. This must be confirmed before the findings are reported as account evidence.
+The endpoint `http://127.0.0.1:4566` is not confirmed as forwarding to AWS account `500100200300`. Until the owner confirms it, these results are not reported as account evidence.
 
 ## Executed calls under the instance identity
 
 | # | Call | Provider response (saved file) | Result |
 |---|---|---|---|
-| 1 | `sts get-caller-identity` | `Arn: arn:aws:sts::500100200300:assumed-role/marlowe-web-instance-role/i-0marlowe`, `UserId: AROAXI4CLO5WCDXO762J4:i-0marlowe` (`51-instance-identity.json`) | Identity confirmed |
-| 2 | `s3api get-object` on `marlowe-orders-mc4e21/orders/2026-Q1.json` | Exit 0; `ContentLength 1868`, ETag `074aacc1288e394e327be2402780c18c` (`52-s3.json`). Body written to `/dev/null`. | Allowed |
-| 3 | `sqs receive-message` on `marlowe-customer-events`, visibility timeout 0 | Exit 0; `MessageId b438c850-07d0-4c51-a93f-4e4d38dd0336` (`53-sqs.json`). Message body not recorded. | Allowed. The message was received but not deleted. |
-| 4 | `secretsmanager get-secret-value` on `marlowe/stripe-webhook-signing` | Exit 0; ARN `…secret:marlowe/stripe-webhook-signing-OZUeBE`, `VersionId 7eeae3b2-d9d1-4927-b28f-881cea392a98` (`54-secret.json`). Secret value not retrieved into the record. | Allowed. The session record listed VersionId `fccb4133-…`; the difference is unexplained. |
-| 5 | `iam list-users` | `AccessDenied`; the error names `assumed-role/marlowe-web-instance-role/i-0marlowe` (`55-iam.json`) | Denied |
-| 6 | `sts assume-role` into `marlowe-order-processor-role` | Not run in this review | Not verified |
-
-
-
-
-## Effective permission model
-
-For a principal in the same account, an identity-policy Allow grants access only if no applicable explicit Deny exists. The applicable sources of Deny are:
-
-| Source | Status in this review |
-|---|---|
-| Identity policy (`MarloweInstanceRolePolicy` v1) | Read. Grants listed above. No Deny statements. |
-| Permissions boundary | Read: none (`PermissionsBoundary: null`). |
-| Session policy | Not applicable: no session policy was recorded. |
-| Resource-based policy: S3 bucket `marlowe-orders-mc4e21` | Not readable (`AccessDenied`). Unknown. |
-| Resource-based policy: SQS queue `marlowe-customer-events` | Not readable (`AccessDenied`). Unknown. |
-| Resource-based policy: secret `marlowe/stripe-webhook-signing` | Not readable (`AccessDenied`). Unknown. |
-| Organization service control policies | Not read. Unknown. |
-| Conditions | None in identity policy. Unknown in resource policies. |
-
-Result: the effective reach is the identity-policy grants **minus** any explicit Deny in the unread sources. Only the three calls in `Executed calls` are proven to succeed. The remaining grants are reachable only if the unread sources contain no Deny, and that is not established.
-
-
-
-
-
-
-
-
-
-
-
-
-
+| 1 | `sts get-caller-identity` | `Arn: arn:aws:sts::500100200300:assumed-role/marlowe-web-instance-role/i-0marlowe`, `UserId: AROAXI4CLO5WCDXO762J4:i-0marlowe` (`51`, `60`) | Identity confirmed (twice) |
+| 2 | `s3api get-object` on `marlowe-orders-mc4e21/orders/2026-Q1.json` | Exit 0; `ContentLength 1868`, ETag `074aacc1288e394e327be2402780c18c` (`52`) | Allowed. Body to `/dev/null`. |
+| 3 | `s3api list-objects-v2` on `marlowe-orders-mc4e21`, max 1 item | Exit 0 (`61`) | Allowed. Object keys in `61` are customer order identifiers and are not reproduced here. |
+| 4 | `sqs receive-message` on `marlowe-customer-events`, visibility 0 | Exit 0; `MessageId b438c850-07d0-4c51-a93f-4e4d38dd0336` (`53`) | Allowed. Message received, not deleted. Body not recorded. |
+| 5 | `sqs get-queue-url` for `marlowe-customer-events` | Exit 0 (`62`) | Allowed |
+| 6 | `sqs get-queue-attributes` (`QueueArn`, `ApproximateNumberOfMessages`) | Exit 0 (`63`) | Allowed |
+| 7 | `secretsmanager get-secret-value` on `marlowe/stripe-webhook-signing` (ARN and VersionId only) | Exit 0; `VersionId 7eeae3b2-d9d1-4927-b28f-881cea392a98` (`54`) | Allowed. Session record listed `fccb4133-…`; difference unexplained. |
+| 8 | `iam list-users` | `AccessDenied`; error names the instance-role ARN (`55`) | Denied |
+| 9 | `sts assume-role` into `marlowe-order-processor-role`, session `review-check` | Exit 0; `arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/review-check` (`64`) | Allowed. Credentials in `64` are not reproduced. |
+| 10 | `s3:PutObject` | Not run. A test write changes client order data and cannot be reliably undone. | Not verified; requires owner approval |
 
 ## Remediation
 
-- **Before (weak mode):** the credential request returned `HTTP 200` with a credential document containing `AccessKeyId`, `SecretAccessKey`, `Token`, `Code`, `Expiration`, `LastUpdated` and `Type`. Values were not recorded (`50-creds.json`).
-- **After (strong mode):** the identical request returned `HTTP 502`. A search of the response for `AccessKeyId`, `SecretAccessKey` and `Token` matched 0 times (`56-strong.txt`).
+- **Before (weak mode):** the credential request returned `HTTP 200` with a credential document (`50-creds.json`, values not recorded).
+- **After (strong mode):** the identical request returned `HTTP 502`. `grep` for `AccessKeyId`, `SecretAccessKey` and `Token` matched 0 times (`56-strong.txt`).
 
 The application-level fix removes only this request route. Strong IMDS mode closes the metadata credential path itself.
 
 ## Gaps and limits
 
-1. **Endpoint.** `127.0.0.1:4566` is not confirmed as AWS. The `/opt/ashford/` services (`run_emu.py` on port 4567, `metadata_service.py`) suggest a local environment.
-2. **Audit trail.** `marlowe-reset` reported `your activity cleared`. The audit trail may have been cleared, so the request IDs from the earlier session cannot be matched to records.
-3. **CloudTrail not available** to `appsec-reviewer`.
-4. **Resource policies** for the bucket, queue and secret were not readable under the reviewer identity, and were not read under the instance identity. Their effect on the instance role is unknown.
-5. **Policy simulation** not obtained.
-6. **Trust principal** `user/metadata-minter` was not examined.
-7. **`sts:AssumeRole`** was not run in this review.
-8. **Secret VersionId** differs from the earlier session record. The cause is unknown.
+1. **Endpoint.** `127.0.0.1:4566` is not confirmed as AWS. Services under `/opt/ashford/` suggest a local environment.
+2. **Audit trail.** `marlowe-reset` reported `your activity cleared`. CloudTrail is not available to `appsec-reviewer`, so request IDs cannot be matched to audit records.
+3. **Resource-based policies** for the bucket, queue and secret were not readable under the reviewer identity, and were not read under the instance identity.
+4. **Service control policies and policy simulation** were not obtained.
+5. **`s3:PutObject`** was not tested. Its effect on the role is taken from the policy grant only.
+6. **Function role reach** (`marlowe-order-processor-role`) is not evaluated here. See `4-function_chain.md`.
+7. **Secret VersionId** differs from the earlier session record. The cause is unknown.
 
-## Identity policy (grants, not demonstrated permissions)
+## Identity policy (grants)
 
-`MarloweInstanceRolePolicy` v1 is the only attached policy. There are no inline policies, no permissions boundary and no `Condition` keys. It grants `s3:GetObject`, `s3:ListBucket`, `s3:PutObject` on `marlowe-orders-mc4e21`, `sqs:ReceiveMessage`, `sqs:GetQueueUrl`, `sqs:GetQueueAttributes` on `*`, `sts:AssumeRole` on `marlowe-order-processor-role`, and `secretsmanager:GetSecretValue` on `marlowe/stripe-webhook-signing*`. Actions without a recorded call (`s3:ListBucket`, `s3:PutObject`, `sqs:GetQueueUrl`, `sqs:GetQueueAttributes`) are not claimed as reach.
+`MarloweInstanceRolePolicy` v1 is the only attached policy. It has no inline policies, no permissions boundary and no `Condition` keys. Grants: `s3:GetObject`, `s3:ListBucket`, `s3:PutObject` on `marlowe-orders-mc4e21` and `/*`; `sqs:ReceiveMessage`, `sqs:GetQueueUrl`, `sqs:GetQueueAttributes` on `*`; `sts:AssumeRole` on `marlowe-order-processor-role`; `secretsmanager:GetSecretValue` on `marlowe/stripe-webhook-signing*`.
 
 ## Conclusion
 
-The role's demonstrated reach is one order object read, one queue message received, and one secret's metadata read. The role cannot list IAM users. Remediation in strong IMDS mode was verified by the same request returning 502 without credential fields. The effective permission set beyond these calls is not established.
+Demonstrated reach under the instance identity: read one order object, list the orders bucket, receive one queue message without deleting it, read queue metadata, read the secret's metadata, and assume the function execution role. Denied: listing IAM users.
+
+Not established: write access to the orders bucket (`PutObject`), the effective permission set after resource policies and organization policies, and whether the endpoint is AWS.
