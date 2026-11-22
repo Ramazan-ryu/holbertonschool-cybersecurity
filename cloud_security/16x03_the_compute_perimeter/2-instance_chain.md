@@ -2,10 +2,9 @@
 
 ## Status
 
-- **Recorded from the operator session, not reproduced.** The calls below were recorded with the instance-role credentials. A reproduction attempt in the reviewer session did not confirm them.
-- **Endpoint not confirmed.** The `default` AWS profile sets `endpoint_url = http://127.0.0.1:4566`. Whether that endpoint forwards to AWS account `500100200300` is unknown. Until the owner confirms it, nothing in this file is evidence about that account.
-- **Reproduction ran under the wrong identity.** The reproduction calls ran as `user/appsec-reviewer`, not `marlowe-web-instance-role`. Their results describe the reviewer's permissions, not the instance role's.
-- **CloudTrail not available.** The reviewer profile is denied `cloudtrail:LookupEvents`, so no event or request ID below has been checked against the audit log.
+- **Recorded from the operator session, not reproduced under the instance identity.** The calls in the table below were recorded with instance-role credentials. Every reproduction attempt ran as `user/appsec-reviewer`.
+- **Environment.** The workstation runs local services from `/opt/ashford/` (`run_emu.py` on port 4567, `metadata_service.py`, `ashford_shim.py`, `marlowe_web.py`). The `default` profile sets `endpoint_url = http://127.0.0.1:4566`, and that port returns `403` with `Server: AmazonS3`. Whether this environment is a simulation or forwards to AWS account `500100200300` is not confirmed. Until the owner confirms it, these results are not evidence about that account.
+- **CloudTrail not available.** The reviewer profile is denied `cloudtrail:LookupEvents`. No event or request ID below has been matched to an audit record.
 
 ## Entry point
 
@@ -15,7 +14,7 @@ The identity was obtained through the server-side fetch described in `1-door.md`
 GET /admin/catalog/image-import?src=http://169.254.169.254/latest/meta-data/iam/security-credentials/marlowe-web-instance-role
 ```
 
-The recorded response was a credential document for `marlowe-web-instance-role`. Credential values are omitted.
+The recorded response was a credential document for `marlowe-web-instance-role`. Credential values are omitted. The metadata responder may be `metadata_service.py` rather than IMDS (see Gaps).
 
 ## Principal (recorded)
 
@@ -41,27 +40,48 @@ This output has not been reproduced.
 | 4 | `iam list-users` | `AccessDenied`; request ID `mDOGL1BPwxPc6dMe063RvUTZalTzLqFdPJcDZnEF1y4iFUNYbbNI` | `AccessDenied` | Recorded, unverified |
 | 5 | `sts assume-role` into `marlowe-order-processor-role` | Success; request ID not recorded | HTTP 403 | Not verified; request ID missing |
 
-Event IDs from the session (`14772654-…`, `2f87e3d9-…`, `4c5221b8-…`, `25b379b9-…`) could not be checked: CloudTrail lookups are denied to the reviewer profile.
+## Effective permissions: what the role permits
 
-## Identity policy (granted, not executed)
+| Source | Result (read as `appsec-reviewer`) | Effect on the instance identity |
+|---|---|---|
+| Trust policy | Trusts `ec2.amazonaws.com` and `user/metadata-minter` for `sts:AssumeRole` | Names `metadata-minter` as a principal that may assume the role |
+| Permissions boundary | `null` | None applied |
+| Attached managed policy | Only `MarloweInstanceRolePolicy`, default version `v1` | Source of the grants below |
+| Inline role policies | None | None |
+| Conditions in `v1` | None | Grants are not narrowed by condition keys |
+| Session policies | None recorded | Not evaluated |
+| S3 bucket policy (`marlowe-orders-mc4e21`) | `AccessDenied` | **Unknown** |
+| SQS queue policy (`marlowe-customer-events`) | `AccessDenied` | **Unknown** |
+| Secret resource policy (`marlowe/stripe-webhook-signing`) | `AccessDenied` | **Unknown** |
+| IAM policy simulation | `AccessDenied` | **Not obtained** |
 
-The attached policy `arn:aws:iam::500100200300:policy/MarloweInstanceRolePolicy` (default version `v1`) is the only policy attached to the role. The role has no inline policies or permissions boundary. These are policy grants, not demonstrated permissions.
+### Grants in `MarloweInstanceRolePolicy` v1
 
-| Statement | Actions | Resource scope | Call recorded |
+| Statement | Actions | Resource | Call recorded |
 |---|---|---|---|
-| `Orders` | `s3:GetObject` | `arn:aws:s3:::marlowe-orders-mc4e21/*` | Row 1 |
-| `Orders` | `s3:ListBucket`, `s3:PutObject` | `arn:aws:s3:::marlowe-orders-mc4e21` and `/*` | None |
-| `CustomerQueue` | `sqs:ReceiveMessage` | `*` | Row 2 |
-| `CustomerQueue` | `sqs:GetQueueUrl`, `sqs:GetQueueAttributes` | `*` | None |
-| `AssumeFunctionRole` | `sts:AssumeRole` | `arn:aws:iam::500100200300:role/marlowe-order-processor-role` | Row 5 |
+| `Orders` | `s3:GetObject`, `s3:ListBucket`, `s3:PutObject` | `arn:aws:s3:::marlowe-orders-mc4e21`, `arn:aws:s3:::marlowe-orders-mc4e21/*` | Row 1 (`GetObject` only) |
+| `CustomerQueue` | `sqs:ReceiveMessage`, `sqs:GetQueueUrl`, `sqs:GetQueueAttributes` | `*` | Row 2 (`ReceiveMessage` only) |
+| `AssumeFunctionRole` | `sts:AssumeRole` | `arn:aws:iam::500100200300:role/marlowe-order-processor-role` | Row 5 (not verified) |
 | `ReadWebhookSecret` | `secretsmanager:GetSecretValue` | `arn:aws:secretsmanager:*:500100200300:secret:marlowe/stripe-webhook-signing*` | Row 3 |
+
+These are grants, not demonstrated permissions. Actions without a recorded call (`s3:ListBucket`, `s3:PutObject`, `sqs:GetQueueUrl`, `sqs:GetQueueAttributes`) are not claimed as reach.
+
+## Gaps and limits
+
+1. **Environment.** `run_emu.py` (port 4567), `metadata_service.py`, `ashford_shim.py` and `marlowe_web.py` run from `/opt/ashford/`. The metadata response used in `1-door.md` may come from `metadata_service.py`, not from IMDS. All results describe this environment until the owner confirms otherwise.
+2. **AWS endpoint unidentified.** `127.0.0.1:4566` returns `403 Forbidden` with `Server: AmazonS3`. No process listening on port 4566 was identified. Whether it forwards to account `500100200300` is unknown.
+3. **Instance identity not tested for resource policies.** Reads of the S3 bucket policy, SQS queue policy and secret resource policy ran as `user/appsec-reviewer` and returned `AccessDenied` (exit 254). They were not run under `marlowe-web-instance-role`.
+4. **Simulation not obtained.** `iam:SimulatePrincipalPolicy` is denied to `appsec-reviewer`. No effective-permission decision exists for the role.
+5. **Trust principal not examined.** `user/metadata-minter` is named in the role's trust policy. Reads of that user (`GetUser`, attached and inline policies, access keys) are denied to `appsec-reviewer`. Its permissions and key status are unknown.
+6. **Event and request IDs unverified.** CloudTrail lookups are denied to `appsec-reviewer`. The request IDs above come from the session and are not matched to audit records.
+7. **`sts:AssumeRole` row incomplete.** The reproduction returned HTTP 403. The session recorded no request ID for the successful call.
+8. **Session restrictions and conditions.** The identity policy has no `Condition` keys. No session policy was recorded or checked.
+9. **Earlier resource-policy claim withdrawn.** The earlier note that the bucket had no policy (`NoSuchBucketPolicy`) is not reproduced in this evidence set and is not claimed here.
 
 ## Conclusion
 
-The session recorded that the forged metadata request returned credentials for `marlowe-web-instance-role`. It also recorded successful calls under that identity: `s3:GetObject` on one order object, `sqs:ReceiveMessage`, `secretsmanager:GetSecretValue`, and `sts:AssumeRole`. `iam:ListUsers` was recorded as denied.
+The identity policy grants the actions listed above, with no conditions and no permissions boundary. The effective permission set is **not established**: the resource policies of the three target resources and the IAM simulation could not be read under the reviewer identity, so their allow or deny decisions are unknown.
 
-None of these results has been reproduced under the instance identity or checked against CloudTrail, and the endpoint serving them is unconfirmed. Do not report them as account evidence until the endpoint owner confirms it forwards to AWS and the calls are re-run with raw responses saved.
+The session recorded successful calls under the instance identity: `s3:GetObject`, `sqs:ReceiveMessage`, `secretsmanager:GetSecretValue`, and `sts:AssumeRole`. None has been reproduced under that identity or checked against CloudTrail, and the environment serving them is unconfirmed. Do not report them as account evidence until the owner confirms the environment and the calls are re-run under the instance identity with raw responses saved.
 
-Actions listed in the policy but not executed (`s3:ListBucket`, `s3:PutObject`, `sqs:GetQueueUrl`, `sqs:GetQueueAttributes`) are not claimed as reach.
-
-The request-forgery entry point and the metadata test are in `1-door.md`. The function role's own reach, which row 5 would lead to, is not established here.
+The request-forgery entry point and the metadata test are in `1-door.md`. The function role's own reach is not established here.
