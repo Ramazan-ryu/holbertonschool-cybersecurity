@@ -1,44 +1,43 @@
-# 4 — Function Execution Role: Identity, Executed Reach, and Code Gap
+# 4 — Function Execution Role: Executed Reach Beyond the Code
 
-## Identity used for the probes
+## Identity
 
-The execution role is `arn:aws:iam::500100200300:role/marlowe-order-processor-role`. The tested session was created by calling `sts:AssumeRole` with the instance-role credentials; STS returned:
+All calls in this file were made under one session of the execution role:
 
-```json
-{
-  "UserId": "AROAXI4CLO5WGP5N66UQA:reference-check",
-  "Account": "500100200300",
-  "Arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/reference-check"
-}
-```
+- `arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/fn-review`
+- `UserId AROAXI4CLO5WGP5N66UQA:fn-review`, account `500100200300` (`71-fn-identity.json`)
 
-This is an authoritative identity response for the controlled `reference-check` session. It establishes the identity the probes used. It does not claim that Lambda itself created a session with that name; the Lambda configuration request failed with `SignatureDoesNotMatch`.
+The session was created with `sts:AssumeRole` from the instance identity (`70-fn-assume.json`). The endpoint is `http://127.0.0.1:4566`, which is not confirmed as AWS (see `2-instance_chain.md`). Calls from other sessions are not used as evidence in this file.
 
-The target-inventory probes used a fresh, separately confirmed session. `aws sts get-caller-identity` returned `UserId=AROAXI4CLO5WGP5N66UQA:evidence-targets`, account `500100200300`, and ARN `arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/evidence-targets`. The bucket, queue, and secret-list outputs in the table below were returned under this exact identity.
+## Code baseline
 
-## Executed calls outside the handler
+`3-needed_calls.md` lists seven API calls the handler makes: `secretsmanager:GetSecretValue`, `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `s3:GetObject`, `s3:PutObject`, `dynamodb:GetItem`, `dynamodb:PutItem`. None of the calls below is in that list.
 
-`3-needed_calls.md` derives seven required calls from executable handler lines 22, 25, 30, 33, 36, 39, and 42. The handler contains no calls to `s3:ListAllMyBuckets`, `sqs:ListQueues`, `secretsmanager:ListSecrets`, `iam:ListUsers`, `iam:GetAccountAuthorizationDetails`, or `dynamodb:ListTables`.
+## Executed calls under `fn-review`
 
-The following calls were executed using the processor-role credentials. Each is outside that seven-call source-code baseline:
+| # | Call (not in code) | Exit | Response (saved file) | Result |
+|---|---|---|---|---|
+| 1 | `s3api list-buckets` | 0 | `marlowe-orders-mc4e21`, `marlowe-cloudtrail-mc4e21` (`72`) | Allowed. Discloses two bucket names. |
+| 2 | `secretsmanager list-secrets` | 0 | `marlowe/stripe-webhook-signing` (`73`) | Allowed. Discloses one secret name. The secret value was not read. |
+| 3 | `sqs list-queues` | 0 | `http://127.0.0.1:4566/500100200300/marlowe-customer-events` (`74`) | Allowed. Discloses one queue URL. |
+| 4 | `iam list-users` | 0 | `appsec-reviewer`, `marlowe-trail-writer`, `metadata-minter`, `function-role-key` (`75`) | Allowed. Discloses four user names. |
+| 5 | `iam get-account-authorization-details --filter Role` | 0 | `marlowe-web-instance-role`, `marlowe-order-processor-role` (`76`) | Allowed. Discloses two role names. Only the role filter was tested. |
+| 6 | `dynamodb list-tables` | 0 | `[]` (`77`) | Accepted. No table names returned. Not counted as demonstrated reach. |
 
-| Action and reproducible request | Target and authoritative response | What this proves |
-|---|---|---|
-| `aws s3api list-buckets --query 'Buckets[].Name' --output json` | Session `evidence-targets`; account `500100200300`; success, `["marlowe-orders-mc4e21","marlowe-cloudtrail-mc4e21"]`; audit event `618ab63a-5eef-433e-94a8-dd7f6f43fddf` at 14:16:49Z. | `s3:ListAllMyBuckets` disclosed two account bucket names. It does not prove access to their objects. |
-| `aws secretsmanager list-secrets --query 'SecretList[].Name' --output json` | Session `evidence-targets`; account `500100200300`; success, `["marlowe/stripe-webhook-signing"]`; audit event `66a33200-6802-45a9-8999-a43e97b442fd` at 14:16:51Z. | `secretsmanager:ListSecrets` disclosed the named secret. This call did not retrieve its value. |
-| `aws sqs list-queues --query 'QueueUrls' --output json` | Session `evidence-targets`; account `500100200300`; success, `["http://127.0.0.1:4566/500100200300/marlowe-customer-events"]`; audit event `52cf90c5-6ed2-4aa0-83eb-df3b3a8a849a` at 14:16:50Z. | `sqs:ListQueues` disclosed the customer-events queue URL; it does not by itself prove message access. |
-| `aws iam list-users --query 'Users[].UserName' --output json` | Session `reference-check`; account `500100200300`; success, `["appsec-reviewer","marlowe-trail-writer","metadata-minter","function-role-key"]`; audit event `660ea880-8935-479d-848a-a81a5483eaa7` at 23:11:55Z. | `iam:ListUsers` disclosed four user names. |
-| `aws iam get-account-authorization-details --filter Role --query 'RoleDetailList[].RoleName' --output json` | Session `reference-check`; account `500100200300`; success, `["marlowe-web-instance-role","marlowe-order-processor-role"]`; audit event `aa4b16c1-96c6-4609-9111-330184ece96e` at 23:11:54Z. | `iam:GetAccountAuthorizationDetails` disclosed these two role names under the tested `Role` filter; it does not prove unfiltered account-wide visibility or mutation rights. |
-| `aws dynamodb list-tables --query 'TableNames' --output json` | Session `perimeter-review`; account `500100200300`; success, no table names (`[]`); audit event `84f19f20-72b8-4c41-bbee-8841427a1b96` at 21:17:53Z. | The request was accepted, but it exposed no table name and proves no table-data access. It is not counted as demonstrated resource reach. |
+## Measured excess
 
-The earlier `perimeter-review` session also ran `aws s3api list-buckets --query 'length(Buckets)' --output text` → `2`, `aws secretsmanager list-secrets --query 'length(SecretList)' --output text` → `1`, `aws sqs list-queues --query 'length(QueueUrls)' --output text` → `1`, and `aws iam list-users --query 'length(Users)' --output text` → `4`. A subsequent `reference-check` run returned the named users and secret shown above. `iam:ListAttachedRolePolicies` and `iam:ListRolePolicies` were denied under the role session. These are observed results, not claims that every action in an IAM policy is usable.
+Five calls outside the code baseline succeeded under `fn-review`: `s3:ListAllMyBuckets`, `secretsmanager:ListSecrets`, `sqs:ListQueues`, `iam:ListUsers`, and `iam:GetAccountAuthorizationDetails` (role filter). This is a measured minimum of five excess actions. The full set of effective actions is not established.
 
-## Measured difference from the code baseline
+## Not demonstrated
 
-The source baseline is **7 required API actions across 4 services**: `secretsmanager:GetSecretValue`, `sqs:ReceiveMessage`, `s3:GetObject`, `dynamodb:GetItem`, `dynamodb:PutItem`, `s3:PutObject`, and `sqs:DeleteMessage`, each on the specific secret, queue, bucket prefixes, and table in `3-needed_calls.md`.
+- Reads of objects in either bucket, of queue messages, or of the secret value.
+- Writes of any kind.
+- IAM policy changes or unfiltered account-wide authorization details.
+- Any action from the attached policy beyond the calls listed above.
+- CloudTrail records for these calls (CloudTrail is not available to the reviewer profile).
 
-The probes demonstrated **5 additional accepted API actions** outside that set: `s3:ListAllMyBuckets`, `secretsmanager:ListSecrets`, `sqs:ListQueues`, `iam:ListUsers`, and filtered `iam:GetAccountAuthorizationDetails`. All five returned concrete inventory: two bucket names, one secret name, the customer-events queue URL, four user names, and two role names. These are account-inventory calls, broader in scope than the handler's named bucket, queue, secret, and table operations. `dynamodb:ListTables` returned an empty set, so it is recorded as an accepted empty query and excluded from demonstrated resource reach. This is a measured minimum of five excess API capabilities; the total number of effective actions is not asserted from these probes.
+## Impact boundary
 
-The supplied managed-policy document also contains service wildcards and other grants, but those entries are not included in the empirical count unless an API call and result above demonstrate them. The successful `GetAccountAuthorizationDetails` output included IAM role and managed-policy records, establishing read-only inspection in the tested scope. It does not establish permission to change policies. No IAM mutation succeeded; the instance role's `CreatePolicyVersion` request was denied in the audit record.
+Code running with this role's temporary credentials can make the seven code-path calls (not all of them were executed in this file; only the excess inventory calls above are tested here) and the five inventory calls above. The evidence supports account inventory disclosure. It does not support administrator access or untested service actions.
 
-**Impact boundary:** code executing with the Lambda execution role's temporary credentials could make the required order-processing calls and the additional inventory calls proven above. The evidence supports inventory disclosure and the tested order-processing access; it does not support account-administrator access or untested service actions. This is a role-permission gap distinct from the storefront instance-role compromise in `2-instance_chain.md`.
+This role gap is separate from the storefront instance-role compromise in `2-instance_chain.md`.
