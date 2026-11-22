@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reconcile-cron
+  namespace: legacy-billing-migration
+  labels: &id001
+    app: reconcile-cron
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: reconcile-job
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/legacy-billing-migration/reconcile-cron:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legacybill-app-1
+  namespace: legacy-billing-migration
+  labels: &id001
+    app: legacybill-app-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: legacybill-svc-06
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/legacy-billing-migration/legacybill-app-1:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false

@@ -1,0 +1,1637 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: deploy-bot-deployer
+  namespace: prod
+subjects:
+- kind: ServiceAccount
+  name: deploy-bot
+  namespace: prod
+roleRef:
+  kind: Role
+  name: deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: legacy-migration-admin
+  namespace: legacy-billing-migration
+subjects:
+- kind: ServiceAccount
+  name: deploy-bot
+  namespace: prod
+roleRef:
+  kind: Role
+  name: migration-operator
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: maya-dev-editor
+  namespace: dev
+subjects:
+- kind: User
+  name: maya.chen
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: dev-editor
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: maya-billing-migrator
+  namespace: legacy-billing-migration
+subjects:
+- kind: User
+  name: maya.chen
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: billing-migrator
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ci-runner-build
+  namespace: build
+subjects:
+- kind: ServiceAccount
+  name: ci-runner
+  namespace: build
+roleRef:
+  kind: Role
+  name: ci-build
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ci-runner-platform-deploy
+  namespace: platform
+subjects:
+- kind: ServiceAccount
+  name: ci-runner
+  namespace: build
+roleRef:
+  kind: Role
+  name: platform-deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ci-runner-legacy-secrets
+  namespace: legacy-billing-migration
+subjects:
+- kind: ServiceAccount
+  name: ci-runner
+  namespace: build
+roleRef:
+  kind: Role
+  name: billing-secrets
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sam-metrics-viewer
+  namespace: monitoring
+subjects:
+- kind: User
+  name: sam.okafor
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: metrics-viewer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sam-legacy-view
+  namespace: legacy-billing-migration
+subjects:
+- kind: User
+  name: sam.okafor
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: billing-reconciler-prod
+  namespace: prod
+subjects:
+- kind: ServiceAccount
+  name: billing-reconciler
+  namespace: prod
+roleRef:
+  kind: Role
+  name: reconciler
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: billing-reconciler-secrets
+  namespace: legacy-billing-migration
+subjects:
+- kind: ServiceAccount
+  name: billing-reconciler
+  namespace: prod
+roleRef:
+  kind: Role
+  name: billing-secrets
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: orders-api-config
+  namespace: prod
+subjects:
+- kind: ServiceAccount
+  name: orders-api-sa
+  namespace: prod
+roleRef:
+  kind: Role
+  name: orders-api-config
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: default-svc-01-default-role-04
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: default-svc-01
+  namespace: default
+roleRef:
+  kind: Role
+  name: default-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: default-svc-01-default-role-01
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: default-svc-01
+  namespace: default
+roleRef:
+  kind: Role
+  name: default-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: default-svc-02-default-role-05
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: default-svc-02
+  namespace: default
+roleRef:
+  kind: Role
+  name: default-role-05
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: default-svc-03-default-role-02
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: default-svc-03
+  namespace: default
+roleRef:
+  kind: Role
+  name: default-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: default-svc-04-default-role-04
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: default-svc-04
+  namespace: default
+roleRef:
+  kind: Role
+  name: default-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: default-svc-05-default-role-04
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: default-svc-05
+  namespace: default
+roleRef:
+  kind: Role
+  name: default-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: default-svc-06-default-role-03
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: default-svc-06
+  namespace: default
+roleRef:
+  kind: Role
+  name: default-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubesystem-svc-01-kubesystem-role-03
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: kubesystem-svc-01
+  namespace: kube-system
+roleRef:
+  kind: Role
+  name: kubesystem-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubesystem-svc-02-kubesystem-role-02
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: kubesystem-svc-02
+  namespace: kube-system
+roleRef:
+  kind: Role
+  name: kubesystem-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubesystem-svc-02-kubesystem-role-03
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: kubesystem-svc-02
+  namespace: kube-system
+roleRef:
+  kind: Role
+  name: kubesystem-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubesystem-svc-03-kubesystem-role-02
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: kubesystem-svc-03
+  namespace: kube-system
+roleRef:
+  kind: Role
+  name: kubesystem-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubesystem-svc-03-kubesystem-role-03
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: kubesystem-svc-03
+  namespace: kube-system
+roleRef:
+  kind: Role
+  name: kubesystem-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubesystem-svc-04-kubesystem-role-02
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: kubesystem-svc-04
+  namespace: kube-system
+roleRef:
+  kind: Role
+  name: kubesystem-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubesystem-svc-05-kubesystem-role-01
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: kubesystem-svc-05
+  namespace: kube-system
+roleRef:
+  kind: Role
+  name: kubesystem-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubesystem-svc-05-kubesystem-role-02
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: kubesystem-svc-05
+  namespace: kube-system
+roleRef:
+  kind: Role
+  name: kubesystem-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubesystem-svc-06-kubesystem-role-02
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: kubesystem-svc-06
+  namespace: kube-system
+roleRef:
+  kind: Role
+  name: kubesystem-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubesystem-svc-06-kubesystem-role-03
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: kubesystem-svc-06
+  namespace: kube-system
+roleRef:
+  kind: Role
+  name: kubesystem-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kubesystem-svc-07-kubesystem-role-03
+  namespace: kube-system
+subjects:
+- kind: ServiceAccount
+  name: kubesystem-svc-07
+  namespace: kube-system
+roleRef:
+  kind: Role
+  name: kubesystem-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prod-svc-01-prod-role-01
+  namespace: prod
+subjects:
+- kind: ServiceAccount
+  name: prod-svc-01
+  namespace: prod
+roleRef:
+  kind: Role
+  name: prod-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prod-svc-02-prod-role-03
+  namespace: prod
+subjects:
+- kind: ServiceAccount
+  name: prod-svc-02
+  namespace: prod
+roleRef:
+  kind: Role
+  name: prod-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prod-svc-02-prod-role-01
+  namespace: prod
+subjects:
+- kind: ServiceAccount
+  name: prod-svc-02
+  namespace: prod
+roleRef:
+  kind: Role
+  name: prod-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prod-svc-03-prod-role-02
+  namespace: prod
+subjects:
+- kind: ServiceAccount
+  name: prod-svc-03
+  namespace: prod
+roleRef:
+  kind: Role
+  name: prod-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prod-svc-03-prod-role-01
+  namespace: prod
+subjects:
+- kind: ServiceAccount
+  name: prod-svc-03
+  namespace: prod
+roleRef:
+  kind: Role
+  name: prod-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prod-svc-04-prod-role-03
+  namespace: prod
+subjects:
+- kind: ServiceAccount
+  name: prod-svc-04
+  namespace: prod
+roleRef:
+  kind: Role
+  name: prod-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: prod-svc-04-prod-role-04
+  namespace: prod
+subjects:
+- kind: ServiceAccount
+  name: prod-svc-04
+  namespace: prod
+roleRef:
+  kind: Role
+  name: prod-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: build-svc-01-build-role-02
+  namespace: build
+subjects:
+- kind: ServiceAccount
+  name: build-svc-01
+  namespace: build
+roleRef:
+  kind: Role
+  name: build-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: build-svc-01-build-role-03
+  namespace: build
+subjects:
+- kind: ServiceAccount
+  name: build-svc-01
+  namespace: build
+roleRef:
+  kind: Role
+  name: build-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: build-svc-02-build-role-05
+  namespace: build
+subjects:
+- kind: ServiceAccount
+  name: build-svc-02
+  namespace: build
+roleRef:
+  kind: Role
+  name: build-role-05
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: build-svc-03-build-role-03
+  namespace: build
+subjects:
+- kind: ServiceAccount
+  name: build-svc-03
+  namespace: build
+roleRef:
+  kind: Role
+  name: build-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: build-svc-04-build-role-01
+  namespace: build
+subjects:
+- kind: ServiceAccount
+  name: build-svc-04
+  namespace: build
+roleRef:
+  kind: Role
+  name: build-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: build-svc-05-build-role-01
+  namespace: build
+subjects:
+- kind: ServiceAccount
+  name: build-svc-05
+  namespace: build
+roleRef:
+  kind: Role
+  name: build-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: build-svc-05-build-role-03
+  namespace: build
+subjects:
+- kind: ServiceAccount
+  name: build-svc-05
+  namespace: build
+roleRef:
+  kind: Role
+  name: build-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: build-svc-06-build-role-03
+  namespace: build
+subjects:
+- kind: ServiceAccount
+  name: build-svc-06
+  namespace: build
+roleRef:
+  kind: Role
+  name: build-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-svc-01-platform-role-02
+  namespace: platform
+subjects:
+- kind: ServiceAccount
+  name: platform-svc-01
+  namespace: platform
+roleRef:
+  kind: Role
+  name: platform-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-svc-01-platform-role-03
+  namespace: platform
+subjects:
+- kind: ServiceAccount
+  name: platform-svc-01
+  namespace: platform
+roleRef:
+  kind: Role
+  name: platform-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-svc-02-platform-role-03
+  namespace: platform
+subjects:
+- kind: ServiceAccount
+  name: platform-svc-02
+  namespace: platform
+roleRef:
+  kind: Role
+  name: platform-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-svc-02-platform-role-01
+  namespace: platform
+subjects:
+- kind: ServiceAccount
+  name: platform-svc-02
+  namespace: platform
+roleRef:
+  kind: Role
+  name: platform-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-svc-03-platform-role-02
+  namespace: platform
+subjects:
+- kind: ServiceAccount
+  name: platform-svc-03
+  namespace: platform
+roleRef:
+  kind: Role
+  name: platform-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-svc-04-platform-role-02
+  namespace: platform
+subjects:
+- kind: ServiceAccount
+  name: platform-svc-04
+  namespace: platform
+roleRef:
+  kind: Role
+  name: platform-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-svc-05-platform-role-01
+  namespace: platform
+subjects:
+- kind: ServiceAccount
+  name: platform-svc-05
+  namespace: platform
+roleRef:
+  kind: Role
+  name: platform-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-svc-05-platform-role-03
+  namespace: platform
+subjects:
+- kind: ServiceAccount
+  name: platform-svc-05
+  namespace: platform
+roleRef:
+  kind: Role
+  name: platform-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-svc-06-platform-role-02
+  namespace: platform
+subjects:
+- kind: ServiceAccount
+  name: platform-svc-06
+  namespace: platform
+roleRef:
+  kind: Role
+  name: platform-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-svc-07-platform-role-02
+  namespace: platform
+subjects:
+- kind: ServiceAccount
+  name: platform-svc-07
+  namespace: platform
+roleRef:
+  kind: Role
+  name: platform-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-svc-07-platform-role-01
+  namespace: platform
+subjects:
+- kind: ServiceAccount
+  name: platform-svc-07
+  namespace: platform
+roleRef:
+  kind: Role
+  name: platform-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-svc-01-dev-role-04
+  namespace: dev
+subjects:
+- kind: ServiceAccount
+  name: dev-svc-01
+  namespace: dev
+roleRef:
+  kind: Role
+  name: dev-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-svc-02-dev-role-02
+  namespace: dev
+subjects:
+- kind: ServiceAccount
+  name: dev-svc-02
+  namespace: dev
+roleRef:
+  kind: Role
+  name: dev-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-svc-03-dev-role-04
+  namespace: dev
+subjects:
+- kind: ServiceAccount
+  name: dev-svc-03
+  namespace: dev
+roleRef:
+  kind: Role
+  name: dev-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-svc-04-dev-role-04
+  namespace: dev
+subjects:
+- kind: ServiceAccount
+  name: dev-svc-04
+  namespace: dev
+roleRef:
+  kind: Role
+  name: dev-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-svc-04-dev-role-02
+  namespace: dev
+subjects:
+- kind: ServiceAccount
+  name: dev-svc-04
+  namespace: dev
+roleRef:
+  kind: Role
+  name: dev-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: staging-svc-01-staging-role-04
+  namespace: staging
+subjects:
+- kind: ServiceAccount
+  name: staging-svc-01
+  namespace: staging
+roleRef:
+  kind: Role
+  name: staging-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: staging-svc-02-staging-role-04
+  namespace: staging
+subjects:
+- kind: ServiceAccount
+  name: staging-svc-02
+  namespace: staging
+roleRef:
+  kind: Role
+  name: staging-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: staging-svc-03-staging-role-02
+  namespace: staging
+subjects:
+- kind: ServiceAccount
+  name: staging-svc-03
+  namespace: staging
+roleRef:
+  kind: Role
+  name: staging-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: staging-svc-03-staging-role-04
+  namespace: staging
+subjects:
+- kind: ServiceAccount
+  name: staging-svc-03
+  namespace: staging
+roleRef:
+  kind: Role
+  name: staging-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: staging-svc-04-staging-role-04
+  namespace: staging
+subjects:
+- kind: ServiceAccount
+  name: staging-svc-04
+  namespace: staging
+roleRef:
+  kind: Role
+  name: staging-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: staging-svc-04-staging-role-02
+  namespace: staging
+subjects:
+- kind: ServiceAccount
+  name: staging-svc-04
+  namespace: staging
+roleRef:
+  kind: Role
+  name: staging-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: staging-svc-05-staging-role-04
+  namespace: staging
+subjects:
+- kind: ServiceAccount
+  name: staging-svc-05
+  namespace: staging
+roleRef:
+  kind: Role
+  name: staging-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: staging-svc-05-staging-role-03
+  namespace: staging
+subjects:
+- kind: ServiceAccount
+  name: staging-svc-05
+  namespace: staging
+roleRef:
+  kind: Role
+  name: staging-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: analytics-svc-01-analytics-role-02
+  namespace: analytics
+subjects:
+- kind: ServiceAccount
+  name: analytics-svc-01
+  namespace: analytics
+roleRef:
+  kind: Role
+  name: analytics-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: analytics-svc-02-analytics-role-03
+  namespace: analytics
+subjects:
+- kind: ServiceAccount
+  name: analytics-svc-02
+  namespace: analytics
+roleRef:
+  kind: Role
+  name: analytics-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: analytics-svc-03-analytics-role-02
+  namespace: analytics
+subjects:
+- kind: ServiceAccount
+  name: analytics-svc-03
+  namespace: analytics
+roleRef:
+  kind: Role
+  name: analytics-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: analytics-svc-04-analytics-role-01
+  namespace: analytics
+subjects:
+- kind: ServiceAccount
+  name: analytics-svc-04
+  namespace: analytics
+roleRef:
+  kind: Role
+  name: analytics-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: analytics-svc-04-analytics-role-02
+  namespace: analytics
+subjects:
+- kind: ServiceAccount
+  name: analytics-svc-04
+  namespace: analytics
+roleRef:
+  kind: Role
+  name: analytics-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: analytics-svc-05-analytics-role-02
+  namespace: analytics
+subjects:
+- kind: ServiceAccount
+  name: analytics-svc-05
+  namespace: analytics
+roleRef:
+  kind: Role
+  name: analytics-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: analytics-svc-05-analytics-role-03
+  namespace: analytics
+subjects:
+- kind: ServiceAccount
+  name: analytics-svc-05
+  namespace: analytics
+roleRef:
+  kind: Role
+  name: analytics-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: analytics-svc-06-analytics-role-02
+  namespace: analytics
+subjects:
+- kind: ServiceAccount
+  name: analytics-svc-06
+  namespace: analytics
+roleRef:
+  kind: Role
+  name: analytics-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: analytics-svc-06-analytics-role-03
+  namespace: analytics
+subjects:
+- kind: ServiceAccount
+  name: analytics-svc-06
+  namespace: analytics
+roleRef:
+  kind: Role
+  name: analytics-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: payments-svc-01-payments-role-01
+  namespace: payments
+subjects:
+- kind: ServiceAccount
+  name: payments-svc-01
+  namespace: payments
+roleRef:
+  kind: Role
+  name: payments-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: payments-svc-01-payments-role-02
+  namespace: payments
+subjects:
+- kind: ServiceAccount
+  name: payments-svc-01
+  namespace: payments
+roleRef:
+  kind: Role
+  name: payments-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: payments-svc-02-payments-role-01
+  namespace: payments
+subjects:
+- kind: ServiceAccount
+  name: payments-svc-02
+  namespace: payments
+roleRef:
+  kind: Role
+  name: payments-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: payments-svc-03-payments-role-03
+  namespace: payments
+subjects:
+- kind: ServiceAccount
+  name: payments-svc-03
+  namespace: payments
+roleRef:
+  kind: Role
+  name: payments-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: payments-svc-04-payments-role-02
+  namespace: payments
+subjects:
+- kind: ServiceAccount
+  name: payments-svc-04
+  namespace: payments
+roleRef:
+  kind: Role
+  name: payments-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: payments-svc-04-payments-role-01
+  namespace: payments
+subjects:
+- kind: ServiceAccount
+  name: payments-svc-04
+  namespace: payments
+roleRef:
+  kind: Role
+  name: payments-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: payments-svc-05-payments-role-03
+  namespace: payments
+subjects:
+- kind: ServiceAccount
+  name: payments-svc-05
+  namespace: payments
+roleRef:
+  kind: Role
+  name: payments-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: payments-svc-05-payments-role-01
+  namespace: payments
+subjects:
+- kind: ServiceAccount
+  name: payments-svc-05
+  namespace: payments
+roleRef:
+  kind: Role
+  name: payments-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mediaproce-svc-01-mediaproce-role-01
+  namespace: media-processing
+subjects:
+- kind: ServiceAccount
+  name: mediaproce-svc-01
+  namespace: media-processing
+roleRef:
+  kind: Role
+  name: mediaproce-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mediaproce-svc-01-mediaproce-role-03
+  namespace: media-processing
+subjects:
+- kind: ServiceAccount
+  name: mediaproce-svc-01
+  namespace: media-processing
+roleRef:
+  kind: Role
+  name: mediaproce-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mediaproce-svc-02-mediaproce-role-01
+  namespace: media-processing
+subjects:
+- kind: ServiceAccount
+  name: mediaproce-svc-02
+  namespace: media-processing
+roleRef:
+  kind: Role
+  name: mediaproce-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mediaproce-svc-02-mediaproce-role-03
+  namespace: media-processing
+subjects:
+- kind: ServiceAccount
+  name: mediaproce-svc-02
+  namespace: media-processing
+roleRef:
+  kind: Role
+  name: mediaproce-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mediaproce-svc-03-mediaproce-role-01
+  namespace: media-processing
+subjects:
+- kind: ServiceAccount
+  name: mediaproce-svc-03
+  namespace: media-processing
+roleRef:
+  kind: Role
+  name: mediaproce-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mediaproce-svc-04-mediaproce-role-02
+  namespace: media-processing
+subjects:
+- kind: ServiceAccount
+  name: mediaproce-svc-04
+  namespace: media-processing
+roleRef:
+  kind: Role
+  name: mediaproce-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: monitoring-svc-01-monitoring-role-03
+  namespace: monitoring
+subjects:
+- kind: ServiceAccount
+  name: monitoring-svc-01
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: monitoring-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: monitoring-svc-02-monitoring-role-05
+  namespace: monitoring
+subjects:
+- kind: ServiceAccount
+  name: monitoring-svc-02
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: monitoring-role-05
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: monitoring-svc-03-monitoring-role-04
+  namespace: monitoring
+subjects:
+- kind: ServiceAccount
+  name: monitoring-svc-03
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: monitoring-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: monitoring-svc-03-monitoring-role-01
+  namespace: monitoring
+subjects:
+- kind: ServiceAccount
+  name: monitoring-svc-03
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: monitoring-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: monitoring-svc-04-monitoring-role-02
+  namespace: monitoring
+subjects:
+- kind: ServiceAccount
+  name: monitoring-svc-04
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: monitoring-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: monitoring-svc-05-monitoring-role-04
+  namespace: monitoring
+subjects:
+- kind: ServiceAccount
+  name: monitoring-svc-05
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: monitoring-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: monitoring-svc-06-monitoring-role-03
+  namespace: monitoring
+subjects:
+- kind: ServiceAccount
+  name: monitoring-svc-06
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: monitoring-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: monitoring-svc-07-monitoring-role-05
+  namespace: monitoring
+subjects:
+- kind: ServiceAccount
+  name: monitoring-svc-07
+  namespace: monitoring
+roleRef:
+  kind: Role
+  name: monitoring-role-05
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: data-svc-01-data-role-04
+  namespace: data
+subjects:
+- kind: ServiceAccount
+  name: data-svc-01
+  namespace: data
+roleRef:
+  kind: Role
+  name: data-role-04
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: data-svc-01-data-role-01
+  namespace: data
+subjects:
+- kind: ServiceAccount
+  name: data-svc-01
+  namespace: data
+roleRef:
+  kind: Role
+  name: data-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: data-svc-02-data-role-01
+  namespace: data
+subjects:
+- kind: ServiceAccount
+  name: data-svc-02
+  namespace: data
+roleRef:
+  kind: Role
+  name: data-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: data-svc-03-data-role-05
+  namespace: data
+subjects:
+- kind: ServiceAccount
+  name: data-svc-03
+  namespace: data
+roleRef:
+  kind: Role
+  name: data-role-05
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: data-svc-03-data-role-01
+  namespace: data
+subjects:
+- kind: ServiceAccount
+  name: data-svc-03
+  namespace: data
+roleRef:
+  kind: Role
+  name: data-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: data-svc-04-data-role-03
+  namespace: data
+subjects:
+- kind: ServiceAccount
+  name: data-svc-04
+  namespace: data
+roleRef:
+  kind: Role
+  name: data-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: data-svc-04-data-role-05
+  namespace: data
+subjects:
+- kind: ServiceAccount
+  name: data-svc-04
+  namespace: data
+roleRef:
+  kind: Role
+  name: data-role-05
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: legacybill-svc-01-legacybill-role-01
+  namespace: legacy-billing-migration
+subjects:
+- kind: ServiceAccount
+  name: legacybill-svc-01
+  namespace: legacy-billing-migration
+roleRef:
+  kind: Role
+  name: legacybill-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: legacybill-svc-01-legacybill-role-02
+  namespace: legacy-billing-migration
+subjects:
+- kind: ServiceAccount
+  name: legacybill-svc-01
+  namespace: legacy-billing-migration
+roleRef:
+  kind: Role
+  name: legacybill-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: legacybill-svc-02-legacybill-role-03
+  namespace: legacy-billing-migration
+subjects:
+- kind: ServiceAccount
+  name: legacybill-svc-02
+  namespace: legacy-billing-migration
+roleRef:
+  kind: Role
+  name: legacybill-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: legacybill-svc-03-legacybill-role-01
+  namespace: legacy-billing-migration
+subjects:
+- kind: ServiceAccount
+  name: legacybill-svc-03
+  namespace: legacy-billing-migration
+roleRef:
+  kind: Role
+  name: legacybill-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: legacybill-svc-03-legacybill-role-03
+  namespace: legacy-billing-migration
+subjects:
+- kind: ServiceAccount
+  name: legacybill-svc-03
+  namespace: legacy-billing-migration
+roleRef:
+  kind: Role
+  name: legacybill-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: legacybill-svc-04-legacybill-role-02
+  namespace: legacy-billing-migration
+subjects:
+- kind: ServiceAccount
+  name: legacybill-svc-04
+  namespace: legacy-billing-migration
+roleRef:
+  kind: Role
+  name: legacybill-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: legacybill-svc-05-legacybill-role-02
+  namespace: legacy-billing-migration
+subjects:
+- kind: ServiceAccount
+  name: legacybill-svc-05
+  namespace: legacy-billing-migration
+roleRef:
+  kind: Role
+  name: legacybill-role-02
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: legacybill-svc-06-legacybill-role-03
+  namespace: legacy-billing-migration
+subjects:
+- kind: ServiceAccount
+  name: legacybill-svc-06
+  namespace: legacy-billing-migration
+roleRef:
+  kind: Role
+  name: legacybill-role-03
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: legacybill-svc-06-legacybill-role-01
+  namespace: legacy-billing-migration
+subjects:
+- kind: ServiceAccount
+  name: legacybill-svc-06
+  namespace: legacy-billing-migration
+roleRef:
+  kind: Role
+  name: legacybill-role-01
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: legacybill-svc-07-legacybill-role-03
+  namespace: legacy-billing-migration
+subjects:
+- kind: ServiceAccount
+  name: legacybill-svc-07
+  namespace: legacy-billing-migration
+roleRef:
+  kind: Role
+  name: legacybill-role-03
+  apiGroup: rbac.authorization.k8s.io

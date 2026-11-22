@@ -1,0 +1,13 @@
+Kubescape NSA manifest rescan — execution record
+
+The fixed manifest input is `~/cloud_security/16x04_kubernetes/5-remediation/5-fixed_manifests.yaml`. On the lab workstation, run from the operator home directory:
+
+cd ~/cloud_security/16x04_kubernetes
+kubescape scan framework nsa \
+  --use-from /opt/kubescape/frameworks/nsa.json \
+  5-remediation/ \
+  --format json
+
+The supplied lab transcript ran Kubescape from `~/trellis-cluster-export` with the target `5-fixed_manifests.yaml`. That path is not the deliverable and produced “no YAML or JSON manifest files found.” The command above points at the directory containing the fixed YAML deliverable. It keeps the same framework, pre-fetched NSA definition, and output format; only the input target changes from the original `~/trellis-cluster-export` directory to the corrected manifest set.
+
+I could not produce a Kubescape result in this workspace: the available local environment has no `kubescape` executable (`/bin/bash: kubescape: command not found`), and the lab workstation was unreachable from this session. This file records the exact invocation and the failure to execute it; it does not claim a clean scan. Run the command in the provided workstation and replace this note with the saved JSON output before treating scan validation as complete. The source export and audit log remain unchanged.

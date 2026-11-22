@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: default-app-1
+  namespace: default
+  labels: &id001
+    app: default-app-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: default-svc-05
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/default/default-app-1:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false

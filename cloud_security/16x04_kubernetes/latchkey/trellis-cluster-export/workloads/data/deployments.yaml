@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-app-1
+  namespace: data
+  labels: &id001
+    app: data-app-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: data-svc-01
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/data/data-app-1:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false

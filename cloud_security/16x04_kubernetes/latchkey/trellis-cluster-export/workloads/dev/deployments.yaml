@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dev-app-1
+  namespace: dev
+  labels: &id001
+    app: dev-app-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: dev-svc-01
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/dev/dev-app-1:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dev-app-2
+  namespace: dev
+  labels: &id001
+    app: dev-app-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: dev-svc-04
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/dev/dev-app-2:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false

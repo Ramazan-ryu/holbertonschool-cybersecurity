@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels: &id001
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: metrics-agent
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/monitoring/prometheus:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-app-1
+  namespace: monitoring
+  labels: &id001
+    app: monitoring-app-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: monitoring-svc-06
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/monitoring/monitoring-app-1:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-app-2
+  namespace: monitoring
+  labels: &id001
+    app: monitoring-app-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: monitoring-svc-06
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/monitoring/monitoring-app-2:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitoring-app-3
+  namespace: monitoring
+  labels: &id001
+    app: monitoring-app-3
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: monitoring-svc-04
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/monitoring/monitoring-app-3:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false

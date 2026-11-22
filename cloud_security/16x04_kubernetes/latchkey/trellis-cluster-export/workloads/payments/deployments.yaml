@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-gateway
+  namespace: payments
+  labels: &id001
+    app: payments-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: payments-gateway-sa
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/payments/payments-gateway:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledger
+  namespace: payments
+  labels: &id001
+    app: ledger
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: ledger-sa
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/payments/ledger:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-app-1
+  namespace: payments
+  labels: &id001
+    app: payments-app-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: payments-svc-05
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/payments/payments-app-1:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false

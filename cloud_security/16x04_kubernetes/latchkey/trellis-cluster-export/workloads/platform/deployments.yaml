@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-agent
+  namespace: platform
+  labels: &id001
+    app: platform-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: platform-agent
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/platform/platform-agent:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-app-1
+  namespace: platform
+  labels: &id001
+    app: platform-app-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: platform-svc-03
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/platform/platform-app-1:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false

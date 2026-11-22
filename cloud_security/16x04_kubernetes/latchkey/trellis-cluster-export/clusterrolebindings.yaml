@@ -1,0 +1,142 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: platform-controller-admin
+subjects:
+- kind: ServiceAccount
+  name: controller-admin
+  namespace: platform
+roleRef:
+  kind: ClusterRole
+  name: cluster-superuser
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: deploy-bot-cm-read
+subjects:
+- kind: ServiceAccount
+  name: deploy-bot
+  namespace: prod
+roleRef:
+  kind: ClusterRole
+  name: configmap-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ci-runner-nodes
+subjects:
+- kind: ServiceAccount
+  name: ci-runner
+  namespace: build
+roleRef:
+  kind: ClusterRole
+  name: node-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubesystem-svc-04-view-363
+subjects:
+- kind: ServiceAccount
+  name: kubesystem-svc-04
+  namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prod-svc-01-view-677
+subjects:
+- kind: ServiceAccount
+  name: prod-svc-01
+  namespace: prod
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: build-svc-05-view-692
+subjects:
+- kind: ServiceAccount
+  name: build-svc-05
+  namespace: build
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: build-svc-04-view-139
+subjects:
+- kind: ServiceAccount
+  name: build-svc-04
+  namespace: build
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: staging-svc-01-view-163
+subjects:
+- kind: ServiceAccount
+  name: staging-svc-01
+  namespace: staging
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mediaproce-svc-02-view-114
+subjects:
+- kind: ServiceAccount
+  name: mediaproce-svc-02
+  namespace: media-processing
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: monitoring-svc-04-view-620
+subjects:
+- kind: ServiceAccount
+  name: monitoring-svc-04
+  namespace: monitoring
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prod-svc-01-view-509
+subjects:
+- kind: ServiceAccount
+  name: prod-svc-01
+  namespace: prod
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io

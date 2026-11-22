@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-worker
+  namespace: analytics
+  labels: &id001
+    app: analytics-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: analytics-worker
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/analytics/analytics-worker:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-app-1
+  namespace: analytics
+  labels: &id001
+    app: analytics-app-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: analytics-svc-06
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/analytics/analytics-app-1:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytics-app-2
+  namespace: analytics
+  labels: &id001
+    app: analytics-app-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: analytics-svc-05
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/analytics/analytics-app-2:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false

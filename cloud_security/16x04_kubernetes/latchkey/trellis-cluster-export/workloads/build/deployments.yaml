@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ci-runner
+  namespace: build
+  labels: &id001
+    app: ci-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: ci-runner
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/build/ci-runner:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: build-cache
+  namespace: build
+  labels: &id001
+    app: build-cache
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: build-cache
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/build/build-cache:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: build-app-1
+  namespace: build
+  labels: &id001
+    app: build-app-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: build-svc-04
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/build/build-app-1:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: build-app-2
+  namespace: build
+  labels: &id001
+    app: build-app-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: build-svc-03
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/build/build-app-2:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false

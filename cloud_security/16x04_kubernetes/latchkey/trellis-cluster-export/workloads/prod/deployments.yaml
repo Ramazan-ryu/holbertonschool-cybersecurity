@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders-api
+  namespace: prod
+  labels: &id001
+    app: orders-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: orders-api-sa
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/prod/orders-api:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-worker
+  namespace: prod
+  labels: &id001
+    app: billing-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: billing-reconciler
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/prod/billing-worker:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-controller
+  namespace: prod
+  labels: &id001
+    app: deploy-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: deploy-bot
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/prod/deploy-controller:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prod-app-1
+  namespace: prod
+  labels: &id001
+    app: prod-app-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: prod-svc-01
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/prod/prod-app-1:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false

@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-controller
+  namespace: platform
+  labels: &id001
+    app: platform-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: controller-admin
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/platform/platform-controller:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false

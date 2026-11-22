@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transcoder
+  namespace: media-processing
+  labels: &id001
+    app: transcoder
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: media-worker
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/media-processing/transcoder:1.0.0
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - SYS_ADMIN
+          runAsNonRoot: false
+        volumeMounts:
+        - name: hostfs
+          mountPath: /host
+      hostNetwork: true
+      volumes:
+      - name: hostfs
+        hostPath:
+          path: /
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mediaproce-app-1
+  namespace: media-processing
+  labels: &id001
+    app: mediaproce-app-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: mediaproce-svc-02
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/media-processing/mediaproce-app-1:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false

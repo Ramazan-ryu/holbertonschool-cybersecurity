@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: staging-app-1
+  namespace: staging
+  labels: &id001
+    app: staging-app-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: staging-svc-04
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/staging/staging-app-1:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: staging-app-2
+  namespace: staging
+  labels: &id001
+    app: staging-app-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: staging-svc-01
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/staging/staging-app-2:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: staging-app-3
+  namespace: staging
+  labels: &id001
+    app: staging-app-3
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      serviceAccountName: staging-svc-01
+      automountServiceAccountToken: true
+      containers:
+      - name: app
+        image: registry.trellis.internal/staging/staging-app-3:1.0.0
+        securityContext:
+          allowPrivilegeEscalation: false

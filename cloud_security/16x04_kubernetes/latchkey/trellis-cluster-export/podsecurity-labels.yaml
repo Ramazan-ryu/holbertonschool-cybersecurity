@@ -1,0 +1,63 @@
+namespace: default
+labels:
+  pod-security.kubernetes.io/enforce: baseline
+  pod-security.kubernetes.io/warn: restricted
+---
+namespace: kube-system
+labels: {}
+---
+namespace: prod
+labels:
+  pod-security.kubernetes.io/enforce: baseline
+  pod-security.kubernetes.io/warn: restricted
+---
+namespace: build
+labels:
+  pod-security.kubernetes.io/enforce: baseline
+  pod-security.kubernetes.io/warn: restricted
+---
+namespace: platform
+labels:
+  pod-security.kubernetes.io/enforce: baseline
+  pod-security.kubernetes.io/warn: restricted
+---
+namespace: dev
+labels:
+  pod-security.kubernetes.io/enforce: baseline
+  pod-security.kubernetes.io/warn: restricted
+---
+namespace: staging
+labels:
+  pod-security.kubernetes.io/enforce: baseline
+  pod-security.kubernetes.io/warn: restricted
+---
+namespace: analytics
+labels:
+  pod-security.kubernetes.io/enforce: baseline
+  pod-security.kubernetes.io/warn: restricted
+---
+namespace: payments
+labels:
+  pod-security.kubernetes.io/enforce: baseline
+  pod-security.kubernetes.io/warn: restricted
+---
+namespace: media-processing
+labels: {}
+---
+namespace: monitoring
+labels:
+  pod-security.kubernetes.io/enforce: baseline
+  pod-security.kubernetes.io/warn: restricted
+---
+namespace: data
+labels:
+  pod-security.kubernetes.io/enforce: baseline
+  pod-security.kubernetes.io/warn: restricted
+---
+namespace: legacy-billing-migration
+labels:
+  pod-security.kubernetes.io/enforce: baseline
+  pod-security.kubernetes.io/warn: restricted
+---
+namespace: kube-addons-old
+labels: {}
