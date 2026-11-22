@@ -1,12 +1,11 @@
-# 9 — Evidence and Control Gaps
+The Gap Is the Normal State
 
-| Gap | Current evidence | What is still needed for closure |
-|---|---|---|
-| IMDS hardening | Validated for the tested request: under strong mode, the identical forged URL returned HTTP 502 (23 bytes), and the body contained no metadata credential fields. | Keep strong mode enabled and repeat after future service changes; this test does not prove every possible path to IMDS is blocked. |
-| Function role remediation | The policy file was copied to the workstation. `iam:CreatePolicyVersion` was denied to `appsec-reviewer` and to a fresh `marlowe-web-instance-role` session obtained via IMDSv2. No change occurred. | An authorized account administrator must apply a new default managed-policy version, record its version ID, then prove the same excess call is denied and a handler-required call still succeeds. |
-| Lambda configuration | `get-function-configuration` returned `403 SignatureDoesNotMatch`. | Resolve the account-endpoint/API signing issue and retrieve only redacted environment configuration. Do not infer an environment credential from the trust policy. |
-| Audit reconstruction | The signed 60-event `latchkey-export` bundle is copied into `evidence/`, its SHA-256 matches the workstation copy, chain event IDs are documented, and denied policy-write event IDs are recorded. The listed S3 CloudTrail objects have not been separately decompressed and matched by ID. | Preserve the signed export unchanged; if independent S3-trail corroboration is required, match the cited event IDs to the corresponding gzipped trail records. |
-| Network proof | The handover JSON lists ACLs, peerings, and an endpoint, but no route tables, ACL/security-group associations, endpoint route-table association, or S3 service CIDRs. | Obtain those configuration elements before claiming end-to-end reachability beyond the conditional verdicts in `0-reachability.md`. |
-| Quiz and client reply | Quiz questions and a client response prompt were not included in the supplied material. | Add the quiz prompts and client-response requirements before preparing those deliverables. |
+Measured distance. The function handler requires seven API actions. The attached policy grants those seven, plus six explicit non-code actions and four service wildcards (s3:*, dynamodb:*, sqs:*, logs:*), all on Resource: "*". Five non-code actions were confirmed by successful calls under the role: listing buckets, secrets, queues, IAM users and role details. Untested grants are excluded from the measured result.
 
-These gaps are intentionally explicit: a proposed policy is not an applied remediation, an allowed-looking policy is not execution proof, and an S3 log listing is not an audit-event reconstruction.
+Mechanism. No one was careless. The role was scoped against the code at deployment, under deadline pressure, using the widest convenient permissions. The code then changed and the role did not. Nothing pushes it back: a deployment does not fail because a role keeps an unused grant, and nobody is alerted when the code stops using one. Permissions accumulate.
+
+Why it is invisible. An over-broad role never produces an error. No request fails, no alert fires, and no user complains. It is the only class of misconfiguration that is fully silent in normal operation. It surfaces only when effective permissions are deliberately compared with a baseline derived independently from the code.
+
+What Marlowe would need to do. Maintain the required-call baseline derived from the handler source, including resource ARNs. On every deployment and in quarterly reviews, compare each execution role's effective permissions against it and fail the build on any extra grant. Validate each reduction with positive tests (required calls still succeed) and negative tests (unrequired calls are denied). Give every role a named owner who reviews exceptions.
+
+Cost. Baseline upkeep and test maintenance take ongoing engineering time. CI gates slow releases and will block deployments until the baseline is updated. Resource-level scoping will break some working code on first run, and the team must fix those failures. Regression risk does not disappear. This is not free. Without it, the gap returns, because the mechanism that created it is still running.
