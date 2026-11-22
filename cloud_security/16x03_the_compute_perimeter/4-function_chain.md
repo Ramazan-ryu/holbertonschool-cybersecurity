@@ -26,7 +26,7 @@ A later fresh session was independently confirmed by `aws sts get-caller-identit
 }
 ```
 
-The additional permission tests below were run under this exact `reference-check` session.
+The additional permission tests below were run under this exact `reference-check` session. A further session, `instance-policy-review`, was also confirmed by STS and used to retrieve the local managed-policy record.
 
 ## Observed effective access
 
@@ -42,6 +42,7 @@ The first five calls were made with the `perimeter-review` role credentials; the
 | `reference-check` | `aws iam get-account-authorization-details --filter Role --query 'RoleDetailList[].RoleName' --output json` | `[` `"marlowe-web-instance-role"`, `"marlowe-order-processor-role"` `]` | The role could enumerate the two IAM role records returned by the filtered account authorization query. This proves IAM authorization-detail read access, not policy mutation. |
 | `reference-check` | `aws iam list-users --query 'Users[].UserName' --output json` | `[` `"appsec-reviewer"`, `"marlowe-trail-writer"`, `"metadata-minter"`, `"function-role-key"` `]` | Confirms the four enumerated IAM user names. |
 | `reference-check` | `aws secretsmanager list-secrets --query 'SecretList[].Name' --output json` | `[` `"marlowe/stripe-webhook-signing"` `]` | Confirms the one enumerable secret name; the secret value was not requested. |
+| `instance-policy-review` | `aws iam get-account-authorization-details --filter LocalManagedPolicy --output json` | Returned managed policy ARN `arn:aws:iam::500100200300:policy/MarloweInstanceRolePolicy`, default version `v1`, and its four-statement document. | The function role can read another workload role's managed policy document through account authorization details. This is policy inspection, not authority to modify that policy. |
 
 Additional IAM role-policy introspection calls made with this role, `iam:ListAttachedRolePolicies` and `iam:ListRolePolicies`, returned `AccessDenied`. The read-only review identity independently returned the attached policy name and policy document, as recorded below. No S3, queue, or secret policy document was retrieved in this exercise; the successful service calls establish effective access for the listed operations, not an exhaustive permission inventory for every account resource.
 
