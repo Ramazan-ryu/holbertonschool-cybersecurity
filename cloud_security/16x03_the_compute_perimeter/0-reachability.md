@@ -1,145 +1,98 @@
-# 0 — Reachability Decisions from the Supplied Network Configuration
+# 0 — Reachability Decisions
 
-## Scope and inputs
+## Scope
 
-All CIDRs, ports, directions, peerings, and endpoint policy come from `~/marlowe-handover/network-configuration.json`. Live EC2 output is excluded from this analysis because it does not map to the logical topology (`vpc-app`, `10.0.1.0/24`).
+Client: Marlowe Commerce, account `500100200300`, region `eu-west-1`.
+Question set: the handover paths in `network-configuration.json` and the supplied question
+"Can a host in `vpc-app` on `10.0.1.0/24` reach the S3 gateway endpoint in `vpc-app` on 443?"
 
-Evaluation rules:
+## Evidence sources
 
-- Security groups are stateful. They permit return traffic for connections they allow.
-- Network ACLs are stateless. Each direction is evaluated separately, so return traffic needs its own explicit allow.
-- ACLs have an implicit deny for unmatched traffic. A security-group allow does not override an ACL deny.
+- **E1 — Handover JSON** (`~/marlowe-handover/network-configuration.json`). Contains `network_acls`,
+  `security_groups`, `peerings`, `endpoints`, and `sound_question`. It does not contain `subnets`,
+  `route_tables`, `internet_gateways`, or `nat_gateways`.
+- **E2 — Live EC2 API, read-only**, profile `default`, account `500100200300`, all regions returned by
+  `describe-regions`. Queries: `describe-vpcs` (CIDR `10.0.1.0/24`), `describe-subnets`,
+  `describe-network-acls` (CIDR `10.0.1.0/24` or port 8080), `describe-security-groups`
+  (`sg-web-public`), `describe-vpc-peering-connections`, `describe-vpc-endpoints` (S3 service name).
+- **Not covered:** `us-gov-east-1`, `us-gov-west-1`, `cn-north-1`, `cn-northwest-1` returned
+  `AuthFailure` for the `default` profile. Results for these regions are unknown.
+
+## Rule model applied
+
+- Security groups are stateful: return traffic for an allowed connection is permitted automatically.
+- Network ACLs are stateless: each direction is evaluated separately, and return traffic needs an
+  explicit rule for the reply direction and the ephemeral port.
+- An ACL deny cannot be overridden by a security-group allow.
+- A subnet needs a route-table entry to send traffic to a peering connection, gateway endpoint, or
+  internet gateway. A route entry is required for every forwarded path.
 - VPC peering is non-transitive.
-
-Input assumptions (confirm each against the JSON):
-
-| ID | Assumption |
-|---|---|
-| A1 | `acl-app-tier` is associated with the app-tier subnet `10.0.1.0/24`. |
-| A2 | The web workload subnet is governed by `acl-app-tier`. |
-| A3 | The app workload subnet is governed by `acl-app-tier`. |
-| A4 | `sg-web-public` is attached to the web workload. |
-| A5 | No other ACL rules exist for `acl-app-tier` beyond those listed in this document. |
-
-Each verdict below names the assumption it depends on.
 
 ## Verdicts
 
-### 1. Internet to web workload, inbound TCP/443
-
-- **Source:** `0.0.0.0/0`
-- **Destination:** web workload (`sg-web-public`)
-- **Direction:** inbound
-- **Protocol/port:** TCP/443
-
-| Control | Value |
-|---|---|
-| Subnet ACL, inbound | `acl-app-tier` (A2). No inbound TCP/443 rule. Implicit deny. |
-| Security group, inbound | `sg-web-public` allows TCP/443 (A4). |
-| Route | No internet gateway route supplied. |
-
-**Verdict: Denied.** The subnet ACL blocks the inbound SYN. The security-group allow cannot override the ACL deny.
-
-### 2. Client to app-tier server, TCP/8080 request
-
-- **Source:** `10.0.1.0/24`
-- **Destination:** app-tier server
-- **Direction:** inbound
-- **Protocol/port:** TCP destination port 8080
-
-| Control | Value |
-|---|---|
-| Subnet ACL, inbound | `acl-app-tier` rule 100 allows TCP/8080 from `10.0.1.0/24` (A1). |
-
-**Verdict: Allowed.** The request packet is permitted.
-
-### 3. App-tier server to client, TCP/8080 reply
-
-- **Source:** app-tier server, TCP source port 8080
-- **Destination:** `10.0.1.0/24`, client ephemeral port (typically 1024–65535, depending on the client OS)
-- **Direction:** outbound
-- **Protocol/port:** TCP
-
-| Control | Value |
-|---|---|
-| Subnet ACL, outbound | Only allow is TCP/443 to `10.0.1.0/24` (A1). Destination CIDR matches; destination port does not. |
-| Security group | Stateful return allowance does not apply, because the ACL has already denied the flow. |
-
-**Verdict: Denied.** The reply is blocked, so the TCP session cannot complete.
-
-### 4. App workload to public collector, outbound TCP/443
-
-- **Source:** app workload (IP not supplied in the JSON; in `10.0.1.0/24` per A3)
-- **Destination:** `0.0.0.0/0`
-- **Direction:** outbound, with inbound reply
-- **Protocol/port:** TCP/443
-
-| Control | Value |
-|---|---|
-| Subnet ACL, outbound | Only allow is TCP/443 to `10.0.1.0/24`. `0.0.0.0/0` does not match (A3). |
-| Subnet ACL, inbound | Only allow is TCP/8080. The HTTPS reply to an ephemeral port is not allowed. |
-| Security group, outbound | `sg-web-public` allows all IPv4, but it is attached to the web workload (A4), not to the app workload. This does not apply to this path. |
-| Route | No internet gateway or NAT route supplied. |
-
-**Verdict: Denied.** The ACL blocks the outbound request, and the reply would be blocked on the inbound side too. No route to the public internet exists in the supplied configuration.
-
-### 5. `vpc-app` to `vpc-analytics` (via `vpc-data`)
-
-- **Source:** host in `vpc-app`
-- **Destination:** host in `vpc-analytics`
-- **Direction/protocol/port:** any
-
-| Control | Value |
-|---|---|
-| Peering | `vpc-app` to `vpc-data` and `vpc-data` to `vpc-analytics` are separate direct peerings. |
-| Routing | Peering is non-transitive. No direct `vpc-app` to `vpc-analytics` peering or route is supplied. |
-
-**Verdict: Denied.** No path exists. This is the correct isolation outcome.
-
-### 6. `vpc-app` to `vpc-data`
-
-- **Source:** host in `vpc-app`
-- **Destination:** host in `vpc-data`
-- **Direction/protocol/port:** any
-
-| Control | Value |
-|---|---|
-| Peering | Direct peering exists. |
-| Route tables | Not supplied in the JSON. |
-| Destination SG and ACL | Not supplied in the JSON. |
-
-**Verdict: Undetermined.** A required control, the route-table entry for the peering, is missing from the JSON. Once it is supplied, the verdict depends on the destination SG and ACL rules.
-
-### 7. App-tier host to S3 gateway endpoint, TCP/443
-
-- **Source:** `10.0.1.0/24`
-- **Destination:** S3 gateway endpoint in `vpc-app` (S3 prefix list)
-- **Direction:** outbound request, inbound reply
-- **Protocol/port:** TCP/443
-
-| Control | Value |
-|---|---|
-| Endpoint policy | `permissive`. This does not block traffic. |
-| Subnet ACL, outbound | Only allow is TCP/443 to `10.0.1.0/24`. The S3 destination is outside that CIDR, so the request is not matched (A1). |
-| Subnet ACL, inbound | Only allow is TCP/8080. The TCP/443 reply to the ephemeral port is not matched. |
-| Route table | Not supplied in the JSON. |
-
-**Verdict: Denied.** Under `acl-app-tier` (A1), the outbound request to S3 matches no allow rule, so it is blocked. The endpoint policy does not change this. The route-table entry is also missing, which is a second blocker that would need to be resolved before the path could work.
-
-## Verdict summary
-
-| # | Path | Direction / protocol / port | Deciding control | Verdict |
+| # | Path | Direction, protocol, port | Deciding controls | Verdict |
 |---|---|---|---|---|
-| 1 | Internet to web workload | Inbound TCP/443 | Subnet ACL: no inbound 443 rule (A2) | Denied |
-| 2 | `10.0.1.0/24` to app server | Inbound TCP/8080 request | ACL inbound rule 100 | Allowed |
-| 3 | App server to `10.0.1.0/24` | Outbound TCP/8080 reply | ACL outbound: only TCP/443 (A1) | Denied |
-| 4 | App workload to public collector | Outbound TCP/443 | ACL outbound: only `10.0.1.0/24` (A3) | Denied |
-| 5 | `vpc-app` to `vpc-analytics` | Any | Non-transitive peering; no route | Denied |
-| 6 | `vpc-app` to `vpc-data` | Any | Route table not supplied | Undetermined |
-| 7 | `10.0.1.0/24` to S3 endpoint | Outbound TCP/443 request | ACL outbound: only `10.0.1.0/24` (A1) | Denied |
+| 1 | Internet `0.0.0.0/0` to web workload | Inbound TCP/443 | `acl-app-tier` has no inbound 443 rule (E1); no internet gateway in E1 or E2 | **Denied** |
+| 2 | `10.0.1.0/24` client to app server | Inbound TCP/8080 request | `acl-app-tier` ingress rule 100 allows TCP/8080 from `10.0.1.0/24` (E1) | **Allowed** (request only) |
+| 3 | App server to `10.0.1.0/24` client | Outbound TCP/8080 reply to ephemeral port | `acl-app-tier` egress rule 100 allows only TCP/443 to `10.0.1.0/24` (E1). No rule for the ephemeral port. ACL is stateless, so the security-group return allowance does not apply. | **Denied** |
+| 4 | Workload to public collector | Outbound TCP/443 and inbound reply | `acl-app-tier` egress allows only TCP/443 to `10.0.1.0/24`, so `0.0.0.0/0` is not matched (E1). Ingress allows only TCP/8080, so the reply to an ephemeral port is not matched. No route to `0.0.0.0/0` in E1 or E2. | **Denied** |
+| 5 | `vpc-app` to `vpc-analytics` | Any | Two separate peerings (E1). Peering is non-transitive, so no `vpc-app` to `vpc-analytics` path exists. E2 finds no peering connection in the account. | **Denied** (correct isolation) |
+| 6 | `vpc-app` to `vpc-data` | Any | Peering exists in E1. No route-table entry in E1. E2 finds no VPC with `10.0.1.0/24` and no peering connection in the account. Without a route entry, traffic cannot be forwarded over the peering. | **Denied** (no route as configured; no peering found in account) |
+| 7 | `10.0.1.0/24` to S3 gateway endpoint in `vpc-app` on TCP/443 | Outbound request, inbound reply | Endpoint listed in E1 with policy `permissive`; the endpoint policy does not block traffic. Request: `acl-app-tier` egress allows only `10.0.1.0/24` on TCP/443, and S3 addresses are outside that CIDR, so the request is not matched. Reply: ingress allows only TCP/8080, so the TCP/443 reply is not matched. No route-table entry to the endpoint in E1. E2: no VPC with `10.0.1.0/24`, no S3 endpoint in the account. | **Denied** |
 
-## What to check against the JSON
+## Detail for path 7 (the supplied question)
 
-1. Confirm A1 to A5. Verdicts 1, 3, 4, and 7 depend on them.
-2. Confirm the ACL rule numbers and CIDRs cited above.
-3. For verdict 6, add the route-table entry for the `vpc-app` to `vpc-data` peering. If it exists, the verdict changes to Allowed or Denied based on the destination SG and ACL.
+Checklist for `10.0.1.0/24` to S3 on TCP/443:
+
+| Control | Value | Result |
+|---|---|---|
+| Source subnet | `10.0.1.0/24` in `vpc-app` (E1). Not found in account (E2). | Not present in account |
+| Subnet-to-ACL association | Not in E1. Not found in E2. | Unknown |
+| Network ACL egress | `acl-app-tier` rule 100: TCP/443 to `10.0.1.0/24` only | No match for S3 destinations |
+| Network ACL ingress | `acl-app-tier` rule 100: TCP/8080 from `10.0.1.0/24` only | No match for TCP/443 reply |
+| Security group | `sg-web-public` (E1) has no stated attachment to the source host | Does not override ACL |
+| Route table | Not in E1. Not found in E2. | No route to endpoint |
+| Endpoint | Listed in E1 (`s3`, `vpc-app`, `permissive`). Not found in E2. | Not present in account |
+
+**Verdict: Denied.** The supplied ACL drops the request and the reply, and the configuration has no
+route to the endpoint. The endpoint's `permissive` policy does not affect the result. Live results show
+the endpoint and source subnet do not exist in the account.
+
+## Cleared path
+
+**`vpc-app` to `vpc-analytics`: no finding.**
+- Non-transitive peering: the links are `vpc-app`–`vpc-data` and `vpc-data`–`vpc-analytics` (E1).
+- No direct `vpc-app`–`vpc-analytics` peering in E1 or E2.
+- No route-table entry from `vpc-app` to `vpc-analytics` in E1.
+- Controls agree: no forwarding path exists at the peering layer, so no ACL or security-group rule can
+  create one.
+
+## Outbound exposure and ingress/egress asymmetry
+
+What a workload can send outward, from the supplied configuration:
+
+- **Security group:** `sg-web-public` allows egress on all ports (`port -1`) to `0.0.0.0/0` (E1).
+  Its attachment target is not stated in E1, so this does not establish that any workload can use it.
+- **Network ACL:** `acl-app-tier` egress allows only TCP/443 to `10.0.1.0/24` (E1). Traffic to public
+  addresses is not allowed by this ACL.
+- **Route tables, internet gateway, NAT gateway:** not in E1. E2 found no internet gateway or NAT
+  gateway in the checked regions. No `0.0.0.0/0` route is configured in the supplied configuration.
+
+Asymmetry: ingress is restricted to TCP/443 from the internet on the web security group, and TCP/8080
+from `10.0.1.0/24` on the app ACL. Egress is broad at the security-group layer but narrow at the ACL
+layer. The ACL is the stateless control that determines whether packets leave the subnet, and it does
+not permit an external destination.
+
+**Result:** No configured exit path to an external callback or collector exists in the supplied
+configuration or the checked account regions. This is not evidence that data cannot leave by another
+method, such as a compromised instance role reaching a public API endpoint, which is outside this
+network analysis.
+
+## Limits
+
+- `us-gov-east-1`, `us-gov-west-1`, `cn-north-1`, and `cn-northwest-1` were not checked (AuthFailure).
+  Results for these regions are unknown.
+- E1 does not contain `subnets`, `route_tables`, `internet_gateways`, or `nat_gateways`. Verdicts that
+  depend on routing reflect the absence of those entries in the supplied configuration.
+- The `default` profile was not confirmed to belong to the client's intended environment.
+  Confirm with the client before reporting the live results as definitive.
