@@ -28,13 +28,25 @@ The session was created with `sts:AssumeRole` from the instance identity (`70-fn
 
 Five calls outside the code baseline succeeded under `fn-review`: `s3:ListAllMyBuckets`, `secretsmanager:ListSecrets`, `sqs:ListQueues`, `iam:ListUsers`, and `iam:GetAccountAuthorizationDetails` (role filter). This is a measured minimum of five excess actions. The full set of effective actions is not established.
 
-## Not demonstrated
+## Measured difference: code requirements vs. demonstrated permissions
 
-- Reads of objects in either bucket, of queue messages, or of the secret value.
-- Writes of any kind.
-- IAM policy changes or unfiltered account-wide authorization details.
-- Any action from the attached policy beyond the calls listed above.
-- CloudTrail records for these calls (CloudTrail is not available to the reviewer profile).
+| Measure | Value | Basis |
+|---|---|---|
+| Actions required by code | 7 across 4 services (S3, SQS, DynamoDB, Secrets Manager) | `3-needed_calls.md` |
+| Required actions demonstrated under `fn-review2` | 3 of 7: `s3:GetObject`, `sqs:ReceiveMessage`, `secretsmanager:GetSecretValue` | Exit 0 in `80`, `81`, `82`; identity in `93-id-80.txt` |
+| Required action inconclusive | `dynamodb:GetItem` | `ResourceNotFoundException`: table `marlowe-orders` absent from this endpoint (`list-tables` returned `[]`). Neither allowed nor denied is shown. |
+| Required actions not tested (writes, need written owner approval) | `s3:PutObject`, `dynamodb:PutItem`, `sqs:DeleteMessage` | Not executed |
+| Excess actions demonstrated under `fn-review` | 5 (exact set below) | Exit 0 in `72`–`76` |
+
+Exact excess set (not in code, exit 0 under `fn-review`):
+
+1. `s3:ListAllMyBuckets` (`72`)
+2. `secretsmanager:ListSecrets` (`73`)
+3. `sqs:ListQueues` (`74`)
+4. `iam:ListUsers` (`75`)
+5. `iam:GetAccountAuthorizationDetails`, `--filter Role` (`76`)
+
+Difference = the 5 excess actions. The required set is only partly demonstrated: 3 of 7 with executed results, 1 inconclusive because the table is absent from the test environment, and 3 writes not tested. Wildcards and service-wide grants in the attached policy are not counted.
 
 ## Impact boundary
 
