@@ -1,3 +1,39 @@
+Both chains ended in the same place: code running as a trusted workload and inheriting that workload's cloud permissions, whether the code arrived as a web request or shipped inside a deployment package."
+
+Consequence for how they build. Compute identity is a security decision, not an infrastructure detail. The role an instance or function runs under, and whether its metadata is protected, determines what any code running there can reach. Today that choice is made by whoever is closest to a deadline. It should be owned jointly by the application or platform team and security, and reviewed before every deployment and whenever code, dependencies, configuration or roles change, not after an incident.
+
+The one detection. Alert when a workload's role session is used from outside its expected runtime boundary: source address, network path, account or service origin. This signal would have flagged both chains. The instance-role session was used from a source outside its expected boundary, then assumed the processor role. We cannot yet confirm that boundary from documentation, so the owner must define it first. It is the highest-value signal because it fires on misuse of the identity itself, whatever the entry point.
+
+Honest cost. Expected boundaries must be maintained as exceptions. Approved testing, deployment tooling, proxies, failover and architecture changes will trip the alert until those attributes are updated. We have not measured a false-alarm rate for your environment, and expect noise until a baseline is built from your logs. Budget engineering time for exception review, or the alert will be switched off.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # 11 — Reply to Marlowe Commerce
 
 Dear Marlowe team,
