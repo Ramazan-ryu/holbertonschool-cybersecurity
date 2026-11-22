@@ -17,6 +17,39 @@ The endpoint used for these calls, `http://127.0.0.1:4566`, is not confirmed as 
 | 5 | `iam list-users` | `AccessDenied`; the error names `assumed-role/marlowe-web-instance-role/i-0marlowe` (`55-iam.json`) | Denied |
 | 6 | `sts assume-role` into `marlowe-order-processor-role` | Not run in this review | Not verified |
 
+
+
+
+## Effective permission model
+
+For a principal in the same account, an identity-policy Allow grants access only if no applicable explicit Deny exists. The applicable sources of Deny are:
+
+| Source | Status in this review |
+|---|---|
+| Identity policy (`MarloweInstanceRolePolicy` v1) | Read. Grants listed above. No Deny statements. |
+| Permissions boundary | Read: none (`PermissionsBoundary: null`). |
+| Session policy | Not applicable: no session policy was recorded. |
+| Resource-based policy: S3 bucket `marlowe-orders-mc4e21` | Not readable (`AccessDenied`). Unknown. |
+| Resource-based policy: SQS queue `marlowe-customer-events` | Not readable (`AccessDenied`). Unknown. |
+| Resource-based policy: secret `marlowe/stripe-webhook-signing` | Not readable (`AccessDenied`). Unknown. |
+| Organization service control policies | Not read. Unknown. |
+| Conditions | None in identity policy. Unknown in resource policies. |
+
+Result: the effective reach is the identity-policy grants **minus** any explicit Deny in the unread sources. Only the three calls in `Executed calls` are proven to succeed. The remaining grants are reachable only if the unread sources contain no Deny, and that is not established.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## Remediation
 
 - **Before (weak mode):** the credential request returned `HTTP 200` with a credential document containing `AccessKeyId`, `SecretAccessKey`, `Token`, `Code`, `Expiration`, `LastUpdated` and `Type`. Values were not recorded (`50-creds.json`).
