@@ -1,111 +1,96 @@
-# 4 — Function Execution Role: Identity, Granted Permissions, Demonstrated Reach
+# 4 — Function Execution Role: Demonstrated Excess and Code Gap
 
 ## Identity
 
 The execution role is `arn:aws:iam::500100200300:role/marlowe-order-processor-role`.
 
-Excess inventory calls (section 3) were made under one session of this role:
+Section 2 calls were made under this session:
 
 - `arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/fn-review`
 - `UserId AROAXI4CLO5WGP5N66UQA:fn-review`, account `500100200300` (`71-fn-identity.json`)
 
 The STS session record for this assumption was removed during cleanup and is not retained. The identity is supported by `71-fn-identity.json` only.
 
-Code-path calls (section 4) were made under a second session:
+Section 4 calls were made under a different session, `fn-review2` (`92-fn2-identity.json`, `93-id-80.txt`). They are context only and are not counted as excess evidence.
 
-- `arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/fn-review2` (`92-fn2-identity.json`, `93-id-80.txt`)
-
-The endpoint is `http://127.0.0.1:4566`, which is not confirmed as AWS (see `2-instance_chain.md`). Calls from other sessions, including the instance-role session that results in `84-fn-recheck.json`, are not used as evidence in this file.
+The endpoint is `http://127.0.0.1:4566`, which is not confirmed as AWS (see `2-instance_chain.md`). Calls from other sessions, including `84-fn-recheck.json`, which shows the instance role, are not used as evidence in this file.
 
 ## 1. Code baseline
 
-`3-needed_calls.md` derives seven required API actions from `handler.py` lines 22, 25, 30, 33, 36, 39 and 42:
+`3-needed_calls.md` derives seven required actions from `handler.py` lines 22, 25, 30, 33, 36, 39 and 42:
 
-| # | Action | Resource in code |
-|---|---|---|
-| 1 | `secretsmanager:GetSecretValue` | the signing secret |
-| 2 | `sqs:ReceiveMessage` | the customer queue |
-| 3 | `sqs:DeleteMessage` | the customer queue |
-| 4 | `s3:GetObject` | `marlowe-orders-mc4e21`, prefix `orders/` |
-| 5 | `s3:PutObject` | `marlowe-orders-mc4e21`, prefix `processed/` |
-| 6 | `dynamodb:GetItem` | table `marlowe-orders` |
-| 7 | `dynamodb:PutItem` | table `marlowe-orders` |
+1. `secretsmanager:GetSecretValue`
+2. `sqs:ReceiveMessage`
+3. `sqs:DeleteMessage`
+4. `s3:GetObject`
+5. `s3:PutObject`
+6. `dynamodb:GetItem`
+7. `dynamodb:PutItem`
 
-The handler contains no call to `s3:ListAllMyBuckets`, `sqs:ListQueues`, `secretsmanager:ListSecrets`, `iam:ListUsers`, `iam:GetAccountAuthorizationDetails`, or `dynamodb:ListTables`.
+The handler contains no call to any action in section 2. This is established by reading the handler's executable lines (`3-needed_calls.md`), not by a separate scan.
 
-## 2. Granted permissions (policy text)
+## 2. Measured excess: demonstrated actions
 
-Source: `MarloweOrderProcessorExecPolicy`, default version `v1`, read with the reviewer profile (`105-proc-policy.json`, `106-proc-policy-version.json`). The role has this one managed policy attached and no inline policy (`101`, `102`). Both statements use `"Resource": "*"`.
+Each row is one executed call under `fn-review` (`71`) that returned output. The saved output shows success, and the content contains no error text. Exit status was not recorded with the saved files. The files share one batch timestamp (20:22), so they are from one run.
 
-| Measure | Value | Basis |
-|---|---|---|
-| Required by code | 7 actions across 4 services | Section 1 |
-| Explicit non-code actions granted | 6: `iam:ListUsers`, `iam:ListRoles`, `iam:GetAccountAuthorizationDetails`, `secretsmanager:ListSecrets`, `kms:Decrypt`, `ses:SendEmail` | `106`, statement 2 |
-| Service wildcards granted | `s3:*`, `dynamodb:*`, `sqs:*`, `logs:*` | `106`, statement 2 |
-| Duplicate grant | `secretsmanager:GetSecretValue` appears in both statements | `106` |
-| Resource scope of all grants | `*`. The code needs specific bucket prefixes, one queue, one secret and one table. | `106`, section 1 |
+| # | Action | Request | Target | Saved response | Result |
+|---|---|---|---|---|---|
+| 1 | `s3:ListAllMyBuckets` | `aws s3api list-buckets --query 'Buckets[].Name'` | account buckets | `72-s3-buckets.json`: `marlowe-orders-mc4e21`, `marlowe-cloudtrail-mc4e21` | Two bucket names returned. No object was read. |
+| 2 | `secretsmanager:ListSecrets` | `aws secretsmanager list-secrets --query 'SecretList[].Name'` | account secrets | `73-secrets.json`: `marlowe/stripe-webhook-signing` | One secret name returned. The secret value was not read. |
+| 3 | `sqs:ListQueues` | `aws sqs list-queues --query 'QueueUrls'` | account queues | `74-queues.json`: `http://127.0.0.1:4566/500100200300/marlowe-customer-events` | One queue URL returned. No message was received. |
+| 4 | `iam:ListUsers` | `aws iam list-users --query 'Users[].UserName'` | account users | `75-iam-users.json`: `appsec-reviewer`, `marlowe-trail-writer`, `metadata-minter`, `function-role-key` | Four user names returned. |
+| 5 | `iam:GetAccountAuthorizationDetails` | `aws iam get-account-authorization-details --filter Role --query 'RoleDetailList[].RoleName'` | roles, role filter | `76-iam-roles.json`: `marlowe-web-instance-role`, `marlowe-order-processor-role` | Two role names returned. Only the `Role` filter was tested. |
 
-Policy text is recorded as a grant, not as proof of reach. Only calls listed in sections 3 and 4 count as demonstrated.
+Not counted: `dynamodb:ListTables` returned `[]` (`77-ddb.json`). An empty accepted result shows no reach, so it is not counted.
 
-Version check: `iam:ListPolicyVersions` is denied to the reviewer profile. The default version is taken from `get-policy` (`105`), and the document is read from `106`. The full list of policy versions was not checked.
+## 3. Measured difference
 
-## 3. Demonstrated excess (not in code)
+Required set (from section 1): 7 named actions.
 
-Calls run under `fn-review` (`71`). Saved output shows success. Exit codes were not saved with the files, and the files share one batch timestamp (20:22). The saved content contains no error text.
+Demonstrated excess set (from section 2): 5 named actions:
+`s3:ListAllMyBuckets`, `secretsmanager:ListSecrets`, `sqs:ListQueues`, `iam:ListUsers`, `iam:GetAccountAuthorizationDetails`.
 
-| # | Action (not in code) | Target and output | Saved file | Result |
-|---|---|---|---|---|
-| 1 | `s3:ListAllMyBuckets` | `marlowe-orders-mc4e21`, `marlowe-cloudtrail-mc4e21` | `72-s3-buckets.json` | Allowed. Discloses two bucket names. Covered by `s3:*`. |
-| 2 | `secretsmanager:ListSecrets` | `marlowe/stripe-webhook-signing` | `73-secrets.json` | Allowed. Discloses one secret name. The secret value was not read. Explicit grant. |
-| 3 | `sqs:ListQueues` | `http://127.0.0.1:4566/500100200300/marlowe-customer-events` | `74-queues.json` | Allowed. Discloses one queue URL. Covered by `sqs:*`. |
-| 4 | `iam:ListUsers` | `appsec-reviewer`, `marlowe-trail-writer`, `metadata-minter`, `function-role-key` | `75-iam-users.json` | Allowed. Discloses four user names. Explicit grant. |
-| 5 | `iam:GetAccountAuthorizationDetails` (`--filter Role`) | `marlowe-web-instance-role`, `marlowe-order-processor-role` | `76-iam-roles.json` | Allowed. Discloses two role names. Only the role filter was tested. Explicit grant. |
+The two sets do not overlap. The difference is the 5 demonstrated excess actions.
 
-`dynamodb:ListTables` returned `[]` (`77-ddb.json`). It is an accepted empty result and is not counted.
+Code-path reach is reported separately in section 4 and is not part of this difference.
 
-Every demonstrated excess action is also in the granted set (section 2), so the two lists agree.
+## 4. Code-path context (not evidence of excess)
 
-## 4. Code-path calls under `fn-review2`
+These are calls to actions the function's code does make. They show what the role can do on the code path. They do not count as excess.
 
 | Required action | Call | Result | Saved file | Status |
 |---|---|---|---|---|
 | `s3:GetObject` | `s3api get-object` on an order key | Success | `80-s3-get.json` | Demonstrated |
-| `sqs:ReceiveMessage` | `sqs receive-message` on the customer queue | Success | `81-sqs-receive.json` | Demonstrated. Visibility timeout was 0, so the message was not deleted. |
-| `secretsmanager:GetSecretValue` | `secretsmanager get-secret-value` | Success | `82-secret.json` | Demonstrated. The secret value is not recorded in this file. |
-| `dynamodb:GetItem` | `dynamodb get-item` on table `marlowe-orders` | `ResourceNotFoundException` | `83-ddb-get.json` | Inconclusive. The table is absent from this endpoint (`77`), so neither allowed nor denied is shown. |
-| `s3:PutObject` | Not run | — | — | Not tested. Writes require written owner approval. |
-| `dynamodb:PutItem` | Not run | — | — | Not tested. Writes require written owner approval. |
-| `sqs:DeleteMessage` | Not run | — | — | Not tested. Writes require written owner approval. |
+| `sqs:ReceiveMessage` | `sqs receive-message` on the customer queue, visibility timeout 0 | Success | `81-sqs-receive.json` | Demonstrated. The message was not deleted. |
+| `secretsmanager:GetSecretValue` | `secretsmanager get-secret-value` | Success | `82-secret.json` | Demonstrated. The value is not recorded in this file. |
+| `dynamodb:GetItem` | `dynamodb get-item` on table `marlowe-orders` | `ResourceNotFoundException` | `83-ddb-get.json` | Inconclusive. The table is absent from this endpoint (`77`). |
+| `s3:PutObject` | Not run | — | — | Not tested. Writes need written owner approval. |
+| `dynamodb:PutItem` | Not run | — | — | Not tested. Writes need written owner approval. |
+| `sqs:DeleteMessage` | Not run | — | — | Not tested. Writes need written owner approval. |
 
-Demonstrated: 3 of 7 required actions. Inconclusive: 1 of 7. Not tested: 3 of 7.
+## 5. Policy text inventory (not measured)
 
-## 5. Measured difference
+Source: `MarloweOrderProcessorExecPolicy`, default version `v1` (`105-proc-policy.json`, `106-proc-policy-version.json`). The role has only this managed policy attached and no inline policy (`101`, `102`). Both statements use `"Resource": "*"`.
 
-| Measure | Value |
-|---|---|
-| Actions required by code | 7 |
-| Required actions demonstrated under `fn-review2` | 3 (`s3:GetObject`, `sqs:ReceiveMessage`, `secretsmanager:GetSecretValue`) |
-| Required actions inconclusive | 1 (`dynamodb:GetItem`) |
-| Required actions not tested | 3 (`s3:PutObject`, `dynamodb:PutItem`, `sqs:DeleteMessage`) |
-| Excess actions demonstrated under `fn-review` | 5 (section 3) |
-| Granted but not demonstrated | `iam:ListRoles`, `kms:Decrypt`, `ses:SendEmail`, `logs:*`, and the untested remainder of `s3:*`, `dynamodb:*`, `sqs:*` |
+This section lists what the policy text grants. It is not evidence of reach. None of these actions is counted in section 3.
 
-The difference between what the code needs and what the policy grants is 6 explicit non-code actions, 4 service wildcards and `Resource: "*"` on every statement. The measured difference, based on demonstrated calls, is the 5 excess actions in section 3.
+- Explicit actions in the policy that are not in section 1: `iam:ListUsers`, `iam:ListRoles`, `iam:GetAccountAuthorizationDetails`, `secretsmanager:ListSecrets`, `kms:Decrypt`, `ses:SendEmail`.
+- Service wildcards: `s3:*`, `dynamodb:*`, `sqs:*`, `logs:*`.
+- `secretsmanager:GetSecretValue` appears twice in the policy.
 
-`kms:Decrypt` may be needed if the secret uses a customer-managed key. This has not been tested.
+Of these grants, section 2 demonstrates `iam:ListUsers`, `iam:GetAccountAuthorizationDetails`, `secretsmanager:ListSecrets`, `s3:ListAllMyBuckets` (within `s3:*`) and `sqs:ListQueues` (within `sqs:*`). The rest are not tested: `iam:ListRoles`, `kms:Decrypt`, `ses:SendEmail`, `logs:*`, and the actions under `dynamodb:*`, `s3:*` and `sqs:*` other than the ones in sections 2 and 4.
 
-## 6. Limits of this evidence
+Version check: `iam:ListPolicyVersions` is denied to the reviewer profile, so the full version list was not checked. The default version comes from `get-policy` (`105`).
 
-- The excess calls in section 3 cannot be re-run from this workstation. The `fn` and `inst` profiles were removed during cleanup. Any re-run needs a separate decision under the engagement brief.
-- The STS session record for `fn-review` is not retained. The identity rests on `71` alone.
-- Exit codes for `72`–`77` were not saved. The saved content supports success but is not a recorded exit status.
-- `iam:ListPolicyVersions` is denied to the reviewer. The full policy version list was not checked.
-- Writes (`PutObject`, `PutItem`, `DeleteMessage`) were not executed. Their status is not established.
+## 6. Limits
+
+- Exit status was not recorded for the section 2 calls. The output shows success, but no exit code was saved. Section 2 therefore states what the output contains, not what the exit code was.
+- The section 2 calls cannot be re-run from this workstation, because the `fn` and `inst` profiles were removed during cleanup. A re-run needs a separate decision under the engagement brief.
+- The STS session record for `fn-review` is not retained.
+- Writes (`PutObject`, `PutItem`, `DeleteMessage`) were not executed.
 
 ## 7. Impact boundary
 
-Code running with this role's temporary credentials can make the three demonstrated code-path calls in section 4 and the five inventory calls in section 3. The evidence supports account inventory disclosure, read access to one order object, receipt of one queue message, and retrieval of the signing secret.
-
-The evidence does not support account-administrator access, write access to any resource, or the untested grants in section 2. Those remain open.
+Code running with this role's temporary credentials can make the calls in section 2 (account inventory disclosure), and the code-path calls in section 4 that were demonstrated (one order object read, one queue message received, one secret retrieved). The evidence does not show administrator access, write access, or the untested grants in section 5.
 
 This role gap is separate from the storefront instance-role compromise in `2-instance_chain.md`.
