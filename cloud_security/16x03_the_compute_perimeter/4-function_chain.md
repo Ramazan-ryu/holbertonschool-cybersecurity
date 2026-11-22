@@ -7,7 +7,7 @@ All excess-permission calls in this file were made under one session of the exec
 - `arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/fn-review`
 - `UserId AROAXI4CLO5WGP5N66UQA:fn-review`, account `500100200300` (`71-fn-identity.json`)
 
-The session was created with `sts:AssumeRole` from the instance identity (`70-fn-assume.json`). The endpoint is `http://127.0.0.1:4566`, which is not confirmed as AWS (see `2-instance_chain.md`). No other session is used as evidence in this file.
+The session was created with `sts:AssumeRole` from the instance identity (`70-fn-assume.json`, since deleted). The endpoint is `http://127.0.0.1:4566`, which is not confirmed as AWS (see `2-instance_chain.md`). No other session is used as evidence for the excess-permission measurement.
 
 ## Code baseline
 
@@ -15,7 +15,7 @@ The session was created with `sts:AssumeRole` from the instance identity (`70-fn
 
 ## Excess actions: proven under `fn-review`
 
-Scope note: each call's target is stated in the table. Calls are account-level inventory calls and have no single resource ARN as target. The request ID is not available because CloudTrail is not accessible to the reviewer profile; the provider's response is the evidence.
+Scope note: each call's target is stated in the table. These are account-level inventory calls with no single resource ARN as target. A request ID is not available because CloudTrail is not accessible to the reviewer profile; the provider's response is the evidence.
 
 | # | Excess action | Reproducible call | Target | Authoritative response (saved file) | Absent from code list |
 |---|---|---|---|---|---|
@@ -27,7 +27,7 @@ Scope note: each call's target is stated in the table. Calls are account-level i
 
 Tested but not counted:
 
-- `dynamodb:ListTables` (`dynamodb list-tables`): exit 0, returned `[]` (`77`). An accepted call with no result is not counted as demonstrated permission.
+- `dynamodb:ListTables`: exit 0, returned `[]` (`77`). An accepted call with no result is not counted as demonstrated permission.
 
 ## Measured difference
 
@@ -41,11 +41,11 @@ The difference is the 5 actions above. This measurement covers only the actions 
 
 ## Code-path actions: status (separate from excess)
 
-These are not excess. They are recorded separately for the code baseline:
+These are not excess. They are recorded separately for the code baseline. They ran under session `fn-review2` of the same role:
 
-- `s3:GetObject`, `sqs:ReceiveMessage`, `secretsmanager:GetSecretValue`: exit 0 under session `fn-review2` (`80`, `81`, `82`; identity in `93-id-80.txt`). The same role, different session name.
-- `dynamodb:GetItem`: `ResourceNotFoundException`, table `marlowe-orders` absent from this endpoint. Result inconclusive.
-- `s3:PutObject`, `dynamodb:PutItem`, `sqs:DeleteMessage`: not executed; they change customer data and need written owner approval.
+- `s3:GetObject`, `sqs:ReceiveMessage`, `secretsmanager:GetSecretValue`: exit 0 (`80`, `81`, `82`; identity in `93-id-80.txt`).
+- `dynamodb:GetItem`: `ResourceNotFoundException`. Table `marlowe-orders` is absent from this endpoint, and `list-tables` returned `[]`. Result inconclusive.
+- `s3:PutObject`, `dynamodb:PutItem`, `sqs:DeleteMessage`: not executed. They change customer data and need written owner approval.
 
 ## Impact boundary
 
