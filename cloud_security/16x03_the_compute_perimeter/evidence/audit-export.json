@@ -2,8 +2,8 @@
  "lab": "16x03-the-compute-perimeter",
  "account": "500100200300",
  "principal": "arn:aws:iam::500100200300:user/appsec-reviewer",
- "exported": "2026-11-21T22:13:33Z",
- "event_count": 60,
+ "exported": "2026-11-22T14:16:52Z",
+ "event_count": 93,
  "events": [
   {
    "eventVersion": "1.09",
@@ -1629,7 +1629,906 @@
    "managementEvent": true,
    "recipientAccountId": "500100200300",
    "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "IAMUser",
+    "principalId": "AIDAE70259FAC5EA58F4A",
+    "arn": "arn:aws:iam::500100200300:user/appsec-reviewer",
+    "accountId": "500100200300",
+    "accessKeyId": "AKIA9WKNFB57XEJZOHAE",
+    "userName": "appsec-reviewer"
+   },
+   "eventTime": "2026-11-21T23:03:58Z",
+   "eventSource": "iam.amazonaws.com",
+   "eventName": "GetAccountAuthorizationDetails",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/b,N,Z,C,n,E cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#iam.get-account-authorization-details",
+   "requestParameters": {
+    "filter.member.1": "Role"
+   },
+   "responseElements": null,
+   "requestID": "z2Nu0jQqLCcVHaojbNaZXk39vzsS6kG4YMlkDQddoE8YYI2waONw",
+   "eventID": "edd0e1f0-270a-40fd-bd18-367cdb6c5a1e",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management",
+   "errorCode": "AccessDenied",
+   "errorMessage": "User: arn:aws:iam::500100200300:user/appsec-reviewer is not authorized to perform: iam:GetAccountAuthorizationDetails"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "IAMUser",
+    "principalId": "AIDAE70259FAC5EA58F4A",
+    "arn": "arn:aws:iam::500100200300:user/appsec-reviewer",
+    "accountId": "500100200300",
+    "accessKeyId": "AKIA9WKNFB57XEJZOHAE",
+    "userName": "appsec-reviewer"
+   },
+   "eventTime": "2026-11-21T23:03:59Z",
+   "eventSource": "s3.amazonaws.com",
+   "eventName": "GetBucketPolicy",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/n,N,E,Z,b cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-bucket-policy",
+   "requestParameters": {
+    "bucketName": "marlowe-orders-mc4e21"
+   },
+   "responseElements": null,
+   "requestID": "j7qshYt17YLRc3fCJtfvBNfH4jYG5qpEoAYkW54MiaI1Fc2By0pt",
+   "eventID": "ee2301ab-f0e4-4472-b248-864e5f255e87",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management",
+   "errorCode": "AccessDenied",
+   "errorMessage": "Access Denied"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "IAMUser",
+    "principalId": "AIDAE70259FAC5EA58F4A",
+    "arn": "arn:aws:iam::500100200300:user/appsec-reviewer",
+    "accountId": "500100200300",
+    "accessKeyId": "AKIA9WKNFB57XEJZOHAE",
+    "userName": "appsec-reviewer"
+   },
+   "eventTime": "2026-11-21T23:04:00Z",
+   "eventSource": "sqs.amazonaws.com",
+   "eventName": "GetQueueAttributes",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/N,E,n,b,Z cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sqs.get-queue-attributes",
+   "requestParameters": {
+    "queueUrl": "https://sqs.eu-west-1.amazonaws.com/500100200300/marlowe-customer-events",
+    "attributeNames": [
+     "Policy"
+    ]
+   },
+   "responseElements": null,
+   "requestID": "pa7gODjYD1QuaH1JsIMH9EcJof9niFUrYREeplWmSgt46V7OskdP",
+   "eventID": "3c3c7d1d-7a4d-401d-a9a1-7e99e974196e",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management",
+   "errorCode": "AccessDeniedException",
+   "errorMessage": "User: arn:aws:iam::500100200300:user/appsec-reviewer is not authorized to perform: sqs:GetQueueAttributes"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "IAMUser",
+    "principalId": "AIDAE70259FAC5EA58F4A",
+    "arn": "arn:aws:iam::500100200300:user/appsec-reviewer",
+    "accountId": "500100200300",
+    "accessKeyId": "AKIA9WKNFB57XEJZOHAE",
+    "userName": "appsec-reviewer"
+   },
+   "eventTime": "2026-11-21T23:04:01Z",
+   "eventSource": "secretsmanager.amazonaws.com",
+   "eventName": "GetResourcePolicy",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/E,n,Z,N,b cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#secretsmanager.get-resource-policy",
+   "requestParameters": {
+    "secretId": "marlowe/stripe-webhook-signing"
+   },
+   "responseElements": null,
+   "requestID": "5WIdnzfzpQddtqLmnX6Ajr4eO2DYUjxPnixmgP6MvioyzSGdWFBZ",
+   "eventID": "770f597c-0e8c-4dee-8cf0-0f28f8e207ac",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management",
+   "errorCode": "AccessDeniedException",
+   "errorMessage": "User: arn:aws:iam::500100200300:user/appsec-reviewer is not authorized to perform: secretsmanager:GetResourcePolicy"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "IAMUser",
+    "principalId": "AIDAE70259FAC5EA58F4A",
+    "arn": "arn:aws:iam::500100200300:user/appsec-reviewer",
+    "accountId": "500100200300",
+    "accessKeyId": "AKIA9WKNFB57XEJZOHAE",
+    "userName": "appsec-reviewer"
+   },
+   "eventTime": "2026-11-21T23:04:07Z",
+   "eventSource": "lambda.amazonaws.com",
+   "eventName": "GetFunction",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/E,N,Z,n,b cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#lambda.get-function-configuration",
+   "requestParameters": {
+    "functionName": "marlowe-order-processor"
+   },
+   "responseElements": null,
+   "requestID": "oDCe6qK9AQj9zOoQr0aI8z74bwwdzahqvJPOl9pk7VA0m16JB3mc",
+   "eventID": "8d9509e3-31f4-4c41-b39f-eae9cac30d7d",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management",
+   "errorCode": "SignatureDoesNotMatch",
+   "errorMessage": "The request signature we calculated does not match the signature you provided. Check your AWS Secret Access Key and signing method. Consult the service documentation for details."
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "IMDS",
+    "accountId": "500100200300"
+   },
+   "eventTime": "2026-11-21T23:11:51Z",
+   "eventSource": "imds.amazonaws.com",
+   "eventName": "GetInstanceCredentials",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "169.254.169.254",
+   "userAgent": "metadata",
+   "requestParameters": {
+    "path": "/latest/meta-data/iam/security-credentials/marlowe-web-instance-role",
+    "role": "marlowe-web-instance-role"
+   },
+   "responseElements": null,
+   "requestID": "34161C5EA75D4CB8",
+   "eventID": "3c18ead3-f2dd-4e11-adc3-d980673bb008",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WKYZ655EB",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-web-instance-role/i-0marlowe",
+    "principalId": "AROA8E72EA6EA30A5171A:i-0marlowe"
+   },
+   "eventTime": "2026-11-21T23:11:52Z",
+   "eventSource": "sts.amazonaws.com",
+   "eventName": "AssumeRole",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/E,g,N,Z,b cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sts.assume-role",
+   "requestParameters": {
+    "roleArn": "arn:aws:iam::500100200300:role/marlowe-order-processor-role",
+    "roleSessionName": "reference-check"
+   },
+   "responseElements": null,
+   "requestID": "1zjY0l4R59wpKDSHukbitIXj6d2cFIv7jp0TMk0oTsUU9QX7cnn4",
+   "eventID": "5ee660f8-446e-48f9-8ccc-ff96ffd76309",
+   "readOnly": false,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WKAGUAY3M",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/reference-check",
+    "principalId": "AROA8D7AA4039BAD51EDB:reference-check"
+   },
+   "eventTime": "2026-11-21T23:11:53Z",
+   "eventSource": "sts.amazonaws.com",
+   "eventName": "GetCallerIdentity",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/b,g,N,E,Z cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sts.get-caller-identity",
+   "requestParameters": null,
+   "responseElements": null,
+   "requestID": "DFlAKCKbjiJosZZCa8lGkeUb7qv8a1Qu7yO6JVz7CK8zbfb4hn0p",
+   "eventID": "0d3c1bc4-696e-423f-833e-8b40764881fc",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WKAGUAY3M",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/reference-check",
+    "principalId": "AROA8D7AA4039BAD51EDB:reference-check"
+   },
+   "eventTime": "2026-11-21T23:11:54Z",
+   "eventSource": "iam.amazonaws.com",
+   "eventName": "GetAccountAuthorizationDetails",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/N,E,b,C,Z,g cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#iam.get-account-authorization-details",
+   "requestParameters": {
+    "filter.member.1": "Role"
+   },
+   "responseElements": null,
+   "requestID": "pcA6KdEEWVUEhUZVdHh8iBd9Bxyd1766rXLZ0BKEWDpFj7Z9Zq9I",
+   "eventID": "aa4b16c1-96c6-4609-9111-330184ece96e",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WKAGUAY3M",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/reference-check",
+    "principalId": "AROA8D7AA4039BAD51EDB:reference-check"
+   },
+   "eventTime": "2026-11-21T23:11:55Z",
+   "eventSource": "iam.amazonaws.com",
+   "eventName": "ListUsers",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/b,Z,g,N,C,E cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#iam.list-users",
+   "requestParameters": null,
+   "responseElements": null,
+   "requestID": "HsHHN3c7q16pwF8pBgH0os7fcaYr1quMjQjsSbpM4JgresD3NAw6",
+   "eventID": "660ea880-8935-479d-848a-a81a5483eaa7",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WKAGUAY3M",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/reference-check",
+    "principalId": "AROA8D7AA4039BAD51EDB:reference-check"
+   },
+   "eventTime": "2026-11-21T23:11:56Z",
+   "eventSource": "secretsmanager.amazonaws.com",
+   "eventName": "ListSecrets",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/b,C,g,E,N,Z cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#secretsmanager.list-secrets",
+   "requestParameters": null,
+   "responseElements": null,
+   "requestID": "dQY1cVJWwkaChoyUnzjQT4OEjVY49Pa2nvIGAlD0cezDdFVitKLt",
+   "eventID": "922ae845-6212-44b6-ae44-9edf497060aa",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "IMDS",
+    "accountId": "500100200300"
+   },
+   "eventTime": "2026-11-22T12:59:08Z",
+   "eventSource": "imds.amazonaws.com",
+   "eventName": "GetInstanceCredentials",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "169.254.169.254",
+   "userAgent": "metadata",
+   "requestParameters": {
+    "path": "/latest/meta-data/iam/security-credentials/marlowe-web-instance-role",
+    "role": "marlowe-web-instance-role"
+   },
+   "responseElements": null,
+   "requestID": "1F0EA89479624F52",
+   "eventID": "4b87a93b-3627-4f41-b0e8-4defb9d9de45",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WI26AAD5Q",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-web-instance-role/i-0marlowe",
+    "principalId": "AROA8E72EA6EA30A5171A:i-0marlowe"
+   },
+   "eventTime": "2026-11-22T12:59:09Z",
+   "eventSource": "sts.amazonaws.com",
+   "eventName": "AssumeRole",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/b,g,N,E,Z cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sts.assume-role",
+   "requestParameters": {
+    "roleArn": "arn:aws:iam::500100200300:role/marlowe-order-processor-role",
+    "roleSessionName": "policy-review"
+   },
+   "responseElements": null,
+   "requestID": "8Wa5NP5zNBLM1Ma2wZVlyS00v4xTRLkNOK8TJIdVoQuWMbeGFoEm",
+   "eventID": "33ad52c7-2df4-4f23-af89-1a64927e6c1e",
+   "readOnly": false,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WDAU6G4IU",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/policy-review",
+    "principalId": "AROA8D7AA4039BAD51EDB:policy-review"
+   },
+   "eventTime": "2026-11-22T12:59:11Z",
+   "eventSource": "iam.amazonaws.com",
+   "eventName": "GetAccountAuthorizationDetails",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/N,b,E,Z,C,g cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#iam.get-account-authorization-details",
+   "requestParameters": {
+    "filter.member.1": "Role"
+   },
+   "responseElements": null,
+   "requestID": "cDmuzNEd3Q930dkEyYrkR529HcZcM0gqaJlggwoOyzniLp4CKS4S",
+   "eventID": "6e6d07d5-6e6f-4fea-8b23-f61d04b2471b",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WDAU6G4IU",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/policy-review",
+    "principalId": "AROA8D7AA4039BAD51EDB:policy-review"
+   },
+   "eventTime": "2026-11-22T12:59:12Z",
+   "eventSource": "s3.amazonaws.com",
+   "eventName": "GetBucketPolicy",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/b,Z,E,N,g cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-bucket-policy",
+   "requestParameters": {
+    "bucketName": "marlowe-orders-mc4e21"
+   },
+   "responseElements": null,
+   "requestID": "ANL9urPM95GSN7ucCp7s20mIGFEfFjH9HY5BJewI234KTBSh3hLe",
+   "eventID": "0ededd25-afcf-4205-97d6-721f866c933b",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management",
+   "errorCode": "NoSuchBucketPolicy",
+   "errorMessage": "The bucket policy does not exist"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WDAU6G4IU",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/policy-review",
+    "principalId": "AROA8D7AA4039BAD51EDB:policy-review"
+   },
+   "eventTime": "2026-11-22T12:59:13Z",
+   "eventSource": "sqs.amazonaws.com",
+   "eventName": "GetQueueAttributes",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/Z,g,b,N,E cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sqs.get-queue-attributes",
+   "requestParameters": {
+    "queueUrl": "https://sqs.eu-west-1.amazonaws.com/500100200300/marlowe-customer-events",
+    "attributeNames": [
+     "Policy"
+    ]
+   },
+   "responseElements": null,
+   "requestID": "9yCHo3esbXiCe41c0nSo0ChvMjmlNtZPGnSzAkbojPJu9N8oEYmf",
+   "eventID": "47d75fbd-3cc0-4358-9153-9ce8098d9eeb",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WDAU6G4IU",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/policy-review",
+    "principalId": "AROA8D7AA4039BAD51EDB:policy-review"
+   },
+   "eventTime": "2026-11-22T12:59:14Z",
+   "eventSource": "secretsmanager.amazonaws.com",
+   "eventName": "GetResourcePolicy",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/N,Z,g,E,b cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#secretsmanager.get-resource-policy",
+   "requestParameters": {
+    "secretId": "marlowe/stripe-webhook-signing"
+   },
+   "responseElements": null,
+   "requestID": "bn0MEuaQeNzu7M60q2howRa5MSWARdBgEKtMwY7da2x0hyvTICnI",
+   "eventID": "9215fee5-c326-4ec9-b6dc-1c4f41fe4623",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management",
+   "errorCode": "AccessDeniedException",
+   "errorMessage": "User: arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/policy-review is not authorized to perform: secretsmanager:GetResourcePolicy"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "IMDS",
+    "accountId": "500100200300"
+   },
+   "eventTime": "2026-11-22T13:01:02Z",
+   "eventSource": "imds.amazonaws.com",
+   "eventName": "GetInstanceCredentials",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "169.254.169.254",
+   "userAgent": "metadata",
+   "requestParameters": {
+    "path": "/latest/meta-data/iam/security-credentials/marlowe-web-instance-role",
+    "role": "marlowe-web-instance-role"
+   },
+   "responseElements": null,
+   "requestID": "C8FCDDB42A334086",
+   "eventID": "77ff62ad-e42e-4632-8cd2-ae9078f54428",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WA2DKUPIW",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-web-instance-role/i-0marlowe",
+    "principalId": "AROA8E72EA6EA30A5171A:i-0marlowe"
+   },
+   "eventTime": "2026-11-22T13:01:03Z",
+   "eventSource": "sts.amazonaws.com",
+   "eventName": "AssumeRole",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/Z,b,g,E,N cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sts.assume-role",
+   "requestParameters": {
+    "roleArn": "arn:aws:iam::500100200300:role/marlowe-order-processor-role",
+    "roleSessionName": "instance-policy-review"
+   },
+   "responseElements": null,
+   "requestID": "20NU9q1M4nCtKtJWB5eYe4aB6J2ygRoFAlHd6sfV3QwiS2ihFF78",
+   "eventID": "cbb99343-13b7-4853-919b-c161ca439f81",
+   "readOnly": false,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WP6SLEN27",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/instance-policy-review",
+    "principalId": "AROA8D7AA4039BAD51EDB:instance-policy-review"
+   },
+   "eventTime": "2026-11-22T13:01:04Z",
+   "eventSource": "sts.amazonaws.com",
+   "eventName": "GetCallerIdentity",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/Z,E,g,N,b cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sts.get-caller-identity",
+   "requestParameters": null,
+   "responseElements": null,
+   "requestID": "vyXCCaQQziCJHps3LuLBVfi0lf9J7kiQPvxHrb3vNWcxeb6Ezf2y",
+   "eventID": "25e8cb51-9459-47d0-a53a-02b54a5a2835",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WP6SLEN27",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/instance-policy-review",
+    "principalId": "AROA8D7AA4039BAD51EDB:instance-policy-review"
+   },
+   "eventTime": "2026-11-22T13:01:05Z",
+   "eventSource": "iam.amazonaws.com",
+   "eventName": "GetAccountAuthorizationDetails",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/C,g,b,Z,N,E cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#iam.get-account-authorization-details",
+   "requestParameters": {
+    "filter.member.1": "LocalManagedPolicy"
+   },
+   "responseElements": null,
+   "requestID": "Ty2dl9WTdSIGsfQTMhzjuOGkgnpSZErjxDBzeiMwhLjOzk56BNih",
+   "eventID": "b5d49658-6ed7-455d-9cc1-2116976dd618",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WP6SLEN27",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/instance-policy-review",
+    "principalId": "AROA8D7AA4039BAD51EDB:instance-policy-review"
+   },
+   "eventTime": "2026-11-22T13:01:06Z",
+   "eventSource": "sqs.amazonaws.com",
+   "eventName": "GetQueueAttributes",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/g,b,E,Z,N cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sqs.get-queue-attributes",
+   "requestParameters": {
+    "queueUrl": "https://sqs.eu-west-1.amazonaws.com/500100200300/marlowe-customer-events",
+    "attributeNames": [
+     "Policy"
+    ]
+   },
+   "responseElements": null,
+   "requestID": "DUOSUsO7WfusGByaF5vzWo7vgWXQPVx8qs0IuxywrYhlc2GDKhcc",
+   "eventID": "4baaeda6-153e-47cf-a40c-3046180944cb",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "IMDS",
+    "accountId": "500100200300"
+   },
+   "eventTime": "2026-11-22T13:04:37Z",
+   "eventSource": "imds.amazonaws.com",
+   "eventName": "GetInstanceCredentials",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "169.254.169.254",
+   "userAgent": "metadata",
+   "requestParameters": {
+    "path": "/latest/meta-data/iam/security-credentials/marlowe-web-instance-role",
+    "role": "marlowe-web-instance-role"
+   },
+   "responseElements": null,
+   "requestID": "E4AE7E76A9A4464B",
+   "eventID": "1c80d624-4e5d-43cc-bb02-1d47972b7cda",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WKUUAIO2X",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-web-instance-role/i-0marlowe",
+    "principalId": "AROA8E72EA6EA30A5171A:i-0marlowe"
+   },
+   "eventTime": "2026-11-22T13:04:38Z",
+   "eventSource": "sts.amazonaws.com",
+   "eventName": "AssumeRole",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/Z,g,b,E,N cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sts.assume-role",
+   "requestParameters": {
+    "roleArn": "arn:aws:iam::500100200300:role/marlowe-order-processor-role",
+    "roleSessionName": "key-policy-review"
+   },
+   "responseElements": null,
+   "requestID": "zyPJJ1AZdIh18Zgi1lrWy7sLX3kb3nhjAbzXnpiNCdNodHrKmZTw",
+   "eventID": "6e0b012a-5a8a-48cc-ae66-869283a5792f",
+   "readOnly": false,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WC4YM62AZ",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/key-policy-review",
+    "principalId": "AROA8D7AA4039BAD51EDB:key-policy-review"
+   },
+   "eventTime": "2026-11-22T13:04:39Z",
+   "eventSource": "sts.amazonaws.com",
+   "eventName": "GetCallerIdentity",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/N,g,Z,E,b cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sts.get-caller-identity",
+   "requestParameters": null,
+   "responseElements": null,
+   "requestID": "JOAK7dWBLi3uhJUJpwt8pALBbfZSXR1i5zrGrG3IBl1khu7w7EwV",
+   "eventID": "c175d999-02e8-419d-ae48-cf92a86b494b",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WC4YM62AZ",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/key-policy-review",
+    "principalId": "AROA8D7AA4039BAD51EDB:key-policy-review"
+   },
+   "eventTime": "2026-11-22T13:04:40Z",
+   "eventSource": "iam.amazonaws.com",
+   "eventName": "GetAccountAuthorizationDetails",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/g,C,b,Z,N,E cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#iam.get-account-authorization-details",
+   "requestParameters": {
+    "filter.member.1": "User"
+   },
+   "responseElements": null,
+   "requestID": "FoljXsbuED3G12MrHx5BMzfuBQKLb754blQ6ellvjkYplUuIabTg",
+   "eventID": "eba35594-ceff-4c04-abe0-fd379489fb76",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WC4YM62AZ",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/key-policy-review",
+    "principalId": "AROA8D7AA4039BAD51EDB:key-policy-review"
+   },
+   "eventTime": "2026-11-22T13:04:41Z",
+   "eventSource": "sqs.amazonaws.com",
+   "eventName": "GetQueueAttributes",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/N,g,E,Z,b cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sqs.get-queue-attributes",
+   "requestParameters": {
+    "queueUrl": "https://sqs.eu-west-1.amazonaws.com/500100200300/marlowe-customer-events",
+    "attributeNames": [
+     "Policy"
+    ]
+   },
+   "responseElements": null,
+   "requestID": "4dGE7jnurJyWdvXRSouOLB7OUURkuM8pSa1AgqVqOLmd0lEHqM4C",
+   "eventID": "414f14b8-e350-4183-b3ac-a0c24f181612",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "IMDS",
+    "accountId": "500100200300"
+   },
+   "eventTime": "2026-11-22T14:16:45Z",
+   "eventSource": "imds.amazonaws.com",
+   "eventName": "GetInstanceCredentials",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "169.254.169.254",
+   "userAgent": "metadata",
+   "requestParameters": {
+    "path": "/latest/meta-data/iam/security-credentials/marlowe-web-instance-role",
+    "role": "marlowe-web-instance-role"
+   },
+   "responseElements": null,
+   "requestID": "3BEB923D04AE4986",
+   "eventID": "55965799-9184-4bc9-bc54-630b1c51f296",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WEMLL3GSS",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-web-instance-role/i-0marlowe",
+    "principalId": "AROA8E72EA6EA30A5171A:i-0marlowe"
+   },
+   "eventTime": "2026-11-22T14:16:47Z",
+   "eventSource": "sts.amazonaws.com",
+   "eventName": "AssumeRole",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/g,b,E,N,Z cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sts.assume-role",
+   "requestParameters": {
+    "roleArn": "arn:aws:iam::500100200300:role/marlowe-order-processor-role",
+    "roleSessionName": "evidence-targets"
+   },
+   "responseElements": null,
+   "requestID": "wVZcamRwNG0uuAULNwUfoqo5HxO7rqZbCBOpjVbm2riuN7AfCzsm",
+   "eventID": "46ce6c73-95c2-4a13-ae05-109c34a68043",
+   "readOnly": false,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WBTQFXUW3",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/evidence-targets",
+    "principalId": "AROA8D7AA4039BAD51EDB:evidence-targets"
+   },
+   "eventTime": "2026-11-22T14:16:48Z",
+   "eventSource": "sts.amazonaws.com",
+   "eventName": "GetCallerIdentity",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/Z,b,N,g,E cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sts.get-caller-identity",
+   "requestParameters": null,
+   "responseElements": null,
+   "requestID": "I7Fgu5CjNNFEUAtp7eRakklVW2xXtgekKouObw1ASUUynJwPXMyn",
+   "eventID": "c9ff1894-0f45-438d-ad67-0c05109d86b7",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WBTQFXUW3",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/evidence-targets",
+    "principalId": "AROA8D7AA4039BAD51EDB:evidence-targets"
+   },
+   "eventTime": "2026-11-22T14:16:49Z",
+   "eventSource": "s3.amazonaws.com",
+   "eventName": "ListBuckets",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/E,C,N,g,b,Z cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#s3api.list-buckets",
+   "requestParameters": null,
+   "responseElements": null,
+   "requestID": "a40lo3HXh57UfVFpxzm57478KeqAjNykrAm0pCnpwGl6fRYBSyyY",
+   "eventID": "618ab63a-5eef-433e-94a8-dd7f6f43fddf",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WBTQFXUW3",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/evidence-targets",
+    "principalId": "AROA8D7AA4039BAD51EDB:evidence-targets"
+   },
+   "eventTime": "2026-11-22T14:16:50Z",
+   "eventSource": "sqs.amazonaws.com",
+   "eventName": "ListQueues",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/Z,g,C,N,E,b cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#sqs.list-queues",
+   "requestParameters": null,
+   "responseElements": null,
+   "requestID": "dSd1lHaMkVnJ0NtEcQqhGMhGHNcm5BYSI6dFUQbCIMr6vSC5YPmR",
+   "eventID": "52cf90c5-6ed2-4aa0-83eb-df3b3a8a849a",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
+  },
+  {
+   "eventVersion": "1.09",
+   "userIdentity": {
+    "type": "AssumedRole",
+    "accessKeyId": "ASIAXI4CLO5WBTQFXUW3",
+    "accountId": "500100200300",
+    "arn": "arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/evidence-targets",
+    "principalId": "AROA8D7AA4039BAD51EDB:evidence-targets"
+   },
+   "eventTime": "2026-11-22T14:16:51Z",
+   "eventSource": "secretsmanager.amazonaws.com",
+   "eventName": "ListSecrets",
+   "awsRegion": "eu-west-1",
+   "sourceIPAddress": "127.0.0.1",
+   "userAgent": "aws-cli/2.31.35 md/awscrt#0.28.4 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.13.9 md/pyimpl#CPython m/E,N,b,C,Z,g cfg/retry-mode#standard md/installer#exe md/distrib#ubuntu.24 md/prompt#off md/command#secretsmanager.list-secrets",
+   "requestParameters": null,
+   "responseElements": null,
+   "requestID": "gQ4HK1cDTkdBLOryTsTVjbYgRGIV5ihmkxgwvUtfRABUZtkpgnpC",
+   "eventID": "66a33200-6802-45a9-8999-a43e97b442fd",
+   "readOnly": true,
+   "eventType": "AwsApiCall",
+   "managementEvent": true,
+   "recipientAccountId": "500100200300",
+   "eventCategory": "Management"
   }
  ],
- "hmac_sha256": "d9eb00c01781fd04288572ec7399657000058defb231eb7878a1f0cde9d9757f"
+ "hmac_sha256": "5f2a4e14cd5a0521e37226c082e4534a6be45aa72b133babf183229e71592461"
 }
