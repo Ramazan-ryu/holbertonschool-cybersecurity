@@ -6,18 +6,20 @@
 
 **File properties (verified).**
 - 881 lines, one JSON audit event per line.
-- Time range: `2026-10-19T00:01:00.000000Z` to `2026-10-25T23:53:00.000000Z`, a window of 6 days 23 hours 52 minutes.
+- Time range: `2026-10-19T00:01:00.000000Z` to `2026-10-25T23:53:00.000000Z`.
 - Audit level `Metadata`, stage `ResponseComplete`. Request and response bodies are not recorded.
-- `sourceIPs`, `userAgent`, and `requestURI` are absent from every record checked. Row 829 has no `requestObject` or `responseObject` either.
-- Every event has a namespace (`objectRef.namespace` is present on all 881 events).
+- `sourceIPs`, `userAgent`, `requestURI`, `requestObject`, and `responseObject` are absent from the records checked, including line 829.
+- All 881 events have an `objectRef.namespace`.
 
-**Archive search (verified on this machine).** `find / -iname '*audit*' -o -iname '*.jsonl*' -o -iname '*.log*'` returned only the two copies above and unrelated system logs. No Kubernetes audit archive for any period before 2026-10-19 is present. The cluster itself was not searched, because no kubeconfig is available here.
+**Archive search (verified on this machine).** `find / -iname '*audit*' -o -iname '*.jsonl*' -o -iname '*.log*'` found only the two copies above and unrelated system logs. No Kubernetes audit data for any period before 2026-10-19 is present here. The cluster was not searched: no kubeconfig is available.
 
 **Conventions.** Line numbers are 1-based physical lines (verified with `nl -v824`). Timestamps are full `requestReceivedTimestamp` values.
 
-**Scope of this analysis.** One week. Nothing here establishes activity before 2026-10-19.
+**Scope.** One week, 2026-10-19 to 2026-10-25.
 
 ## 2. Material events
+
+Each event is retrievable from the file by its auditID. The retrieval command for every row is in Section 7.
 
 | Line | auditID | requestReceivedTimestamp | User | Verb | apiGroup | Resource | Namespace | Name | Code | Decision |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -28,7 +30,7 @@
 
 The chain runs six minutes, from 14:00:00Z to 14:06:00Z.
 
-**Row 829: scope unresolved.** The record names `kube-system` as `objectRef.namespace` and leaves the name empty. The record does not say whether the list was limited to `kube-system` or covered all namespaces. Without `requestURI` or `requestObject`, the file cannot decide. This analysis does not call it cluster-wide.
+**Row 829: request scope, a separate field.** The record names `kube-system` as `objectRef.namespace` and leaves the name empty. The record itself is retrievable. What it does not contain is the request scope: whether the list was limited to `kube-system` or spanned all namespaces. This analysis does not infer scope from the empty name. The field is listed as unknown in Section 7.
 
 ## 3. Identity context
 
@@ -52,15 +54,15 @@ Reads of configmaps and pods make up 250 of 257 events (97%). The only `create` 
 
 Before the chain (7 events, all in `platform`, none on Secrets):
 
-| Timestamp | Verb | Resource | Name |
-|---|---|---|---|
-| 2026-10-19T10:09:00Z | get | configmaps | obj-5881 |
-| 2026-10-20T11:29:00Z | list | pods | obj-2000 |
-| 2026-10-22T09:42:00Z | get | configmaps | obj-8375 |
-| 2026-10-23T00:26:00Z | get | services | obj-4405 |
-| 2026-10-24T23:20:00Z | get | configmaps | obj-9673 |
-| 2026-10-25T00:27:00Z | list | deployments | obj-2873 |
-| 2026-10-25T06:16:00Z | watch | endpoints | obj-3083 |
+| Timestamp | Verb | Resource | Name | auditID |
+|---|---|---|---|---|
+| 2026-10-19T10:09:00Z | get | configmaps | obj-5881 | `0670a1f86d65888` |
+| 2026-10-20T11:29:00Z | list | pods | obj-2000 | `a428bd42383a986` |
+| 2026-10-22T09:42:00Z | get | configmaps | obj-8375 | `f13d03690537ceb` |
+| 2026-10-23T00:26:00Z | get | services | obj-4405 | `cf21d524315298b` |
+| 2026-10-24T23:20:00Z | get | configmaps | obj-9673 | `87492ff0ec6b2f0` |
+| 2026-10-25T00:27:00Z | list | deployments | obj-2873 | `4b7805fc302641d` |
+| 2026-10-25T06:16:00Z | watch | endpoints | obj-3083 | `17820f1ba6c573e` |
 
 The chain holds this identity's only two Secret events in the file (rows 829 and 830) and its first events outside `platform`.
 
@@ -68,7 +70,7 @@ After the chain: 2026-10-25T18:06:00Z, `watch endpoints` in `platform` (`obj-357
 
 ### 3.3 Secret access across the whole file (verified)
 
-Exactly two events in the file have `objectRef.resource: secrets`: rows 829 and 830. Both are by `platform/controller-admin`. No other identity reads or lists Secrets during the week.
+Exactly two events in the file have `objectRef.resource: secrets`: rows 829 and 830, both by `platform/controller-admin`. No other identity reads or lists Secrets during the week.
 
 ### 3.4 Debug pod
 
@@ -76,11 +78,11 @@ Exactly two events in the file have `objectRef.resource: secrets`: rows 829 and 
 
 ## 4. Corrections to the earlier draft
 
-1. **"Lists Secrets cluster-wide" is removed.** The record shows `objectRef.namespace: kube-system` and an empty name. Scope needs `requestURI` or `requestObject`, which are absent.
+1. **"Lists Secrets cluster-wide" is removed.** The record shows `objectRef.namespace: kube-system` and an empty name. The request scope is not in the record (Section 2).
 2. **The identity change is not in the audit.** There is no `serviceaccounts/token` event, and `Metadata` level does not record `spec.serviceAccountName`. That `debug-shell-x7k2` ran as `controller-admin` is an inference from `1-effective_privilege.md` (E1), not an audit fact.
 3. **`platform-deployer` R2 grants `get` and `list` on serviceaccounts only** (`0-rbac_map.md`). It grants nothing on Secrets or tokens.
 4. **The 255-of-257 split is confirmed:** 255 events in `build`, 2 in `platform` (rows 826 and 828).
-5. **"First Secret access" is now confirmed.** Rows 829 and 830 are the only Secret events in the file.
+5. **"First Secret access" is confirmed.** Rows 829 and 830 are the only Secret events in the file.
 
 ## 5. Earliest structural anomaly
 
@@ -93,9 +95,9 @@ Exactly two events in the file have `objectRef.resource: secrets`: rows 829 and 
 **The rule does not depend on the object name.** It keys on (identity, verb, resource, namespace): `build/ci-runner`, `create`, `pods`, `platform`. `debug-shell-x7k2` is evidence in this case, not part of the rule.
 
 **What the evidence can and cannot support.**
-- The contrast is with one week, not two years. The archive search found no earlier audit data on this machine. Whether `build/ci-runner` created pods outside `build` before 2026-10-19 is unknown.
+- The contrast is with one week, not two years. The archive search found no earlier audit data on this machine.
 - The first-seen action cannot by itself separate an engineer in a debug session from an attacker. The sequence becomes suspicious through what follows: a lookup of `controller-admin` (row 828), then Secret reads by that identity (rows 829 and 830). An approved debug exception with an owner belongs to the detection (Section 6).
-- The cross-namespace test is complete for this file. Four events (rows 826, 828, 829, 830) have an actor whose home namespace differs from the object's namespace. All four are in the chain. All 881 events have a namespace, so no cluster-scoped request was missed. The test covers one week only.
+- The cross-namespace test is complete for this file. Four events (rows 826, 828, 829, 830) have an actor whose home namespace differs from the object's namespace. All four are in the chain. The test covers one week only.
 
 ## 6. Detection: what it takes
 
@@ -106,7 +108,7 @@ Exactly two events in the file have `objectRef.resource: secrets`: rows 829 and 
 4. An exception path for approved debug and deployment changes, recorded with an owner, an expiry, and the pod or namespace in scope.
 
 **Requirements before the detection is reliable.**
-- **Audit level.** `Metadata` does not record source IP, user agent, request URI, or request bodies. Detection needs at least `Request` level for pods, serviceaccounts, and secrets. Without it, row 829's scope and the identity-change mechanism cannot be recorded.
+- **Audit level.** `Metadata` does not record source IP, user agent, request URI, or request bodies. Detection needs at least `Request` level for pods, serviceaccounts, and secrets. Without it, the scope of row 829 and the identity-change mechanism cannot be recorded.
 - **Learning period.** A baseline needs a full cycle of legitimate activity: deploys, rollouts, scheduled work. One week does not supply that.
 - **Deployment changes and debug sessions.** Approved changes update the baseline, and the change record suppresses the related alerts. Each debug session needs an owner.
 - **Baseline maintenance.** Review profiles on a fixed schedule, and rebuild after any change to the identity's RBAC.
@@ -114,12 +116,24 @@ Exactly two events in the file have `objectRef.resource: secrets`: rows 829 and 
 
 **What the detection does not do.** An identity acting inside its established profile is not caught. A Secret read would be missed if such reads were already part of that identity's profile. The detection supplements narrower RBAC and enforced admission, and does not replace them.
 
-## 7. Limits and verification still needed
+## 7. Retrieval commands and open items
+
+**Retrieval (any analyst can run these on the audit file).**
+
+| Event | Command |
+|---|---|
+| 826 | `jq 'select(.auditID=="fc732b41831c35c")' /home/latchkey/trellis-audit.jsonl` |
+| 828 | `jq 'select(.auditID=="c22c0094a42c174")' /home/latchkey/trellis-audit.jsonl` |
+| 829 | `jq 'select(.auditID=="a55c4295ef26154")' /home/latchkey/trellis-audit.jsonl` |
+| 830 | `jq 'select(.auditID=="50169ea038b7cff")' /home/latchkey/trellis-audit.jsonl` |
+| All Secret events | `jq -c 'select(.objectRef.resource=="secrets")' /home/latchkey/trellis-audit.jsonl` |
+
+**Open items.**
 
 | Item | Status | What resolves it |
 |---|---|---|
-| Two-year baseline | **Not supported by the supplied materials.** The archive search on this machine found no Kubernetes audit data before 2026-10-19. | The cluster's audit log store, searched on the cluster, or the archive owner. Run the same `find` there. |
-| Scope of row 829 | Unresolved. No `requestURI` or `requestObject`. | An audit record at `Request` level for the same auditID `a55c4295ef26154`. |
-| Identity-change mechanism (`debug-shell-x7k2` to `controller-admin`) | Unresolved. No token event and no pod spec in the audit. | The pod spec of `debug-shell-x7k2` (`kubectl get pod`, if it still exists), or a `Request`-level audit of the pod's creation. |
+| Request scope of row 829 (namespaced or cluster-wide) | Unknown. Not in the record at this audit level. | An audit record at `Request` level for auditID `a55c4295ef26154`. |
+| Identity-change mechanism (`debug-shell-x7k2` to `controller-admin`) | Unknown. No token event and no pod spec in the audit. | The pod spec of `debug-shell-x7k2`, or a `Request`-level audit of its creation. |
+| Two-year baseline | Not supported by the supplied materials. No audit data before 2026-10-19 on this machine. | The cluster's audit log store, searched on the cluster. |
 | Whether `build/ci-runner` created pods outside `build` before 2026-10-19 | Unknown. | The archive, once found. |
-| Fate of `debug-shell-x7k2` after 14:00:00Z | Unknown. No later event in the file. | Cluster state (`kubectl get pod -n platform debug-shell-x7k2`) or later audit records. |
+| Fate of `debug-shell-x7k2` after 14:00:00Z | Unknown. No later event in the file. | `kubectl get pod -n platform debug-shell-x7k2` on the cluster, or later audit records. |
