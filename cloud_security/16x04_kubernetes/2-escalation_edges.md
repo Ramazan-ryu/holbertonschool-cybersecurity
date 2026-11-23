@@ -2,207 +2,186 @@
 
 ## 1. Method
 
-**What an edge is.** An edge is a becoming: a starting subject uses a permission it holds and ends up running as an identity with more authority. Each edge is reconstructed in this order:
+**What an edge is.** An edge is a becoming: a starting subject uses a permission it holds and ends up running as an identity with more authority.
 
-1. The starting subject and the binding that grants the enabling permission (binding name, namespace, Role or ClusterRole, rule R#, verbs).
-2. The workload or controller configuration that carries the identity (file and line).
-3. The token path: whether the identity's token is mounted in the new workload, and where that is set.
-4. The resulting identity and its effective privileges, cited to the bindings in `1-effective_privilege.md`.
+**Step types.** Every step in every edge carries one of two tags:
+- **[E] Export-established.** The step is shown by a specific object or line in the export: a binding, a Role rule, a workload field, or a ServiceAccount name. The citation is given.
+- **[K] Kubernetes-behavior.** The step depends on how the Kubernetes API or a controller behaves, not on the export. Examples: a pod that names a ServiceAccount receives that account's token; a Job controller creates pods from its template; an image update on a running pod is accepted. The export cannot prove these. They are stated as conditions and must be confirmed on a live cluster.
 
-**Delegation rule.** Kubernetes checks `bind` and `escalate` only when a RoleBinding or Role is written. Writing a RoleBinding requires `create` (or `update`/`patch`) on `rolebindings`. The export contains no such grant except through `cluster-superuser`, which is held only by `platform/controller-admin`. So `bind` and `escalate` are present but inert for every other subject.
+**Edge status.**
+- **Established** means every step is [E]. No edge in this file is fully established, because each one contains at least one [K] step.
+- **Conditional** means at least one [K] step remains. The edge is a finding only after its [K] steps are confirmed.
 
-**Pod identity rule.** RBAC has no verb that checks whether a pod creator may choose a ServiceAccount. The only check is that the ServiceAccount exists in the namespace. A pod sets `automountServiceAccountToken` in its own spec, and that value applies to that pod.
+**Delegation rule.** Writing a RoleBinding requires `create`, `update`, or `patch` on `rolebindings`. The export grants that verb to no subject except through `cluster-superuser`, held only by `platform/controller-admin` (`roles.yaml` line 38 lists `rolebindings` with `get,list` only).
 
-**Admission and Pod Security** (from the export; see `1-effective_privilege.md` Section 1). `disallow-privileged` runs in Audit mode and checks only Deployments. `media-processing`, `kube-system`, and `kube-addons-old` have no PSA labels. Other namespaces are `baseline`, which does not restrict `serviceAccountName` and does not allow privileged pods. Nothing in the export restricts ServiceAccount choice, pod image changes, or image source.
+**Admission and Pod Security** (verified from files, see `1-effective_privilege.md` Section 1). `disallow-privileged` runs in Audit mode and checks only Deployments. `media-processing`, `kube-system`, and `kube-addons-old` carry no PSA labels. No policy in `admission/` restricts `serviceAccountName`, pod image changes, or hostPath use.
 
-**Naming.** Where a Deployment name is not extracted from the workload file, the edge cites the file and line, and the name is marked as not extracted.
-
-**Not verified.**
-- No live cluster. Every edge is manifest-derived. Live checks are in Section 6.
-- Image source. The export has no image allowlist. An attacker-chosen image must be pullable by the nodes. This is an external condition.
-- Bootstrap bindings (`system:` groups) are absent from the export.
-- `6-audit_trail.md` was not analyzed and is not used as evidence here.
+**Not analyzed.** The image source (registry and pull policy), `6-audit_trail.md`, and bootstrap bindings (`system:` groups, absent from the export).
 
 ## 2. Summary
 
-| ID | Starting subject | Enabling permission | Becomes | Reach | Status |
+| ID | Starting subject | Enabling permission [E] | Becomes | Reach | Status |
 |---|---|---|---|---|---|
-| E1 | `build/ci-runner` | Pod create in `platform` | `platform/controller-admin` | Cluster-wide, all verbs | Critical, manifest-derived |
-| E2 | `prod/deploy-bot` | Deployment create/update in `prod` | `prod/billing-reconciler` | Legacy Secrets read; Job create in `prod` | High, manifest-derived |
-| E3 | `prod/deploy-bot` | Deployment create/update in `prod` | `prod/orders-api-sa` | `prod` ConfigMaps and Secrets read | High, manifest-derived |
-| E4 | `prod/billing-reconciler` | Job create in `prod` | `prod/orders-api-sa` | `prod` ConfigMaps and Secrets read | High, manifest-derived |
-| E5 | `media-processing/mediaproce-svc-01`, `-02`, `-03` | Pod update/patch in `media-processing` | `media-processing/media-worker` (running pod `transcoder`) | Node-level: privileged, host network, host root | Critical, node-level, manifest-derived |
-| E6 | `maya.chen` | Impersonate ServiceAccounts in `legacy-billing-migration` | `legacybill-svc-*` identities | ConfigMap and Service write in `legacy-billing-migration`; no Secrets | Medium, manifest-derived |
-| N1 | `prod/deploy-bot` | `bind`, `escalate`, `create` on roles/clusterroles | Would be legacy namespace control if RoleBinding create existed | Inert: no subject holds RoleBinding create | Dead end (Section 4) |
-| N2 | `maya.chen` | Pod and Deployment create/update in `dev` | Any `dev` ServiceAccount | No Secrets, no cluster scope | Dead end (Section 4) |
-| N3 | Seven ServiceAccounts with cluster-wide `view` | Cluster-wide `view` | None | Cluster-wide read of pods, services, endpoints, ConfigMaps; no Secrets | No escalation; data exposure only |
+| E1 | `build/ci-runner` | Pod create in `platform` | `platform/controller-admin` | Cluster-wide, all verbs | Conditional (2 [K] steps) |
+| E2 | `prod/deploy-bot` | Deployment create/update in `prod` | `prod/billing-reconciler` | Legacy `billing-secrets` read; Job create in `prod` | Conditional (1 [K] step) |
+| E3 | `prod/deploy-bot` | Deployment create/update in `prod` | `prod/orders-api-sa` | `prod` ConfigMaps and Secrets read | Conditional (1 [K] step) |
+| E4 | `prod/billing-reconciler` | Job create in `prod` | `prod/orders-api-sa` | `prod` ConfigMaps and Secrets read | Conditional (1 [K] step) |
+| E5 | `media-processing/mediaproce-svc-01`, `-02`, `-03` | Pod update/patch in `media-processing` | Running pod `transcoder` (identity `media-worker`) | Node-level: privileged, host network, host root | Conditional (2 [K] steps) |
+| E6 | `maya.chen` | Impersonate ServiceAccounts in `legacy-billing-migration` | `legacybill-svc-*` identities | ConfigMap and Service write in `legacy-billing-migration`; no Secrets | Conditional (1 [K] step) |
+| N1 | `prod/deploy-bot` | `bind`, `escalate`, `create` on roles/clusterroles | None active | Inert: no subject holds RoleBinding write | Dead end |
+| N2 | `maya.chen` | Pod and Deployment write in `dev` | Any `dev` ServiceAccount | No Secrets, no cluster scope | Dead end |
+| N3 | Seven ServiceAccounts with cluster-wide `view` | Cluster-wide `view` | None | Read of pods, services, endpoints, ConfigMaps | No escalation; data exposure |
 
 ---
 
 ## 3. Edges
 
-### E1. `build/ci-runner` becomes `platform/controller-admin`, then cluster superuser (critical)
+### E1. `build/ci-runner` becomes `platform/controller-admin`, then cluster superuser
 
-**Step 1: enabling grant.** RoleBinding `ci-runner-platform-deploy` (namespace `platform`) binds ServiceAccount `build/ci-runner` to Role `platform-deployer`. Role R1: core `pods` with `get,list,watch,create`. The binding is in `platform`, so the grant applies only there.
+**Step 1 [E]: enabling grant.** RoleBinding `ci-runner-platform-deploy` (namespace `platform`) binds ServiceAccount `build/ci-runner` to Role `platform-deployer`. Role R1: core `pods`, verbs `get,list,watch,create`. Scope: `platform` only.
 
-**Step 2: the pod can name the target identity.** `ci-runner` creates a Pod in `platform` with `spec.serviceAccountName: controller-admin`. ServiceAccount `controller-admin` exists in `platform` (`serviceaccounts.yaml`). No RBAC verb or export admission control restricts this choice. `disallow-privileged` does not apply to Pods.
+**Step 2 [E]: target identity exists.** ServiceAccount `controller-admin` is in `platform` (`0-rbac_map.md` Section 3, platform ServiceAccounts). ClusterRoleBinding `platform-controller-admin` binds it to ClusterRole `cluster-superuser`.
 
-**Step 3: token path.** The new pod sets `automountServiceAccountToken: true` in its own spec. The token of `platform/controller-admin` is then mounted and readable by any code in the container.
+**Step 3 [E]: the identity is a live, token-bearing identity.** `workloads/platform/daemonsets.yaml` lines 16–17: a Deployment `platform-controller` in `platform` sets `serviceAccountName: controller-admin` and `automountServiceAccountToken: true`. The file name says DaemonSet, but the object is a Deployment with `replicas: 1`.
 
-**Step 4: the identity is already in use.** Deployment `platform-controller` in `platform` runs with `serviceAccountName: controller-admin` (`workloads/platform/daemonsets.yaml`, line 16) and `automountServiceAccountToken: true` (line 17). The file name says DaemonSet, but the object is a Deployment with `replicas: 1`. This shows the identity is a live, token-bearing identity. E1 does not depend on it: the attacker's pod creates the same token path itself.
+**Step 4 [E]: no export control restricts the choice.** The only admission policy (`admission/policies.yaml`) checks Deployments for `privileged` and runs in Audit mode. No policy checks `serviceAccountName`.
 
-**Step 5: resulting identity and its privileges.** ClusterRoleBinding `platform-controller-admin` binds `platform/controller-admin` to ClusterRole `cluster-superuser`, R1: wildcard API groups, wildcard resources, wildcard verbs. Cluster-wide. This includes RBAC writes, so the holder can also create RoleBindings and ClusterRoleBindings for any subject. `controller-admin` has no other binding.
+**Step 5 [K]: a Pod created by `ci-runner` with `serviceAccountName: controller-admin` receives that ServiceAccount's token.** The export shows the name; the Kubernetes behavior that binds the token to the pod is not in the export. Confirm with a server-side dry run as `system:serviceaccount:build:ci-runner`.
 
-**Result.** A holder of `build/ci-runner` can run code as cluster superuser. The constraint is an image the nodes can pull. Nothing in the export blocks it.
+**Step 6 [K]: the pod's token can be used against the API by code in the container.** Standard behavior of a mounted token, not shown by the export. Confirm with a dry run of an API request using that token.
+
+**Step 7 [E]: resulting identity and its privileges.** ClusterRole `cluster-superuser` (`clusterroles.yaml`, wildcard rule): wildcard API groups, resources, and verbs. Via ClusterRoleBinding `platform-controller-admin`. Cluster-wide. Includes RBAC writes.
+
+**Status.** Conditional on Steps 5 and 6. If both hold, the holder of `build/ci-runner` runs code as cluster superuser. The image must be pullable by the nodes; that is an external condition.
 
 ---
 
-### E2. `prod/deploy-bot` becomes `prod/billing-reconciler` and reads legacy Secrets (high)
+### E2. `prod/deploy-bot` becomes `prod/billing-reconciler` and reads legacy Secrets
 
-**Step 1: enabling grant.** RoleBinding `deploy-bot-deployer` (namespace `prod`) binds `prod/deploy-bot` to Role `deployer`. R1: apiGroup `apps`, resources `deployments`, `replicasets`, verbs `get,list,watch,create,update,patch`. Scope: `prod`.
+**Step 1 [E]: enabling grant.** RoleBinding `deploy-bot-deployer` (namespace `prod`) binds `prod/deploy-bot` to Role `deployer`. Role R1: apiGroup `apps`, resources `deployments`, `replicasets`, verbs `get,list,watch,create,update,patch`. Scope: `prod`.
 
-**Step 2: workload configuration that carries the identity.** `workloads/prod/deployments.yaml` contains a pod spec with `serviceAccountName: billing-reconciler` (line 39) and `automountServiceAccountToken: true` (line 40). The Deployment name is not extracted from the file. The attacker creates or patches a Deployment in `prod` with this ServiceAccount and the token set explicitly.
+**Step 2 [E]: target identity is used by a workload in `prod`.** `workloads/prod/deployments.yaml` line 39 `serviceAccountName: billing-reconciler`; line 40 `automountServiceAccountToken: true`. The workload's Deployment name is not extracted from the file.
 
-**Step 3: token path.** The new pod's token belongs to `prod/billing-reconciler`.
+**Step 3 [K]: a Deployment created by `deploy-bot` with `serviceAccountName: billing-reconciler` runs pods that receive that ServiceAccount's token.** The same pattern as E1 Step 5. Confirm with a server-side dry run as `system:serviceaccount:prod:deploy-bot`.
 
-**Step 4: resulting identity and its privileges.**
+**Step 4 [E]: resulting identity and its privileges.**
 - RoleBinding `billing-reconciler-prod` (`prod`) → Role `reconciler`: R1 core `configmaps` `get,list,watch`; R2 `batch/jobs` `get,list,create`.
-- RoleBinding `billing-reconciler-secrets` (`legacy-billing-migration`) → Role `billing-secrets`: R1 core `secrets` `get,list`; R2 core `configmaps` `get,list`.
+- RoleBinding `billing-reconciler-secrets` (`legacy-billing-migration`) → Role `billing-secrets` (`roles.yaml` lines 204 and 210): R1 core `secrets` `get,list`; R2 core `configmaps` `get,list`.
 - No ClusterRoleBinding names `billing-reconciler`.
 
-**Result.** `deploy-bot` reads Secrets in `legacy-billing-migration` through this identity, and it can create Jobs in `prod` (which leads to E4). The reach is limited to the legacy namespace and to `prod`. It is not cluster-wide Secret access.
+**Status.** Conditional on Step 3. If it holds, `deploy-bot` reads Secrets in `legacy-billing-migration` through this identity. Reach is that namespace and `prod` (through the Job path in E4). It is not cluster-wide Secret access.
 
 ---
 
-### E3. `prod/deploy-bot` becomes `prod/orders-api-sa` and reads `prod` Secrets (high)
+### E3. `prod/deploy-bot` becomes `prod/orders-api-sa` and reads `prod` Secrets
 
-**Step 1: enabling grant.** Same as E2, Step 1.
+**Step 1 [E]: enabling grant.** Same as E2, Step 1.
 
-**Step 2: workload configuration.** `workloads/prod/deployments.yaml` contains a pod spec with `serviceAccountName: orders-api-sa` (line 16) and `automountServiceAccountToken: true` (line 17). The Deployment name is not extracted from the file. The attacker creates or patches a Deployment in `prod` with this ServiceAccount.
+**Step 2 [E]: target identity is used by a workload in `prod`.** `workloads/prod/deployments.yaml` line 16 `serviceAccountName: orders-api-sa`; line 17 `automountServiceAccountToken: true`.
 
-**Step 3: token path.** Same pattern as E2. The new pod's token belongs to `prod/orders-api-sa`.
+**Step 3 [K]: as in E2, Step 3.** Confirm with a server-side dry run as `system:serviceaccount:prod:deploy-bot`, naming `orders-api-sa`.
 
-**Step 4: resulting identity and its privileges.** RoleBinding `orders-api-config` (`prod`) → Role `orders-api-config` R1: core `configmaps, secrets` `get,list,watch`. No other binding names `orders-api-sa`.
+**Step 4 [E]: resulting identity and its privileges.** RoleBinding `orders-api-config` (`prod`) → Role `orders-api-config`: core `configmaps, secrets` `get,list,watch` (`roles.yaml` line 232). No other binding names `orders-api-sa`.
 
-**Result.** `deploy-bot` reads `prod` ConfigMaps and Secrets through this identity. It is a second route to the same `prod` Secrets. `orders-api-sa` has no escalation of its own (see `1-effective_privilege.md` Section 6).
-
----
-
-### E4. `prod/billing-reconciler` becomes `prod/orders-api-sa` through a Job and reads `prod` Secrets (high)
-
-**Step 1: enabling grant.** RoleBinding `billing-reconciler-prod` (`prod`) → Role `reconciler` R2: `batch/jobs` `get,list,create`. Scope: `prod`.
-
-**Step 2: controller configuration.** The attacker creates a Job in `prod` whose pod template sets `serviceAccountName: orders-api-sa` and `automountServiceAccountToken: true`. The Job controller creates the pod; the pod runs under the identity named in its template. The creator needs no pod-create permission, because the controller creates the pod.
-
-**Step 3: token path.** The Job pod's token belongs to `prod/orders-api-sa`.
-
-**Step 4: resulting identity and its privileges.** As in E3, Step 4: `prod` ConfigMaps and Secrets `get,list,watch`.
-
-**Result.** This edge extends `billing-reconciler`, which already reaches legacy Secrets through E2. It adds `prod` Secrets through `orders-api-sa`. E3 and E4 reach the same Secrets.
+**Status.** Conditional on Step 3. If it holds, `deploy-bot` reads `prod` Secrets through this identity.
 
 ---
 
-### E5. `media-processing/mediaproce-svc-01/02/03` patches the privileged `transcoder` pod and runs as `media-worker` on the node (critical, node-level)
+### E4. `prod/billing-reconciler` becomes `prod/orders-api-sa` through a Job and reads `prod` Secrets
 
-This edge does not depend on a dangerous-looking permission. Pod update looks like label or metadata work, but the container `image` field is mutable.
+**Step 1 [E]: enabling grant.** RoleBinding `billing-reconciler-prod` (`prod`) → Role `reconciler` R2: `batch/jobs` `get,list,create`. Scope: `prod`.
 
-**Step 1: enabling grant.** Three RoleBindings bind these ServiceAccounts to Role `mediaproce-role-01` (namespace `media-processing`):
-- `mediaproce-svc-01-mediaproce-role-01`
-- `mediaproce-svc-02-mediaproce-role-01`
-- `mediaproce-svc-03-mediaproce-role-01`
+**Step 2 [E]: target identity is used in `prod`.** `workloads/prod/deployments.yaml` line 16 `serviceAccountName: orders-api-sa`.
 
-Role R1: core `configmaps, pods, endpoints` with `get,list,watch,update,patch`. Each holder can update and patch pods in `media-processing`.
+**Step 3 [K]: a Job created with a pod template naming `orders-api-sa` runs its pod under that ServiceAccount's token.** The Job controller creates the pod from the template. That controller behavior is not in the export. Confirm with a server-side dry run of a Job as `system:serviceaccount:prod:billing-reconciler`.
 
-**Step 2: the workload that carries the identity.** Deployment `transcoder` in `media-processing` (`workloads/media-processing/deployments.yaml`):
+**Step 4 [E]: resulting identity and its privileges.** As in E3, Step 4.
+
+**Status.** Conditional on Step 3. It extends `billing-reconciler`, which already reaches legacy Secrets through E2, and adds `prod` Secrets through `orders-api-sa`.
+
+---
+
+### E5. `media-processing/mediaproce-svc-01`, `-02`, `-03` patch the running `transcoder` pod
+
+**Step 1 [E]: enabling grant.** RoleBindings `mediaproce-svc-01-mediaproce-role-01`, `mediaproce-svc-02-mediaproce-role-01`, and `mediaproce-svc-03-mediaproce-role-01` (namespace `media-processing`) bind these ServiceAccounts to Role `mediaproce-role-01`. R1: core `configmaps, pods, endpoints` with `get,list,watch,update,patch`.
+
+**Step 2 [E]: the privileged workload exists.** `workloads/media-processing/deployments.yaml`, Deployment `transcoder`:
 - line 16 `serviceAccountName: media-worker`; line 17 `automountServiceAccountToken: true`
-- line 22 `privileged: true`; lines 23–25 `capabilities.add: [SYS_ADMIN]`
+- line 22 `privileged: true`; `capabilities.add: [SYS_ADMIN]` at lines 23–25
 - line 30 `hostNetwork: true`
-- lines 31–34 volume `hostfs`, `hostPath: /`, mounted at `/host`
+- line 33 `hostPath: /`, mounted read-write at `/host`
 
-**Step 3: the transition.** A holder patches the running pod's container `image` to an attacker-chosen image. The kubelet restarts the container with the new image. The pod's `securityContext`, `hostNetwork`, `hostPath`, and `serviceAccountName` are not changed by an image patch, so the attacker's code runs with the transcoder pod's privileges, as `media-worker`. The Deployment is not changed, so the change lasts until the pod is replaced.
+**Step 3 [K]: patching a running pod's container `image` changes the code that runs in that container, while the pod's privileges stay as they were.** The export shows that `update`/`patch` on pods is granted. It does not show that the API accepts an image change on a running pod, nor that the replacement container keeps the same `securityContext`, host namespaces, and hostPath. Confirm with a server-side dry run of the patch.
 
-**Step 4: resulting identity and its privileges.** `media-worker` has no RBAC binding. Its privilege comes from the pod spec: privileged, `SYS_ADMIN`, host network, and read-write access to the host root filesystem. Attacker code can read node-level files and reach services on the host network. The export does not show what else runs on that node, so cluster-wide reach is not established.
+**Step 4 [E]: resulting identity and its privileges.** The pod runs as `media-worker`, which has no RoleBinding (`1-effective_privilege.md`, unbound list). Its effective privilege is the pod's privilege: privileged, `SYS_ADMIN`, host network, read-write host root.
 
-**Admission and PSA.** The admission policy checks Deployments only and runs in Audit mode. `media-processing` has no PSA labels. Nothing blocks a pod image patch.
-
-**Result.** Three ServiceAccounts with an ordinary-looking pod `patch` can take over a privileged node-level workload. The highest identity reached is node root on the node that runs `transcoder`. Whether that becomes cluster-wide control depends on what else runs there, which the export does not show.
+**Status.** Conditional on Step 3. If it holds, the holder gains node-level access on the node running `transcoder`. Cluster-wide reach depends on what else runs on that node, which the export does not show.
 
 ---
 
-### E6. `maya.chen` impersonates `legacy-billing-migration` ServiceAccounts (medium)
+### E6. `maya.chen` impersonates `legacy-billing-migration` ServiceAccounts
 
-**Step 1: enabling grant.** RoleBinding `maya-billing-migrator` (namespace `legacy-billing-migration`) → Role `billing-migrator` R2: core `serviceaccounts` with `impersonate`. Scope: `legacy-billing-migration`.
+**Step 1 [E]: enabling grant.** RoleBinding `maya-billing-migrator` (namespace `legacy-billing-migration`) → Role `billing-migrator` R2: core `serviceaccounts`, `users`, `groups` with `impersonate` (`roles.yaml` line 105).
 
-**Step 2: target.** A request as `system:serviceaccount:legacy-billing-migration:<name>`, where the name is one of `legacybill-svc-01` to `-07`. The impersonation check runs against the target ServiceAccount's namespace, so this binding applies to `legacy-billing-migration`. Impersonation of a ServiceAccount in another namespace is not granted by this binding. This is a verify item in Section 6.
+**Step 2 [K]: the impersonation check for a ServiceAccount is evaluated in that ServiceAccount's namespace, so a RoleBinding in `legacy-billing-migration` covers `legacybill-svc-01` to `-07` and not ServiceAccounts elsewhere.** This scoping is Kubernetes authorization behavior, not shown by the export. Confirm with `kubectl auth can-i impersonate serviceaccounts -n legacy-billing-migration --as=maya.chen` and with `-n prod`.
 
-**Step 3: resulting identity and its privileges.** The impersonated identity keeps its own grants. For `legacybill-svc-06`: RoleBinding to `legacybill-role-03` (R1 ConfigMaps and Services `get,list,watch,update,patch`; R2 deployments and statefulsets `get,list,watch`) and RoleBinding to `legacybill-role-01` (R1 pods `get,list,watch`; R2 replicasets and deployments `get,list,watch`). No Secrets. Impersonating `reconcile-job` yields no grants, because it has no binding.
+**Step 3 [E]: resulting identity and its privileges.** For `legacybill-svc-06`, from its RoleBindings: `legacybill-role-03` (ConfigMaps and Services `get,list,watch,update,patch`; deployments and statefulsets `get,list,watch`) and `legacybill-role-01` (pods `get,list,watch`; replicasets and deployments `get,list,watch`). No Secrets. `reconcile-job` has no RoleBinding, so impersonating it grants nothing.
 
-**Result.** `maya.chen` can update ConfigMaps and Services in `legacy-billing-migration` through an impersonated ServiceAccount. Impersonation of `users` and `groups` is cluster-scoped and is not granted by a RoleBinding (manifest-derived). The reach stays inside one namespace and excludes Secrets.
+**Step 4 [E]: users and groups.** Impersonation of `users` and `groups` is a cluster-level check. The export contains no ClusterRoleBinding for `maya.chen`, so this grant does not apply to them. Stated as derived from the export; confirm with `kubectl auth can-i impersonate users --as=maya.chen`.
+
+**Status.** Conditional on Step 2. If it holds, reach is ConfigMap and Service writes in one namespace, with no Secrets.
 
 ---
 
 ## 4. Dead ends (checked and cleared)
 
-### N1. `prod/deploy-bot` through `migration-operator` (no path)
+### N1. `prod/deploy-bot` through `migration-operator`
 
-Role `migration-operator` in `legacy-billing-migration`:
-- R1: `rbac` `roles, rolebindings` with `get,list`.
-- R2: `rbac` `roles, clusterroles` with `bind, escalate, create`.
+Role `migration-operator` (`legacy-billing-migration`): R1 `rbac/roles, rolebindings` `get,list` (`roles.yaml` line 38); R2 `rbac/roles, clusterroles` `bind, escalate, create` (lines 48–49).
 
-**Why it is inert.**
-- Creating a RoleBinding requires `create` (or `update`/`patch`) on `rolebindings`. `grep -n "rolebindings" roles.yaml` returns line 38 only, which is in R1 (`get,list`). No subject holds write access to RoleBindings.
-- `deploy-bot` can create Roles in `legacy-billing-migration`, and with `escalate` it could create a Role holding permissions it does not hold. Neither is bound to anyone, so neither grants anything.
-- `deploy-bot` has no `update` on `roles`, so it cannot change an existing bound Role.
+- Creating a RoleBinding requires write access to `rolebindings`. The only grant on that resource is R1 (`get,list`). No subject can create a RoleBinding through this grant.
+- `deploy-bot` can create Roles in `legacy-billing-migration` and could use `escalate` to create a Role with permissions it does not hold. Neither is bound to any subject, so neither grants anything.
+- `deploy-bot` has no `update` on `roles`, so it cannot change a bound Role.
 
-**Latent risk, not active.** If `create` on `rolebindings` were added for `deploy-bot`, `bind` on `cluster-superuser` would let it create a RoleBinding in `legacy-billing-migration` to `cluster-superuser`. That gives full control of the legacy namespace, including its Secrets. It would not give cluster-wide reach, because that requires `create` on `clusterrolebindings`, which only `controller-admin` holds.
+**Latent risk.** If `create` on `rolebindings` were added for `deploy-bot`, `bind` on `cluster-superuser` would let it create a RoleBinding to `cluster-superuser` in `legacy-billing-migration`. That is control of the namespace, Secrets included. It is not cluster-wide reach, which would need `create` on `clusterrolebindings`, held only by `platform/controller-admin` through `cluster-superuser`.
 
-**Who can delegate RBAC in this export.** Only `platform/controller-admin`, through `cluster-superuser`. Below that, the highest identity reachable through RBAC delegation is none.
+### N2. `maya.chen` through `dev-editor`
 
-### N2. `maya.chen` through `dev-editor` (no path)
+`dev-editor` (`maya-dev-editor`, namespace `dev`) grants write on pods and deployments in `dev`. The `dev` ServiceAccounts she can name are `dev-svc-01` to `dev-svc-04`. Their RoleBindings grant ConfigMaps, pods, endpoints, services, and replicasets. None grants Secrets. None has a ClusterRoleBinding. A grep for `privileged` across the workloads found only `media-processing`, so no `dev` workload is privileged. Result: no becoming.
 
-`dev-editor` (`maya-dev-editor`, namespace `dev`) grants create, update, and patch on pods and deployments in `dev`, so she can name any `dev` ServiceAccount. The bound `dev` ServiceAccounts are:
-- `dev-svc-01` and `dev-svc-03`: ConfigMaps and pods `get,list,watch,update,patch`.
-- `dev-svc-02`: endpoints and services `get,list`; replicasets and statefulsets `get,list,watch`.
-- `dev-svc-04`: both sets.
+### N3. Cluster-wide `view` and `configmap-reader`
 
-None has Secret access or a ClusterRoleBinding. A grep for `privileged` across the workloads found only `media-processing`, so no `dev` workload is privileged. Result: no becoming.
-
-### N3. Cluster-wide `view` and `configmap-reader` (no escalation; data exposure)
-
-Seven ServiceAccounts hold cluster-wide `view`: `kubesystem-svc-04`, `prod-svc-01` (two bindings), `build-svc-04`, `build-svc-05`, `staging-svc-01`, `mediaproce-svc-02`, `monitoring-svc-04`. `view` R1 covers pods, services, endpoints, and ConfigMaps (read). It does not cover Secrets. `deploy-bot` also reads ConfigMaps cluster-wide (`configmap-reader`). None of these changes identity. The exposure is data: ConfigMaps often hold credentials. Their contents are not in the export.
-
-### N4. `prod/orders-api-sa` (no edge of its own)
-
-Its only grant is read on `prod` ConfigMaps and Secrets. It is the target of E3 and E4 but starts no edge. See `1-effective_privilege.md` Section 6.
+Seven ServiceAccounts hold cluster-wide `view`: `kubesystem-svc-04`, `prod-svc-01` (two bindings), `build-svc-04`, `build-svc-05`, `staging-svc-01`, `mediaproce-svc-02`, `monitoring-svc-04`. `view` R1 covers pods, services, endpoints, and ConfigMaps for read. It does not cover Secrets. `deploy-bot` reads ConfigMaps cluster-wide through `configmap-reader`. None of these changes identity. The exposure is data; ConfigMap contents are not in the export.
 
 ---
 
 ## 5. Permissions that look harmless
 
-| Permission | Where it appears | What it allows |
+| Permission | Where it appears | Edge |
 |---|---|---|
-| Pod `update`/`patch` | `mediaproce-role-01` in `media-processing` | Changes a running pod's image and inherits the pod's privileges (E5) |
-| Job `create` | `reconciler` in `prod` | Runs a pod under any ServiceAccount in `prod` (E4) |
-| Deployment `create`/`update` | `deployer` in `prod`; `dev-editor` in `dev` | Runs pods under any ServiceAccount in the namespace (E2, E3) |
-| Pod `create` | `platform-deployer` in `platform` | Runs pods under `controller-admin` (E1) |
-| `impersonate` on ServiceAccounts | `billing-migrator` in `legacy-billing-migration` | Acts as a ServiceAccount in that namespace (E6) |
-| `bind`, `escalate` | `migration-operator` in `legacy-billing-migration` | Inert without `create` on RoleBindings (N1) |
+| Pod `update`/`patch` | `mediaproce-role-01` in `media-processing` | E5 (conditional) |
+| Job `create` | `reconciler` in `prod` | E4 (conditional) |
+| Deployment `create`/`update` | `deployer` in `prod`; `dev-editor` in `dev` | E2, E3 (conditional); N2 (dead end) |
+| Pod `create` | `platform-deployer` in `platform` | E1 (conditional) |
+| `impersonate` on ServiceAccounts | `billing-migrator` in `legacy-billing-migration` | E6 (conditional) |
+| `bind`, `escalate` | `migration-operator` in `legacy-billing-migration` | N1 (inert) |
 
 ---
 
-## 6. Verification still needed
+## 6. Verification needed
 
-| Check | Command or method | Resolves |
+Each check resolves the [K] step(s) named. Without them, the edge stays conditional.
+
+| Check | Command | Resolves |
 |---|---|---|
-| Deployment names in `prod` | Read `workloads/prod/deployments.yaml` in full | Names for the E2 and E3 Deployments (currently cited by line) |
-| E1 pod ServiceAccount choice | Server-side dry run of a Pod in `platform` with `serviceAccountName: controller-admin`, as `system:serviceaccount:build:ci-runner` | E1 |
-| E2, E3 workload ServiceAccount choice | Server-side dry run of a Deployment in `prod` with `serviceAccountName: billing-reconciler`, then `orders-api-sa`, as `system:serviceaccount:prod:deploy-bot` | E2, E3 |
-| E4 Job ServiceAccount choice | Server-side dry run of a Job in `prod` with `serviceAccountName: orders-api-sa`, as `system:serviceaccount:prod:billing-reconciler` | E4 |
-| E5 image patch | As `mediaproce-svc-01`: `kubectl patch pod <transcoder-pod> -n media-processing --dry-run=server -p '{"spec":{"containers":[{"name":"app","image":"busybox"}]}}'` | Whether a pod image patch is accepted |
-| E5 node placement | `kubectl get pods -A -o wide` | What else runs on the node hosting `transcoder` |
-| E6 impersonation scope | `kubectl auth can-i impersonate serviceaccounts -n legacy-billing-migration --as=maya.chen`; same with `-n prod` to confirm no cross-namespace reach | E6 scope |
+| E1 Steps 5–6: pod token and API use | Server-side dry run of a Pod in `platform` with `serviceAccountName: controller-admin`, as `system:serviceaccount:build:ci-runner`; then a live `kubectl auth can-i --list` with the resulting token | E1 |
+| E2, E3 Step 3: Deployment identity | Server-side dry run of a Deployment in `prod` with `serviceAccountName: billing-reconciler`, then `orders-api-sa`, as `system:serviceaccount:prod:deploy-bot` | E2, E3 |
+| E4 Step 3: Job identity | Server-side dry run of a Job in `prod` with `serviceAccountName: orders-api-sa`, as `system:serviceaccount:prod:billing-reconciler` | E4 |
+| E5 Step 3: image patch | As `mediaproce-svc-01`: `kubectl patch pod <transcoder-pod> -n media-processing --dry-run=server -p '{"spec":{"containers":[{"name":"app","image":"busybox"}]}}'`, then confirm the replacement container keeps `privileged` and `hostPath` | E5 |
+| E5 node placement | `kubectl get pods -A -o wide` | Whether other workloads share the node with `transcoder` |
+| E6 Step 2: impersonation scope | `kubectl auth can-i impersonate serviceaccounts -n legacy-billing-migration --as=maya.chen`; same with `-n prod`; `users` and `groups` as well | E6 |
 | N1 binding creation | `kubectl auth can-i create rolebindings -n legacy-billing-migration --as=system:serviceaccount:prod:deploy-bot` | N1 stays inert |
-| Image source | Review registry and node image pull policy | Whether an attacker-chosen image can run in E1 to E5 |
-| Bootstrap bindings | `kubectl get clusterrolebindings,rolebindings -A -o yaml` on a live cluster | Any `system:` grants missing from the export. The main open limit. |
+| Image source | Registry allowlist and node pull policy | Whether any attacker-chosen image can run in E1 to E5 |
+| Bootstrap bindings | `kubectl get clusterrolebindings,rolebindings -A -o yaml` on a live cluster | Any `system:` grant missing from the export. The main open limit. |
 
 These checks need a caller with impersonation rights. Without them, the commands return `forbidden` and prove nothing.
