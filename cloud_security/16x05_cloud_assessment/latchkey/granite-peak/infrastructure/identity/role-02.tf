@@ -1,0 +1,8 @@
+# role-02
+# Managed by Terraform. Do not edit by hand.
+
+resource "aws_iam_role" "svc_2" {
+  name = "gp-svc-02"
+  assume_role_policy = jsonencode({ Version = "2012-10-17", Statement = [{
+    Effect = "Allow", Principal = { Service = "ec2.amazonaws.com" }, Action = "sts:AssumeRole" }] })
+}

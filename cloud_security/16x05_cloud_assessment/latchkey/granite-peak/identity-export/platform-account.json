@@ -1,0 +1,419 @@
+{
+  "account": "210000000002",
+  "roles": [
+    {
+      "name": "gp-deploy",
+      "trusts": [
+        "arn:aws:iam::210000000001:role/ci-runner"
+      ],
+      "attached": [
+        "gp-deploy-policy"
+      ],
+      "finding": "div-account-boundary"
+    },
+    {
+      "name": "gp-telemetry-reader",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-telemetry-read"
+      ],
+      "note": "node instance-profile role"
+    },
+    {
+      "name": "gp-reporting",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-reporting-broad"
+      ],
+      "finding": "broad-reporting-policy"
+    },
+    {
+      "name": "gp-app-00",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-00-policy"
+      ]
+    },
+    {
+      "name": "gp-app-01",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-01-policy"
+      ]
+    },
+    {
+      "name": "gp-app-02",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-02-policy"
+      ]
+    },
+    {
+      "name": "gp-app-03",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-03-policy"
+      ]
+    },
+    {
+      "name": "gp-app-04",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-04-policy"
+      ]
+    },
+    {
+      "name": "gp-app-05",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-05-policy"
+      ]
+    },
+    {
+      "name": "gp-app-06",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-06-policy"
+      ]
+    },
+    {
+      "name": "gp-app-07",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-07-policy"
+      ]
+    },
+    {
+      "name": "gp-app-08",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-08-policy"
+      ]
+    },
+    {
+      "name": "gp-app-09",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-09-policy"
+      ]
+    },
+    {
+      "name": "gp-app-10",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-10-policy"
+      ]
+    },
+    {
+      "name": "gp-app-11",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-11-policy"
+      ]
+    },
+    {
+      "name": "gp-app-12",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-12-policy"
+      ]
+    },
+    {
+      "name": "gp-app-13",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-13-policy"
+      ]
+    },
+    {
+      "name": "gp-app-14",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-14-policy"
+      ]
+    },
+    {
+      "name": "gp-app-15",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-15-policy"
+      ]
+    },
+    {
+      "name": "gp-app-16",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-16-policy"
+      ]
+    },
+    {
+      "name": "gp-app-17",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-17-policy"
+      ]
+    },
+    {
+      "name": "gp-app-18",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-18-policy"
+      ]
+    },
+    {
+      "name": "gp-app-19",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-19-policy"
+      ]
+    },
+    {
+      "name": "gp-app-20",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-20-policy"
+      ]
+    },
+    {
+      "name": "gp-app-21",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-21-policy"
+      ]
+    },
+    {
+      "name": "gp-app-22",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-22-policy"
+      ]
+    },
+    {
+      "name": "gp-app-23",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-23-policy"
+      ]
+    },
+    {
+      "name": "gp-app-24",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-24-policy"
+      ]
+    },
+    {
+      "name": "gp-app-25",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-25-policy"
+      ]
+    },
+    {
+      "name": "gp-app-26",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-26-policy"
+      ]
+    },
+    {
+      "name": "gp-app-27",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-27-policy"
+      ]
+    },
+    {
+      "name": "gp-app-28",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-28-policy"
+      ]
+    },
+    {
+      "name": "gp-app-29",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-29-policy"
+      ]
+    },
+    {
+      "name": "gp-app-30",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-30-policy"
+      ]
+    },
+    {
+      "name": "gp-app-31",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-31-policy"
+      ]
+    },
+    {
+      "name": "gp-app-32",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-32-policy"
+      ]
+    },
+    {
+      "name": "gp-app-33",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-33-policy"
+      ]
+    },
+    {
+      "name": "gp-app-34",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-34-policy"
+      ]
+    },
+    {
+      "name": "gp-app-35",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-35-policy"
+      ]
+    },
+    {
+      "name": "gp-app-36",
+      "trusts": [
+        "ec2.amazonaws.com"
+      ],
+      "attached": [
+        "gp-app-36-policy"
+      ]
+    }
+  ],
+  "policies": {
+    "gp-deploy-policy": {
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "eks:*",
+            "ecr:*",
+            "s3:GetObject",
+            "s3:PutObject"
+          ],
+          "Resource": "*"
+        }
+      ]
+    },
+    "gp-telemetry-read": {
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:GetObject",
+            "s3:ListBucket"
+          ],
+          "Resource": [
+            "arn:aws:s3:::gp-grid-telemetry",
+            "arn:aws:s3:::gp-grid-telemetry/*"
+          ]
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "kms:Decrypt"
+          ],
+          "Resource": "arn:aws:kms:*:210000000002:key/gp-platform-shared"
+        }
+      ]
+    },
+    "gp-reporting-broad": {
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "*:Describe*",
+            "*:List*",
+            "*:Get*"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+  }
+}

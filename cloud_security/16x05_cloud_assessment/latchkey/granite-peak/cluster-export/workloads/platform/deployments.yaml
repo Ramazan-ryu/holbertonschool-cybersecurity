@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telemetry-ingest
+  namespace: platform
+  labels:
+    app: telemetry-ingest
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telemetry-ingest
+  template:
+    metadata:
+      labels:
+        app: telemetry-ingest
+    spec:
+      serviceAccountName: node-agent
+      containers:
+      - name: ingest
+        image: registry.gp.internal/telemetry-ingest:3.1

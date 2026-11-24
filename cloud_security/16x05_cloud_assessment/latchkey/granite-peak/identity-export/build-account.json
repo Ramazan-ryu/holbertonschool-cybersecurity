@@ -1,0 +1,10 @@
+{
+  "account": "210000000001",
+  "roles": [
+    {
+      "name": "ci-runner",
+      "trust": "codebuild.amazonaws.com",
+      "note": "CI build role; its credential is deployed into the pipeline"
+    }
+  ]
+}
