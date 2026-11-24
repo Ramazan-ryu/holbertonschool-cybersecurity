@@ -32,7 +32,7 @@ The business consequence is confirmed access to a named object of real-time regi
 
 ### F-05 — Admission enforcement differs from the architecture statement
 
-**Rating: Low.** The architecture claims pod security is enforced in every namespace. The exported `cluster-export/admission/bindings.yaml` contains `validationActions`, indicating a validation-action configuration rather than the stated enforced mode. The supplied evidence does not show that a violating workload was admitted or that this setting enabled the telemetry path. Confirm the full binding and set the intended enforcement mode after testing workloads.
+**Rating: Low.** The architecture claims pod security is enforced in every namespace. `cluster-export/admission/bindings.yaml` binds policy `pod-security-baseline` with `validationActions: [Audit]`, which records violations for review rather than rejecting them at admission. This is a real enforcement divergence, but no violating workload or connection to the telemetry read is evidenced. Confirm the intended policy mode with platform owners and test workloads before changing it.
 
 ### F-06 — App HTTPS ingress uses a broad private source range
 
