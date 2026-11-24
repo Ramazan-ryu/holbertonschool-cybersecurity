@@ -1,5 +1,21 @@
-Thanks for walking us through the control set. There is useful protection in it today: baseline Pod Security enforcement applies in 11 namespaces, and `orders-api-ingress` restricts ingress to the selected production API from the billing-worker label (assuming the network implementation enforces NetworkPolicy).
+Thank you for walking us through the control set. Here is what each control does today.
 
-Three gaps make the slide broader than the current effect. `media-processing` has no Pod Security labels; its transcoder is configured privileged with `SYS_ADMIN`, host networking, and a host-root mount. The privileged-container admission policy detects matching Deployment requests, but its binding uses `Audit`, so it records violations and does not reject them. The payments NetworkPolicy selects `app: payments-api`, while the exported workloads are labeled `payments-gateway`, `ledger`, and `payments-app-1`; it currently selects none. Only two NetworkPolicies exist, leaving other namespaces without policy-based segmentation in this export. Namespace names organize objects; they do not by themselves restrict network traffic or cancel cross-namespace RBAC grants.
+**Pod Security admission (baseline, 11 of 14 namespaces).** Working where applied. `media-processing` has no enforce label, so Pod Security does not apply there. That makes it effectively exempt: its transcoder can run privileged with `SYS_ADMIN`, host networking and a host-root mount, which the same admission would refuse in a labelled namespace.
 
-A quarter-sized plan is to inventory and label all namespaces, migrate the transcoder away from host access and enforce baseline, test the admission policy against release workflows and then switch its binding to `Deny`, and map required traffic before correcting the payments selector and adding namespace policies. Add a simple report showing each policy's action, selected workloads, and last validation result. That makes the slide measurable and helps the team check the remaining namespaces themselves.
+**Privileged-container admission policy.** Present, but it does not block anything. Its binding uses `Audit`, so the API server records violations and still admits the workload. A policy in a repository or a bound object is a standard, not enforcement. Only an admission mechanism that rejects requests applies it.
+
+**NetworkPolicy `orders-api-ingress`.** Working, assuming the network plugin enforces policy and the `billing-worker` label matches.
+
+**NetworkPolicy `payments-api-isolation`.** Currently does nothing. It selects `app: payments-api`, which matches no pod, so it isolates nothing. It looks healthy in a listing, and the listing does not show whether it selects anything.
+
+The common pattern is that a control's presence is reported and its effect is not. Nothing currently shows whether each control acts.
+
+To make the slide accurate within a quarter:
+
+1. Enforce baseline on every namespace, moving the transcoder off host access or documenting a time-limited exemption.
+2. Test the admission policy against release workflows, then change its binding to `Deny`.
+3. Correct the payments selector to the real pod labels and prove it with a connection test.
+4. Add a default-deny network policy per namespace, with explicit allows for mapped traffic.
+5. Report monthly on each policy: its action, the workloads it selects, and the date of its last validation.
+
+The controls reflect real work. The gap is between their existence and their effect, and step 5 closes it.
