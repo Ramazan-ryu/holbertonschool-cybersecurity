@@ -12,6 +12,8 @@ The platform identity export and `infrastructure/identity/gp-deploy.tf` show tha
 
 The successful activity records on 2026-10-19 show `ci-runner` assuming `gp-deploy` at 02:00Z, `gp-deploy` updating `telemetry-ingest` at 02:03Z, and `gp-telemetry-reader` reading `gp-grid-telemetry/load/2026-grid.ndjson` at 02:12Z. This is the material chain detailed in `3-chain.md`. The CI repository history also contains an access key in `.ci/deploy.env` (commit `d3ce67de7c82ee8db4b6855347b9c0ef1ccee0b1`, 2026-10-28). Because that commit is later than the October 19 activity, the evidence does not prove it was the credential used in that session. No credential values are reproduced.
 
+In a current account API replay, that credential returned caller ARN `arn:aws:iam::210000000001:user/ci-runner`; the API then issued a `gp-deploy` session, which assumed `gp-telemetry-reader` and successfully read the named object. The caller ARN differs from the trust export's `arn:aws:iam::210000000001:role/ci-runner`, although the API accepted the transition. The replay proves the credential's current path, not its use on October 19; reconcile the user-versus-role identity discrepancy.
+
 The business consequence is confirmed access to a named object of real-time regional grid load and switching telemetry, plus deployment authority over its ingestion workload. The evidence does not show control of grid equipment, external disclosure, or an outage. This path outranks all other findings because it crosses account, cluster, workload identity, storage, and key boundaries and ends in a successful read of the estate's most sensitive classified data.
 
 ## Lower-impact findings

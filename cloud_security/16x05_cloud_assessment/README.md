@@ -13,4 +13,4 @@ This project contains the assessment plan, architecture-to-build reconciliation,
 - `4-remediation/4-programme.md` — sequenced remediation for remaining findings.
 - `5-assessment_report.md` — board summary and engineering report.
 
-The account CLI replay and live remediation were not completed in the supplied workstation transcript. Conclusions distinguish successful activity-log events and artefact-derived relationships from actions not independently replayed.
+The current repository credential and pre-fix account path were successfully replayed against the local account API; the object body was sent to `/dev/null`. Live remediation was denied to the assessment identity, so the post-fix chain is derived from the proposed trust state. Conclusions distinguish executed API responses, historical activity events, and artefact-derived relationships.

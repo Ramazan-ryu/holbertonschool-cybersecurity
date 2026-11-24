@@ -1,12 +1,12 @@
 # Remediation Programme
 
-The order assumes limited engineering capacity. Complete item 1 first. If capacity stops there, the build-to-production trust edge is removed. Continue in sequence so the next completed work reduces access to the classified data before addressing bounded read-only and segmentation issues.
+The order assumes limited engineering capacity. Complete item 1 first. If capacity stops there, the repository-exposed credential is disabled and the production trust is reviewed before deployment resumes. Continue in sequence so the next completed work removes workload access to classified data before addressing bounded read-only and segmentation issues.
 
 ## 1. Contain the material build-to-platform path
 
-Revoke the history-exposed CI key; remove build-account `ci-runner` trust from `gp-deploy` until a short-lived replacement is approved. Review the commit and repository access history, rotate any dependent credentials, and preserve relevant audit records. Then implement a federated pipeline identity constrained to the intended repository and deployment workflow. Replace `eks:*` and wildcard S3 access with only the actions and resources required for deployment. Validate the trust with `get-caller-identity` and an expected denied assume-role attempt for the retired principal before enabling the new pipeline.
+Deactivate the history-exposed access key that the account API confirmed authenticates as `user/ci-runner`; remove it from current source and history, review repository access, rotate any dependent credentials, and preserve audit records. Reconcile why the live caller is an IAM user while the trust export names a role. Keep the production deployment path suspended until a short-lived federated identity constrained to the intended repository and workflow is approved. Remove `eks:*` and wildcard S3 actions in favor of the deployment actions and resources actually required. Verify the retired key fails `get-caller-identity`, and test that the replacement can update only the approved workload.
 
-**Cost/dependency:** deployment pauses during identity replacement; requires CI and cloud-platform owners to coordinate.
+**Cost/dependency:** deployment pauses during identity replacement; requires CI and IAM/cloud-platform owners to reconcile the caller principal and coordinate the replacement. The assessment identity was denied both `iam:UpdateAccessKey` and `iam:UpdateAssumeRolePolicy`, so an authorized IAM administrator must apply containment.
 
 ## 2. Remove workload access to node credentials and isolate telemetry access
 

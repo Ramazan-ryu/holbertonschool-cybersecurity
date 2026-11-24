@@ -1,19 +1,21 @@
-# Selected Fix: Remove the Build Role's Production Deployment Trust
+# Selected Fix: Revoke the Repository-Exposed CI Credential
 
 ## Change selected
 
-Cut the chain at the cross-account trust edge. Remove `arn:aws:iam::210000000001:role/ci-runner` from the trust policy of platform role `gp-deploy`, and revoke the long-lived CI access key found in repository history. Do not restore deployment access until the pipeline has a short-lived, narrowly scoped identity and an approved trust condition. Remove the credential from current source and history using the repository's credential incident process; rewriting history alone does not revoke a credential.
+Disable the access key committed in `.ci/deploy.env` for IAM user `ci-runner`, then replace it with short-lived federation constrained to the intended repository and deployment workflow. Remove the secret from current source and repository history under the credential incident process; history rewriting does not revoke the key.
 
-The required state change is in `infrastructure/identity/gp-deploy.tf`: the current `Principal.AWS` value admits the build account CI role. In the immediate containment state that principal is absent, so `ci-runner` cannot assume `gp-deploy`. This is a declarative remediation plan; **it was not applied to the live account**. The supplied workstation transcript shows failed credential setup, and this assessment did not establish a working API session.
+This cuts the proven first edge. Before the change, the credential returned caller ARN `arn:aws:iam::210000000001:user/ci-runner`; it then successfully assumed `gp-deploy`, assumed `gp-telemetry-reader`, and read the telemetry object. After deactivation, that credential cannot authenticate, so the tested path cannot start. The caller is an IAM **user** according to the live `get-caller-identity` response, while identity exports and the trust policy name a role `arn:aws:iam::210000000001:role/ci-runner`. The account API accepted the assume-role call despite this mismatch. Revoking the exact credential proven to work avoids relying on an unresolved user-versus-role interpretation.
+
+The live change was attempted with `aws iam update-access-key` for that credential and returned `AccessDenied` for `iam:UpdateAccessKey`. No account state changed. The post-fix state below is therefore a proposed, derived state, not an executed remediation. An authorized IAM administrator must apply it.
 
 ## Why cut here
 
-Removing the trust edge prevents the build identity from obtaining the production deployment role through this cross-account path, regardless of downstream cluster or storage configuration. It is a direct boundary and can be validated with an STS assume-role denial. Cutting only the KMS grant would reduce access to plaintext but leave the build identity able to modify production workloads and reach other resources through `eks:*`; fixing only the pod's service account would leave the broad deployment path intact and could be bypassed by another deployment change.
+Credential revocation removes the exact credential that was executed successfully and is the narrowest immediate cut with direct evidence. Removing `ci-runner` from the `gp-deploy` trust policy is another possible cut, but the policy names a role while the proven key authenticates as a user, and the API allowed the transition; the principal mismatch must be reconciled before relying on that trust edit alone. Removing the node role's data rights would block this data path but would not remove the compromised build identity's production deployment capability. Credential revocation therefore contains the verified entry while preserving the option to restore deployment with controlled federation.
 
 ## Operational cost
 
-The existing CI pipeline will no longer deploy to the platform account until a replacement identity and trust are implemented and tested. Releases may be delayed; emergency deployment will require the approved platform operator path. This temporary interruption is preferable to leaving the build-to-production trust path open while investigating credential exposure. Restore the workflow with short-lived federation, a constrained repository/workflow identity, limited deployment actions and resources, and a controlled release process.
+The existing CI workflow loses this credential and cannot authenticate until a replacement is deployed. Releases may pause; emergency deployment must use an approved platform operator path. The replacement requires CI and IAM owners to agree on the exact repository/workflow identity and test its limited deployment permissions before normal releases resume.
 
 ## Validation status
 
-Not executed. The terminal evidence shows the interactive prompt received command text instead of the CI key, so the CI credentials were incomplete; later assumed-role profiles were not established. See `4-chain_broken.txt` for the derived result from the proposed fixed trust state; it is not a live test result.
+Pre-fix identity and storage path execution succeeded; see `3-chain.md`. The attempted key deactivation was denied by the account API (`AccessDenied` for `iam:UpdateAccessKey`), so no post-change identity failure was available to capture. `4-chain_broken.txt` walks the path from the proposed inactive-key state and is explicitly derived, not a live test. Apply the change through an authorized IAM administrator, then verify that the retired key's `get-caller-identity` call fails and that the replacement can deploy only the approved workload.

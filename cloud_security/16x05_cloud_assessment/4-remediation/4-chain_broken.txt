@@ -1,10 +1,19 @@
-POST-FIX CHAIN RE-WALK — DERIVED, NOT EXECUTED
+POST-FIX CHAIN RE-WALK — DERIVED FROM PROPOSED INACTIVE-KEY STATE; NOT LIVE-EXECUTED
 
-Proposed fixed state: the gp-deploy trust policy no longer names arn:aws:iam::210000000001:role/ci-runner; the exposed CI key is revoked.
+Chosen cut: deactivate the repository-exposed key belonging to the live caller `arn:aws:iam::210000000001:user/ci-runner`. The exact key identifier is present in repository history and is deliberately not repeated here. Proposed state: that key's IAM status is `Inactive`; a replacement uses short-lived federation.
 
-1. Repository history may still contain the old key until history remediation is complete, but a revoked key cannot authenticate. History cleanup does not substitute for revocation.
-2. Even if the old credential were presented, STS cannot issue a gp-deploy session because the target role's trust policy no longer accepts ci-runner. The chain stops at the cross-account AssumeRole transition.
-3. Without a gp-deploy session, the CI identity cannot use that role's eks:* permission to update telemetry-ingest through the recorded deployment path.
-4. Therefore this CI-to-deployment route cannot introduce a workload change that reaches the node identity and the telemetry object. The separate gp-telemetry-reader permission remains and must be addressed in the programme.
+Observed pre-fix execution:
+- The repository credential returned `get-caller-identity` ARN `arn:aws:iam::210000000001:user/ci-runner`.
+- STS `AssumeRole` succeeded and `get-caller-identity` returned `arn:aws:sts::210000000002:assumed-role/gp-deploy/assessment-chain`.
+- From that session, STS `AssumeRole` succeeded for `gp-telemetry-reader`; `get-caller-identity` returned `arn:aws:sts::210000000002:assumed-role/gp-telemetry-reader/assessment-node`.
+- S3 `GetObject` succeeded for `gp-grid-telemetry/load/2026-grid.ndjson`, returned `ContentLength: 4368`, and sent the body to `/dev/null`.
 
-Validation type: derived by walking the proposed trust-policy state. No post-change AWS CLI denial was obtained; the available transcript instead shows the pre-change attempt failed locally because credentials/profile setup was incomplete. Do not treat this file as proof that the live account has been changed.
+Attempted live deactivation with `aws iam update-access-key` returned `AccessDenied` for `iam:UpdateAccessKey`. No live configuration changed, so the post-fix walk is derived from the proposed inactive-key state.
+
+Derived post-fix walk:
+1. The key remains in repository history until cleanup, but its IAM status is assumed to have been changed to `Inactive` by an authorized administrator.
+2. Presenting that inactive key cannot authenticate as `user/ci-runner`; therefore the initial `get-caller-identity`/credential-validation step fails and no new caller credentials are issued.
+3. Without an authenticated `ci-runner` session, the tested STS `AssumeRole` call to `gp-deploy` cannot occur through this credential.
+4. Without the `gp-deploy` session, this path cannot reproduce the deployment-role update or the subsequent reader-role assumption and telemetry object read. The independent node-reader role and its data permissions remain and require the separate workload-identity and key remediations in `4-programme.md`.
+
+Validation classification: **pre-fix chain executed; proposed post-fix chain derived, not executed.** The account API explicitly denied deactivation to the assessment identity. No post-change authentication failure is claimed. After an authorized administrator applies the change, verify that the retired key fails `get-caller-identity` and that the replacement deployment identity is narrowly scoped.
