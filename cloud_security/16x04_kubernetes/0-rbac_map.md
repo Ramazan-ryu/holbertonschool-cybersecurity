@@ -16,7 +16,7 @@ Object counts were verified with `grep -c` against the export files:
 | ClusterRoleBinding | 11 | 11 |
 | **Total bindings** | **128** | **128** |
 
-Verification method: the counts above come from `grep -c '^kind: <Kind>$'` run against each export file. The rule contents, subjects, and roleRefs come from the reviewed `yq` output of `rolebindings.yaml` and `clusterrolebindings.yaml`. The Role and ClusterRole rules come from the export objects summarized in Section 5.
+Verification method: the counts above come from `grep -c '^kind: <Kind>$'` run against each export file. The subjects and roleRefs come from `rolebindings.yaml` and `clusterrolebindings.yaml`. The Role and ClusterRole rule fields are transcribed in Section 6.
 
 **Not verified:** Effective permissions were not checked against a live cluster. No kubeconfig is present on the analysis machine (`kubectl config current-context` is unset, `~/.kube` does not exist, `KUBECONFIG` is empty). Any statement below about effective authorization is derived from manifests, and it is marked as such.
 
@@ -28,50 +28,48 @@ Verification method: the counts above come from `grep -c '^kind: <Kind>$'` run a
 - A **ClusterRoleBinding** referencing a **ClusterRole** grants across the whole cluster.
 - The subject's namespace identifies its ServiceAccount. The binding's namespace is where a RoleBinding's grant applies. Cross-namespace subjects are shown as `SA <subject-namespace>/<name>`.
 
-## 3. Namespace coverage
+## 3. Namespace inventory
 
-The export contains exactly 14 Namespace objects. Every one is listed below, including namespaces with few or no RBAC objects. Categories are analyst labels assigned from object names and content. The export itself contains no category field.
+The namespace names below are copied from `namespaces.yaml`. Counts are object counts in the corresponding RBAC export files; they are not namespace classifications.
 
-| Namespace | Category (analyst label) | ServiceAccounts | Roles | RoleBindings (in namespace) | Workloads dir present | Notes |
-|---|---|---|---|---|---|---|
-| default | active | 6 | 5 | 7 | yes | |
-| kube-system | system | 7 | 3 | 11 | yes | |
-| prod | active | 7 | 8 | 10 | yes | |
-| build | active | 8 | 6 | 9 | yes | |
-| platform | active | 9 | 4 | 12 | yes | Includes `daemonsets.yaml` |
-| dev | active | 4 | 6 | 6 | yes | |
-| staging | active | 5 | 4 | 8 | yes | |
-| analytics | active | 7 | 3 | 9 | yes | |
-| payments | active | 7 | 3 | 8 | yes | |
-| media-processing | active | 5 | 3 | 6 | yes | |
-| monitoring | active | 8 | 6 | 9 | yes | |
-| data | active | 4 | 5 | 7 | yes | |
-| legacy-billing-migration | completed-project / legacy-looking | 8 | 6 | 15 | yes | Still holds a live `reconcile-cron` workload and active bindings. Not treated as retired. |
-| kube-addons-old | abandoned-looking / sparse | 1 | 0 | 0 | **no** | Only ServiceAccount `addons-legacy`. No Role, RoleBinding, or workload directory. |
+| Namespace | ServiceAccounts | Roles | RoleBindings |
+|---|---:|---:|---:|
+| analytics | 7 | 3 | 9 |
+| build | 8 | 6 | 9 |
+| data | 4 | 5 | 7 |
+| default | 6 | 5 | 7 |
+| dev | 4 | 6 | 6 |
+| kube-addons-old | 1 | 0 | 0 |
+| kube-system | 7 | 3 | 11 |
+| legacy-billing-migration | 8 | 6 | 15 |
+| media-processing | 5 | 3 | 6 |
+| monitoring | 8 | 6 | 9 |
+| payments | 7 | 3 | 8 |
+| platform | 9 | 4 | 12 |
+| prod | 7 | 8 | 10 |
+| staging | 5 | 4 | 8 |
+| **Total** | **86** | **62** | **117** |
 
-Totals: 86 ServiceAccounts, 62 Roles, 117 RoleBindings. Each Role-count and RoleBinding-count row sums to the totals in Section 1.
+## 4. ServiceAccount subjects
 
-**Test namespace:** The export does not contain a Namespace named `test`. This map does not invent one. If a test or sandbox namespace exists in the live cluster, the export is incomplete and must be regenerated before this map is final.
+Every ServiceAccount object from `serviceaccounts.yaml` is listed below with its namespace. Binding relationships for subjects are enumerated individually in Section 7.
 
-**Excluded files:** The following export contents are not RBAC objects and are not part of this map: `admission/` (`bindings.yaml`, `policies.yaml`), `networkpolicies.yaml`, `podsecurity-labels.yaml`, and `workloads/` (per-namespace `deployments.yaml`, plus `daemonsets.yaml` in platform). Note that `kube-addons-old` has no `workloads/` directory.
-
-## 4. ServiceAccount inventory
-
-All 86 ServiceAccounts are listed in Section 3 counts. Of these, 9 have **no RoleBinding and no ClusterRoleBinding** in the export. They hold no RBAC grants:
-
-| ServiceAccount | Namespace | RBAC status |
-|---|---|---|
-| build-cache | build | UNBOUND |
-| platform-agent | platform | UNBOUND |
-| analytics-worker | analytics | UNBOUND |
-| payments-gateway-sa | payments | UNBOUND |
-| ledger-sa | payments | UNBOUND |
-| media-worker | media-processing | UNBOUND |
-| metrics-agent | monitoring | UNBOUND |
-| reconcile-job | legacy-billing-migration | UNBOUND |
-| addons-legacy | kube-addons-old | UNBOUND |
-
-All other ServiceAccounts appear as subjects in at least one binding listed in Section 6 or 7. Unbound ServiceAccounts still exist and can still be assigned to pods, so the absence of a grant does not mean the pods are harmless. Check them with the workloads manifests.
+| Namespace | ServiceAccount names |
+|---|---|
+| analytics | `analytics-worker`, `analytics-svc-01`, `analytics-svc-02`, `analytics-svc-03`, `analytics-svc-04`, `analytics-svc-05`, `analytics-svc-06` |
+| build | `ci-runner`, `build-cache`, `build-svc-01`, `build-svc-02`, `build-svc-03`, `build-svc-04`, `build-svc-05`, `build-svc-06` |
+| data | `data-svc-01`, `data-svc-02`, `data-svc-03`, `data-svc-04` |
+| default | `default-svc-01`, `default-svc-02`, `default-svc-03`, `default-svc-04`, `default-svc-05`, `default-svc-06` |
+| dev | `dev-svc-01`, `dev-svc-02`, `dev-svc-03`, `dev-svc-04` |
+| kube-addons-old | `addons-legacy` |
+| kube-system | `kubesystem-svc-01`, `kubesystem-svc-02`, `kubesystem-svc-03`, `kubesystem-svc-04`, `kubesystem-svc-05`, `kubesystem-svc-06`, `kubesystem-svc-07` |
+| legacy-billing-migration | `reconcile-job`, `legacybill-svc-01`, `legacybill-svc-02`, `legacybill-svc-03`, `legacybill-svc-04`, `legacybill-svc-05`, `legacybill-svc-06`, `legacybill-svc-07` |
+| media-processing | `media-worker`, `mediaproce-svc-01`, `mediaproce-svc-02`, `mediaproce-svc-03`, `mediaproce-svc-04` |
+| monitoring | `metrics-agent`, `monitoring-svc-01`, `monitoring-svc-02`, `monitoring-svc-03`, `monitoring-svc-04`, `monitoring-svc-05`, `monitoring-svc-06`, `monitoring-svc-07` |
+| payments | `payments-gateway-sa`, `ledger-sa`, `payments-svc-01`, `payments-svc-02`, `payments-svc-03`, `payments-svc-04`, `payments-svc-05` |
+| platform | `controller-admin`, `platform-agent`, `platform-svc-01`, `platform-svc-02`, `platform-svc-03`, `platform-svc-04`, `platform-svc-05`, `platform-svc-06`, `platform-svc-07` |
+| prod | `deploy-bot`, `billing-reconciler`, `orders-api-sa`, `prod-svc-01`, `prod-svc-02`, `prod-svc-03`, `prod-svc-04` |
+| staging | `staging-svc-01`, `staging-svc-02`, `staging-svc-03`, `staging-svc-04`, `staging-svc-05` |
 
 ## 5. User and group subjects
 
@@ -80,11 +78,11 @@ All other ServiceAccounts appear as subjects in at least one binding listed in S
 | maya.chen | User | `maya-dev-editor` (dev), `maya-billing-migrator` (legacy-billing-migration) |
 | sam.okafor | User | `sam-metrics-viewer` (monitoring), `sam-legacy-view` (legacy-billing-migration) |
 
-No Group subjects appear in any binding.
+The two User subjects above are the only non-ServiceAccount subjects in the binding exports. No Group subjects appear.
 
 ## 6. Role and ClusterRole inventory
 
-Rule IDs are the 1-based order of rules in each object. `resourceNames` restrictions: **none recorded** in the Role and ClusterRole objects inventoried here. "Bound by" counts RoleBindings or ClusterRoleBindings that reference the object. Full binding details are in Section 7.
+Rule IDs are the 1-based order of rules in each object. `resourceNames` restrictions: none are specified in these Role and ClusterRole rules. "Bound by" counts RoleBindings or ClusterRoleBindings that reference the object. Full binding entries are in Section 7.
 
 ### 6.1 Roles by namespace
 
@@ -173,8 +171,6 @@ Rule IDs are the 1-based order of rules in each object. `resourceNames` restrict
 | monitoring-role-04 | R1 | "" | configmaps, services, pods | get, list | 2 | bound |
 | monitoring-role-05 | R1 | "" | endpoints, configmaps, pods | get, list | 2 | bound |
 | monitoring-role-05 | R2 | apps | replicasets, deployments | get, list, watch | | |
-
-Note: `monitoring-role-01` through `monitoring-role-05` are six Roles in total with `metrics-viewer`. The count in Section 3 includes all six.
 
 **default**
 
@@ -265,19 +261,6 @@ Note: `monitoring-role-01` through `monitoring-role-05` are six Roles in total w
 | node-reader | R1 | "" | nodes | get, list | 1 | bound |
 | cluster-superuser | R1 | * | * | * | 1 | bound (**cluster-admin equivalent**) |
 | secret-reader-cluster | R1 | "" | secrets | get, list | 0 | **UNBOUND** |
-
-### 6.3 Unbound Roles and ClusterRoles
-
-These objects exist in the export but are not referenced by any binding:
-
-- Role `prod-role-05` (prod)
-- Role `build-role-04` (build)
-- Role `dev-role-01`, `dev-role-03`, `dev-role-05` (dev)
-- Role `staging-role-01` (staging)
-- Role `data-role-02` (data)
-- ClusterRole `secret-reader-cluster`
-
-Unbound objects grant nothing today. `secret-reader-cluster` is a latent risk: a single ClusterRoleBinding would grant cluster-wide read of Secrets.
 
 ## 7. Binding inventory
 
@@ -487,49 +470,6 @@ Every ClusterRoleBinding has cluster-wide effective scope.
 
 Summary: 117 RoleBindings, all resolve. 11 ClusterRoleBindings, all resolve. Zero dangling references.
 
-## 8. Scope observations
+## 8. Inventory verification and boundary
 
-- **Cross-namespace RoleBindings** (subject namespace differs from binding namespace): `legacy-migration-admin`, `ci-runner-legacy-secrets`, `billing-reconciler-secrets` (all bind into `legacy-billing-migration`), and `ci-runner-platform-deploy` (binds into `platform`). In each case the grant applies in the binding namespace only.
-- **RoleBinding to ClusterRole:** `sam-legacy-view` binds ClusterRole `view`, but the grant applies only in `legacy-billing-migration`, not cluster-wide. `view` also appears in ClusterRoleBindings, and those grants are cluster-wide. Those are separate objects.
-- **Duplicate bindings:** `prod-svc-01-view-677` and `prod-svc-01-view-509` bind the same ClusterRole to the same ServiceAccount. Either one grants the same rules. This is cleanup, not a separate privilege.
-- **Namespaced Role cannot authorize cluster-scoped resources.** The `migration-operator` Role names `clusterroles` in its rules, but a namespaced Role applies only inside its namespace. Creating a RoleBinding that references a ClusterRole is still limited to that binding's namespace.
-
-## 9. Risk notes
-
-Ranked by impact. Items marked **(manifest-derived)** have not been confirmed against a live cluster.
-
-1. **Cluster-admin equivalent.** ClusterRoleBinding `platform-controller-admin` binds ServiceAccount `platform/controller-admin` to ClusterRole `cluster-superuser`, which grants `*` on `*` with `*` verbs across the cluster. This is the highest-priority finding. Any compromise of `controller-admin` yields full cluster control.
-
-2. **Namespace-level takeover of legacy-billing-migration.** RoleBinding `legacy-migration-admin` gives ServiceAccount `prod/deploy-bot` the verbs `bind`, `escalate`, and `create` on `roles` and `clusterroles` in `legacy-billing-migration`. With `bind`, the holder can create a RoleBinding that references any ClusterRole, including `cluster-superuser`. With `escalate`, it can create Roles containing permissions it does not itself hold. The resulting grants apply only inside `legacy-billing-migration`. So the risk is full control of that namespace, including its Secrets, not cluster-wide access. No ClusterRoleBinding grants these verbs.
-
-3. **Secret read across namespaces.** RoleBindings `ci-runner-legacy-secrets` (ServiceAccount `build/ci-runner`) and `billing-reconciler-secrets` (ServiceAccount `prod/billing-reconciler`) both bind Role `billing-secrets`, which grants `get` and `list` on `secrets` in `legacy-billing-migration`. Two ServiceAccounts from other namespaces can read that namespace's Secrets.
-
-4. **Impersonation (manifest-derived).** Role `billing-migrator` grants User `maya.chen` the verb `impersonate` on `serviceaccounts`, `users`, and `groups` through RoleBinding `maya-billing-migrator`. Impersonation of `serviceaccounts` is checked against the target ServiceAccount's namespace, so from manifests the grant applies to ServiceAccounts in `legacy-billing-migration` (`reconcile-job`, `legacybill-svc-01` through `07`). Those ServiceAccounts hold the namespace's bindings. Impersonation of `users` and `groups` is a cluster-scoped check, which a namespaced RoleBinding does not satisfy. From manifests, those two grants should have no effect. **Not verified on a live cluster.** Verify with `kubectl auth can-i impersonate users --as=maya.chen` and the equivalent for groups and serviceaccounts, once a kubeconfig is available.
-
-5. **Cluster-wide Secret read exposure (latent).** ClusterRole `secret-reader-cluster` grants `get` and `list` on `secrets` cluster-wide. It is currently unbound, so it grants nothing. Binding it would be cluster-wide Secret read.
-
-6. **Cluster-wide configmap and node read.** ClusterRoleBinding `deploy-bot-cm-read` gives `prod/deploy-bot` cluster-wide `get` and `list` on configmaps. ClusterRoleBinding `ci-runner-nodes` gives `build/ci-runner` cluster-wide `get` and `list` on nodes. These are low-to-medium exposure, but configmaps often hold sensitive settings.
-
-7. **Cluster-wide view for several ServiceAccounts.** Eight ClusterRoleBindings give ClusterRole `view` cluster-wide to six ServiceAccounts. `view` grants `get`, `list`, and `watch` on pods, services, endpoints, configmaps, deployments, and replicasets across all namespaces. It does not include Secrets.
-
-8. **Overlapping grants on `prod/prod-svc-01`.** Two ClusterRoleBindings (`-677` and `-509`) grant the same view rules. Cleanup candidate, not a separate risk.
-
-9. **Unbound ServiceAccounts (9).** `build-cache`, `platform-agent`, `analytics-worker`, `payments-gateway-sa`, `ledger-sa`, `media-worker`, `metrics-agent`, `reconcile-job`, `addons-legacy`. They have no RBAC grants. Their workloads may still run under them. Review the workloads manifests for any that mount tokens and run with those identities.
-
-10. **Stale namespace.** `kube-addons-old` holds one ServiceAccount, no Roles, no RoleBindings, and no workloads directory. Confirm whether it still exists in the live cluster and whether any pod uses `addons-legacy`.
-
-11. **Unbound Roles (7) and one unbound ClusterRole.** Listed in Section 6.3. Unbound grants are no current risk. They are cleanup candidates, and they are latent risk if bound later.
-
-## 10. Verification status
-
-| Check | Method | Status |
-|---|---|---|
-| Object counts | `grep -c '^kind: <Kind>$'` on each export file | Done. All match. |
-| Binding totals (117 + 11 = 128) | Same grep, per file | Done. |
-| Dangling roleRefs | Manual cross-check of every roleRef against Section 6 | Done. None found. |
-| Role-to-binding namespace match | Manual check of each RoleBinding against its roleRef namespace | Done. All Role references are in the binding's namespace. |
-| Unbound Roles and ClusterRoles | Cross-check of roleRefs against all Role and ClusterRole names | Done. 7 Roles and 1 ClusterRole are unbound. |
-| Unbound ServiceAccounts | Cross-check of subjects against all ServiceAccount names | Done. 9 are unbound. |
-| Effective authorization (live cluster) | `kubectl auth can-i` | **Not done.** No kubeconfig on the analysis machine. |
-| Test namespace | Export review | **Not present in export.** Not inferred. |
-| Role rules `resourceNames` | Review of Role objects | None recorded. |
+Object counts were checked against the six source files with `grep -c '^kind: <Kind>$'`: 14 Namespaces, 86 ServiceAccounts, 62 Roles, 5 ClusterRoles, 117 RoleBindings, and 11 ClusterRoleBindings. The binding entries appear in Section 7; the rule fields shown in Section 6 are `apiGroups`, `resources`, and `verbs` from each Role and ClusterRole object. No effective authorization check was made against a live cluster; this document maps the supplied exported objects only.
