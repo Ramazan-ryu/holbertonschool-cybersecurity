@@ -46,7 +46,13 @@ In the live replay, that repository credential returned caller ARN `arn:aws:iam:
 
 ## Cleared conditions and sound controls
 
-The bucket named `granite-peak-public-grid-data` is not shown to be anonymously readable: `infrastructure/storage/public-grid-data.tf` denies all S3 actions to any principal unless the request uses `vpce-gp-prod`. The name alone does not establish public access. The `cluster-admin-break-glass` ClusterRole is limited to pod `get` and `list`, and no binding to it appears in the supplied cluster role bindings. The Terraform `gp-break-glass` policy has wildcard actions/resources only when `aws:PrincipalTag/break-glass` equals `approved`; the supplied identity export shows no attachment or qualifying principal, so the wildcard does not establish an effective unrestricted grant. App security groups allow private `10.0.0.0/8`, not the public internet. These checks clear the stated alarming indicators, not unreviewed deployed state.
+The bucket named `granite-peak-public-grid-data` is not shown to be anonymously readable in the supplied configuration. The complete bucket policy in `infrastructure/storage/public-grid-data.tf` contains one statement: it denies every S3 action to every principal on every resource when the request does not come through `vpce-gp-prod`; it contains no allow. A request through that endpoint still needs a separate allow. I did not verify the live bucket policy or endpoint through the account API.
+
+The `cluster-admin-break-glass` ClusterRole in `cluster-export/clusterroles.yaml` grants only pod `get` and `list`. I checked both binding files: `clusterrolebindings.yaml` binds `platform-deployer`, while `rolebindings.yaml` binds the namespaced `sandbox-admin` Role. Neither binds the alarming ClusterRole, so the export shows no subject receiving its permissions.
+
+The `gp-break-glass` Terraform policy has wildcard actions and resources only when the caller has `break-glass=approved`; the condition is an additional restriction, not the main clearance. `identity-export/platform-account.json` lists attached policies for the exported roles and its policy inventory, and neither contains `gp-break-glass`; the Terraform tree also defines no attachment for it. An unattached policy does not grant its wildcard actions to a principal in this exported snapshot. Live attachment enumeration could not be confirmed because the assessment identity was denied `iam:ListEntitiesForPolicy` and `iam:ListRoles`; this clearance is limited to the supplied snapshot.
+
+The app security groups permit TCP/443 from private `10.0.0.0/8`, not the public internet. This clears an internet-wide exposure claim, while the broader-than-needed private source range remains F-06 at Low. The live state of these controls was not independently queried where noted; the findings describe the supplied configuration and exports.
 
 ## Material chain and business impact
 
