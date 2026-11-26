@@ -1,19 +1,40 @@
-Kubescape NSA manifest scan — commands and status
+Kubescape NSA manifest rescan — execution record
 
-Required comparison: scan the original exported manifests and the corrected manifest snapshot with the same Kubescape version, NSA framework file, and options. Only the input path and output file differ.
+## Invocation
 
-Run from `~/cloud_security/16x04_kubernetes` on the lab workstation:
+Kubescape `v4.0.16`, NSA framework from `/opt/kubescape/frameworks/nsa.json`, JSON format. The same scanner and options were used for the source export and fixed manifest; only the input and output paths differed.
+
+Source export scan, run on `latchkey-ws`:
 
 ```sh
 kubescape scan framework nsa \
   --use-from /opt/kubescape/frameworks/nsa.json \
   ~/trellis-cluster-export/ \
-  --format json > 5-remediation/5-before.json
-
-kubescape scan framework nsa \
-  --use-from /opt/kubescape/frameworks/nsa.json \
-  5-remediation/5-fixed_manifests.yaml \
-  --format json > 5-remediation/5-after.json
+  --format json > ~/5-before.json
 ```
 
-Status: the scans have not run. `kubescape` is not installed in this workspace. SSH to `latchkey@192.168.1.96` was attempted but authentication was rejected (`Permission denied (publickey,password)`). No scan output is claimed. Run the two commands on the workstation and provide `5-before.json` and `5-after.json`; the result can then be checked and committed. The manifest corrections alone do not prove the scan is clean.
+Fixed manifest scan, run on `latchkey-ws`:
+
+```sh
+kubescape scan framework nsa \
+  --use-from /opt/kubescape/frameworks/nsa.json \
+  ~/5-fixed_manifests.yaml \
+  --format json > ~/5-after.json
+```
+
+The two JSON results were copied into this directory as `5-before.json` (503,478 bytes) and `5-after.json` (498,976 bytes).
+
+## Results
+
+| NSA control | Source export | Fixed snapshot | Result for the corrected `transcoder` |
+|---|---|---|---|
+| C-0016 Allow privilege escalation | Failed | Passed | Cleared |
+| C-0017 Immutable container filesystem | Failed | Overall control still failed elsewhere | `transcoder` passes; 34 other resources remain failed |
+| C-0041 HostNetwork access | Failed | Passed | Cleared |
+| C-0046 Insecure capabilities | Failed | Passed | Cleared |
+| C-0055 Linux hardening | Failed | Overall control still failed elsewhere | `transcoder` passes; 34 other resources remain failed |
+| C-0057 Privileged container | Failed | Passed | Cleared |
+
+Kubescape's printed compliance score rose from 64 to 65 (JSON values `64.02386` to `64.88039`). The full NSA scan is **not clean**: the fixed scan still reports 48 failed resources, including unrelated workload controls. The fixed `payments-api-isolation` object passes C-0030 in both reports; Kubescape does not show a reduction in the Deployment-level C-0030 failures, so the selector correction is evidenced by the fixed manifest and workload-label comparison, not by that aggregate scanner control.
+
+The scan completed and wrote both JSON files. Kubescape logged that its optional local exceptions file and account configuration were unavailable; these messages did not stop either scan. No clean overall score is claimed.
