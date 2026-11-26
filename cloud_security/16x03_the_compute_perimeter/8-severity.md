@@ -10,8 +10,8 @@ The exposure depended on the metadata service accepting the tokenless metadata p
 
 **Severity: High.** The handler has seven code-observed API actions across four services. Under a tested function-role session, six additional actions outside that set succeeded: `s3:ListAllMyBuckets`, `secretsmanager:ListSecrets`, `sqs:ListQueues`, `iam:ListUsers`, `iam:GetAccountAuthorizationDetails`, and `dynamodb:ListTables`. The last returned an empty list; the successful response still demonstrates acceptance of that action. These six actions span five service families. This measured set is not a complete inventory of effective permissions; untested policy grants are not counted as demonstrated reach.
 
-The risk is the reach of code executing under `marlowe-order-processor-role`, including any compromised dependency or function path. The proposed narrowing policy exists in the repository, but it was not applied or verified; the current severity therefore receives no remediation credit.
+The demonstrated reach is from manual `fn-review` inventory calls, not from a Lambda invocation. If the deployed function is attached to `marlowe-order-processor-role`, code executing in it could use that role's temporary credentials; the attachment remains unverified because Lambda configuration retrieval failed. The proposed narrowing policy exists in the repository, but it was not applied or verified; the current severity therefore receives no remediation credit.
 
 ## Rating limits
 
-No CVSS score is assigned because the supplied evidence does not establish all scoring inputs, including external authentication boundaries and full business impact. The ratings should be revisited after the metadata after-test, role policy update, and audit reconstruction are complete.
+No CVSS score is assigned because the supplied evidence does not establish all scoring inputs, including external authentication boundaries and full business impact. Revisit the ratings after the policy update and its paired negative/positive tests, and after owner confirmation of the audit baseline.

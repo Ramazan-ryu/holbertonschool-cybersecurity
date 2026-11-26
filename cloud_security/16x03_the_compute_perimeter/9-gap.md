@@ -4,7 +4,7 @@ Measured distance. The handler contains seven distinct provider operations acros
 
 Mechanism. The evidence establishes a difference between the handler's observed calls and additional calls accepted by the role. It does not establish when or why those grants were added. Unless a deployment or review compares role permissions with a code-derived baseline, unused permissions can remain unnoticed as the code changes.
 
-Why it is invisible. An over-broad role never produces an error. No request fails, no alert fires, and no user complains. It is the only class of misconfiguration that is fully silent in normal operation. It surfaces only when effective permissions are deliberately compared with a baseline derived independently from the code.
+Why it can remain invisible. Excess grants may not cause failures during ordinary intended workloads, so successful application requests do not reveal them. They surface when effective permissions are deliberately compared with a baseline derived independently from the code or when the extra actions are tested directly.
 
 What Marlowe would need to do. Maintain the required-call baseline derived from the handler source, including resource ARNs. On every deployment and in quarterly reviews, compare each execution role's effective permissions against it and fail the build on any extra grant. Validate each reduction with positive tests (required calls still succeed) and negative tests (unrequired calls are denied). Give every role a named owner who reviews exceptions.
 
