@@ -4,7 +4,7 @@ This directory contains the analysis deliverables for the Marlowe Commerce lab. 
 
 ## Evidence status
 
-The instance-role chain and function-role chain were exercised successfully. The attached function policy and package source were inspected. The exact forged metadata request was retested under strong mode and returned HTTP 502 without credential fields. The least-privilege policy update was denied to both `appsec-reviewer` and a fresh `marlowe-web-instance-role` session (`iam:CreatePolicyVersion`), so the role remains unremediated pending an authorized account administrator. The signed 60-event audit export was copied into this checkout with a matching SHA-256 and includes both denied policy-write attempts. Lambda environment configuration and quiz prompts remain unavailable; those items are marked as unverified rather than inferred.
+The instance-role chain and function-role chain were exercised against the configured lab account endpoint. The attached function policy and package source were inspected. The exact forged metadata request was retested under strong mode and returned HTTP 502 without credential fields. The proposed least-privilege policy update was denied to both `appsec-reviewer` and a fresh `marlowe-web-instance-role` session (`iam:CreatePolicyVersion`), so the role remains unremediated pending an authorized account administrator. The 93-event audit export is present in `evidence/audit-export.json`; the local report records its SHA-256 and notes that its HMAC signing key is not available for independent verification. Lambda environment configuration and quiz prompts remain unavailable; these items are marked as unverified rather than inferred.
 
 ## Files
 

@@ -1,8 +1,8 @@
 The Gap Is the Normal State
 
-Measured distance. The function handler requires seven API actions. The attached policy grants those seven, plus six explicit non-code actions and four service wildcards (s3:*, dynamodb:*, sqs:*, logs:*), all on Resource: "*". Five non-code actions were confirmed by successful calls under the role: listing buckets, secrets, queues, IAM users and role details. Untested grants are excluded from the measured result.
+Measured distance. The handler contains seven distinct provider operations across four services. In a tested function-role session, six additional actions outside those code paths succeeded: `s3:ListAllMyBuckets`, `secretsmanager:ListSecrets`, `sqs:ListQueues`, `iam:ListUsers`, `iam:GetAccountAuthorizationDetails`, and `dynamodb:ListTables`. They span five service families and do not overlap the seven code-observed actions. The successful `ListTables` response was empty; no table names were disclosed, but the API action was accepted. This is a measured lower bound, not a full inventory of effective permissions. Untested policy statements are excluded.
 
-Mechanism. No one was careless. The role was scoped against the code at deployment, under deadline pressure, using the widest convenient permissions. The code then changed and the role did not. Nothing pushes it back: a deployment does not fail because a role keeps an unused grant, and nobody is alerted when the code stops using one. Permissions accumulate.
+Mechanism. The evidence establishes a difference between the handler's observed calls and additional calls accepted by the role. It does not establish when or why those grants were added. Unless a deployment or review compares role permissions with a code-derived baseline, unused permissions can remain unnoticed as the code changes.
 
 Why it is invisible. An over-broad role never produces an error. No request fails, no alert fires, and no user complains. It is the only class of misconfiguration that is fully silent in normal operation. It surfaces only when effective permissions are deliberately compared with a baseline derived independently from the code.
 

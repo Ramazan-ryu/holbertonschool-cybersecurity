@@ -1,52 +1,25 @@
-# 3 — Permissions Required by the Executable Handler
+# 3 — Provider Calls in the Handler Source
 
-## Source evidence
+## Method
 
-The call sites below are copied from the supplied executable file `~/marlowe-package/order_processor/handler.py`, function `handler(event, context)`. The `grep -nE '\b(s3|sqs|ddb|sm)\.[a-z_]+\('` output from that file reported the exact source lines shown. These are code statements, not comments or role-policy entries.
+I read `~/marlowe-package/order_processor/handler.py` before comparing its calls with any role policy. The entries below are the provider SDK operations explicitly invoked by `handler(event, context)`. The operation names and locations come from executable statements, not the function's description or the role configuration.
 
-```python
-def handler(event, context):
-    signing = sm.get_secret_value(SecretId=SECRET)["SecretString"]
+The function retrieves the signing secret and receives a queue message before entering the message loop. The five remaining calls are reached only when `receive_message` returns at least one message. No provider call is made for an empty `Messages` list by the loop body.
 
-    msg = sqs.receive_message(QueueUrl=QUEUE_URL, MaxNumberOfMessages=1)
-    for m in msg.get("Messages", []):
-        order = json.loads(m["Body"])
+## Calls observed
 
-        doc = s3.get_object(Bucket=ORDERS_BUCKET, Key=f"orders/{order['id']}.json")["Body"].read()
-        existing = ddb.get_item(TableName=TABLE, Key={"id": {"S": order["id"]}})
-        ddb.put_item(TableName=TABLE, Item={"id": {"S": order["id"]}, "status": {"S": "processed"}})
-        s3.put_object(Bucket=ORDERS_BUCKET, Key=f"processed/{order['id']}.json", Body=doc)
-        sqs.delete_message(QueueUrl=QUEUE_URL, ReceiptHandle=m["ReceiptHandle"])
-```
+| Source location | Executable expression | Provider operation | Control-flow condition |
+|---|---|---|---|
+| `handler.py:22`, `handler` | `sm.get_secret_value(SecretId=SECRET)` | Secrets Manager `GetSecretValue` | Every invocation reaches this statement before queue receive. |
+| `handler.py:25`, `handler` | `sqs.receive_message(QueueUrl=QUEUE_URL, MaxNumberOfMessages=1)` | SQS `ReceiveMessage` | Every invocation reaches this statement after the secret read. |
+| `handler.py:30`, `handler` message loop | `s3.get_object(Bucket=ORDERS_BUCKET, Key=f"orders/{order['id']}.json")` | S3 `GetObject` | Runs once per returned message, after its body is decoded as JSON. |
+| `handler.py:33`, `handler` message loop | `ddb.get_item(TableName=TABLE, Key=...)` | DynamoDB `GetItem` | Runs once per returned message. |
+| `handler.py:36`, `handler` message loop | `ddb.put_item(TableName=TABLE, Item=...)` | DynamoDB `PutItem` | Runs once per returned message. |
+| `handler.py:39`, `handler` message loop | `s3.put_object(Bucket=ORDERS_BUCKET, Key=f"processed/{order['id']}.json", Body=doc)` | S3 `PutObject` | Runs once per returned message, after the order document is fetched. |
+| `handler.py:42`, `handler` message loop | `sqs.delete_message(QueueUrl=QUEUE_URL, ReceiptHandle=m["ReceiptHandle"])` | SQS `DeleteMessage` | Runs once per returned message, after the processing operations. |
 
-This excerpt shows the actual handler and its control flow: secret retrieval and receive are unconditional; the five order-processing operations run inside the `Messages` loop.
+The source therefore contains seven distinct provider operations across Secrets Manager, SQS, S3, and DynamoDB. This list is a description of what the supplied source calls. It does not claim successful execution, decide what the current role allows, or treat other permissions as required merely because they appear plausible.
 
-```text
-22: signing = sm.get_secret_value(SecretId=SECRET)["SecretString"]
-25: msg = sqs.receive_message(QueueUrl=QUEUE_URL, MaxNumberOfMessages=1)
-30: doc = s3.get_object(Bucket=ORDERS_BUCKET, Key=f"orders/{order['id']}.json")["Body"].read()
-33: existing = ddb.get_item(TableName=TABLE, Key={"id": {"S": order["id"]}})
-36: ddb.put_item(TableName=TABLE, Item={"id": {"S": order["id"]}, "status": {"S": "processed"}})
-39: s3.put_object(Bucket=ORDERS_BUCKET, Key=f"processed/{order['id']}.json", Body=doc)
-42: sqs.delete_message(QueueUrl=QUEUE_URL, ReceiptHandle=m["ReceiptHandle"])
-```
+## Targets written in source
 
-The code uses constants at `handler.py` lines 8–11: bucket `marlowe-orders-mc4e21`, queue URL `https://sqs.eu-west-1.amazonaws.com/500100200300/marlowe-customer-events`, table `marlowe-orders`, and secret name `marlowe/stripe-webhook-signing`. The message body is decoded before the loop's order-object and DynamoDB calls; the loop performs the seven provider operations only when a message is returned.
-
-## Least-privilege mapping
-
-Resource names come from the handler constants (`handler.py` lines 8–11). The account ID comes from the queue URL in those constants. The region `eu-west-1` is taken from the queue URL. Where the code does not state a region, the ARN uses the same region and is marked as derived.
-
-| Exact source location and expression | Execution path | Required IAM action and resource |
-|---|---|---|
-| `handler.py:22` — `sm.get_secret_value(SecretId=SECRET)` | Every invocation, before any message is received. | `secretsmanager:GetSecretValue` on `arn:aws:secretsmanager:eu-west-1:500100200300:secret:marlowe/stripe-webhook-signing-*` (secret name from line 11; the random suffix is a wildcard, the region is derived). |
-| `handler.py:25` — `sqs.receive_message(QueueUrl=QUEUE_URL, MaxNumberOfMessages=1)` | Every invocation. | `sqs:ReceiveMessage` on `arn:aws:sqs:eu-west-1:500100200300:marlowe-customer-events` (queue URL, line 9). |
-| `handler.py:30` — `s3.get_object(Bucket=ORDERS_BUCKET, Key=f"orders/{order['id']}.json")` | Inside the message loop. | `s3:GetObject` on `arn:aws:s3:::marlowe-orders-mc4e21/orders/*` (bucket, line 8). |
-| `handler.py:33` — `ddb.get_item(TableName=TABLE, Key=...)` | Inside the message loop. | `dynamodb:GetItem` on `arn:aws:dynamodb:eu-west-1:500100200300:table/marlowe-orders` (table, line 10; region derived). |
-| `handler.py:36` — `ddb.put_item(TableName=TABLE, Item=...)` | Inside the message loop. | `dynamodb:PutItem` on `arn:aws:dynamodb:eu-west-1:500100200300:table/marlowe-orders` (region derived). |
-| `handler.py:39` — `s3.put_object(Bucket=ORDERS_BUCKET, Key=f"processed/{order['id']}.json", Body=doc)` | Inside the message loop. | `s3:PutObject` on `arn:aws:s3:::marlowe-orders-mc4e21/processed/*`. |
-| `handler.py:42` — `sqs.delete_message(QueueUrl=QUEUE_URL, ReceiptHandle=...)` | Inside the message loop. | `sqs:DeleteMessage` on `arn:aws:sqs:eu-west-1:500100200300:marlowe-customer-events`. |
-
-The code makes seven distinct provider calls. It makes no calls to list buckets, queues, secrets, IAM, or other tables, and no KMS, SES, or CloudWatch Logs calls. Comparison with the role's actual permissions is in `4-function_chain.md`.
-
-The derived baseline is seven distinct API calls across S3, SQS, DynamoDB, and Secrets Manager. In the supplied handler source there are no calls to list buckets, queues, secrets, IAM users/roles, or DynamoDB tables, nor any direct KMS, SES, or CloudWatch Logs API call. Those are not needed by an executable path in this source and are compared against demonstrated role permissions in `4-function_chain.md`.
+The constants are declared at `handler.py:8–11`: bucket `marlowe-orders-mc4e21`, queue URL `https://sqs.eu-west-1.amazonaws.com/500100200300/marlowe-customer-events`, table `marlowe-orders`, and secret name `marlowe/stripe-webhook-signing`. The S3 key expressions use the `orders/` and `processed/` prefixes. These values describe the handler's arguments; effective IAM authorization and resource reach are assessed separately in `4-function_chain.md`.

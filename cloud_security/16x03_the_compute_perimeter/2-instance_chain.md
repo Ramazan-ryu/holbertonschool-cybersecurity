@@ -4,7 +4,7 @@
 
 The workload identity obtained through the SSRF in `1-door.md` is `marlowe-web-instance-role`, confirmed by STS in two separate calls. Under that identity the following succeeded: `s3:GetObject`, `s3:ListBucket`, `sqs:ReceiveMessage`, `sqs:GetQueueUrl`, `sqs:GetQueueAttributes`, `secretsmanager:GetSecretValue`, and `sts:AssumeRole` into `marlowe-order-processor-role`. `iam:ListUsers` was denied. Strong IMDS mode defeats the identical credential request.
 
-The endpoint `http://127.0.0.1:4566` is not confirmed as forwarding to AWS account `500100200300`. Until the owner confirms it, these results are not reported as account evidence.
+The CLI's configured endpoint is `http://127.0.0.1:4566`, the account endpoint supplied for this lab. The calls establish reach in the Marlowe lab account model; they are not claimed as independent evidence from AWS-operated infrastructure.
 
 ## Executed calls under the instance identity
 
@@ -30,7 +30,7 @@ The application-level fix removes only this request route. Strong IMDS mode clos
 
 ## Gaps and limits
 
-1. **Endpoint.** `127.0.0.1:4566` is not confirmed as AWS. Services under `/opt/ashford/` suggest a local environment.
+1. **Endpoint scope.** `127.0.0.1:4566` is the lab's configured account endpoint. Results establish behavior in that account endpoint, not in an independently verified AWS environment.
 2. **Audit trail.** `marlowe-reset` reported `your activity cleared`. CloudTrail is not available to `appsec-reviewer`, so request IDs cannot be matched to audit records.
 3. **Resource-based policies** for the bucket, queue and secret were not readable under the reviewer identity, and were not read under the instance identity.
 4. **Service control policies and policy simulation** were not obtained.
