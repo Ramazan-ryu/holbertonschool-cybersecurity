@@ -29,36 +29,46 @@ The exhaustive sweep found exactly three matching RoleBindings among all 117 and
 
 ## 4. Identity transitions and cluster reach
 
-### 4.1 Build namespace: cluster-wide read through `view`
+### 4.1 Build namespace: cluster-wide read through `view` (full path per target below)
 
-RoleBinding `ci-runner-build` → Role `ci-build` R2 grants `create` on Pods in `build`. ClusterRoleBindings `build-svc-04-view-139` and `build-svc-05-view-692` bind ServiceAccounts `build-svc-04` and `build-svc-05` to ClusterRole `view`.
+**Exact path to `build-svc-04` [E + K].** The `ci-runner-build` RoleBinding binds the mounted identity `build/ci-runner` to Role `ci-build`; R2 permits `create` on core Pods in `build`. A proposed Pod `ci-runner-view-04` in namespace `build` sets `serviceAccountName: build-svc-04` and `automountServiceAccountToken: true`. If admitted and scheduled, Kubernetes runs it as `system:serviceaccount:build:build-svc-04` and projects that token [K]. ClusterRoleBinding `build-svc-04-view-139` binds this ServiceAccount to ClusterRole `view`, granting cluster-wide `get,list,watch` on Pods, Services, Endpoints, ConfigMaps, Deployments, and ReplicaSets [E]. The proposed Pod is an explanatory example, not an exported or logged object.
 
-A Pod created by `ci-runner` can select either ServiceAccount and set `automountServiceAccountToken: true` in its pod spec. Kubernetes then runs it with the selected identity. The resulting `view` grant is cluster-wide: `get,list,watch` on Pods, Services, Endpoints, ConfigMaps, Deployments, and ReplicaSets. It does not include Secrets. Existing Deployment `build-app-1` selects `build-svc-04` and explicitly enables token automount (`workloads/build/deployments.yaml`, lines 50–66).
+**Exact path to `build-svc-05` [E + K].** The same `ci-runner-build` → `ci-build` R2 grant permits Pod creation in `build`. A proposed Pod `ci-runner-view-05` in `build` sets `serviceAccountName: build-svc-05` and `automountServiceAccountToken: true`. If admitted and scheduled, Kubernetes runs it as `system:serviceaccount:build:build-svc-05` and projects that token [K]. ClusterRoleBinding `build-svc-05-view-692` binds it to ClusterRole `view`, granting the same cluster-wide read set [E]. Neither `view` grant includes Secrets. Both examples require a runnable image and successful Pod admission/scheduling; the export does not show them being created.
+
+**Other selectable build identities [E].** The table below closes the in-namespace target set: these are all eight ServiceAccounts in `build`, and every listed binding and role is in `0-rbac_map.md`, Sections 4, 6, and 7.
+
+| Selectable ServiceAccount | Exported binding(s) | Resulting permissions |
+|---|---|---|
+| `build/ci-runner` | `ci-runner-build` → `ci-build`; plus Section 3 bindings | Same union as Section 3. |
+| `build/build-cache` | None | No exported RBAC grant. |
+| `build/build-svc-01` | `build-svc-01-build-role-02` → `build-role-02`; `build-svc-01-build-role-03` → `build-role-03` | In `build`: core ConfigMaps, Services, Endpoints, Pods `get,list`; Apps ReplicaSets and StatefulSets `get,list,watch`. |
+| `build/build-svc-02` | `build-svc-02-build-role-05` → `build-role-05` | In `build`: core Pods, ConfigMaps, Services `get,list,watch`. |
+| `build/build-svc-03` | `build-svc-03-build-role-03` → `build-role-03` | In `build`: core Services, ConfigMaps, Pods `get,list`; Apps StatefulSets, ReplicaSets `get,list,watch`. |
+| `build/build-svc-04` | `build-svc-04-build-role-01` → `build-role-01`; `build-svc-04-view-139` → `view` | In `build`: core Endpoints `get,list,watch`; cluster-wide: core Pods, Services, Endpoints, ConfigMaps and Apps Deployments, ReplicaSets `get,list,watch`. |
+| `build/build-svc-05` | `build-svc-05-build-role-01` → `build-role-01`; `build-svc-05-build-role-03` → `build-role-03`; `build-svc-05-view-692` → `view` | In `build`: core Endpoints `get,list,watch`; core Services, ConfigMaps, Pods `get,list`; Apps StatefulSets, ReplicaSets `get,list,watch`; plus cluster-wide view rules as for `build-svc-04`. |
+| `build/build-svc-06` | `build-svc-06-build-role-03` → `build-role-03` | In `build`: core Services, ConfigMaps, Pods `get,list`; Apps StatefulSets, ReplicaSets `get,list,watch`. |
 
 ### 4.2 Platform namespace: become `controller-admin` and gain cluster-superuser
 
-RoleBinding `ci-runner-platform-deploy` → Role `platform-deployer` R1 grants `create` on Pods in `platform`. ServiceAccount `controller-admin` exists in `platform`; ClusterRoleBinding `platform-controller-admin` binds it to ClusterRole `cluster-superuser`.
+**Exact identity transition [E + K].** `ci-runner-platform-deploy` (RoleBinding namespace `platform`) names `build/ci-runner` and binds it to Role `platform-deployer`; R1 grants `create` on Pods in `platform` [E]. A proposed Pod `ci-runner-platform-admin` in namespace `platform` sets `serviceAccountName: controller-admin` and `automountServiceAccountToken: true`. If the API admits and schedules it, Kubernetes runs it as `system:serviceaccount:platform:controller-admin` and projects that ServiceAccount token [K]. ClusterRoleBinding `platform-controller-admin` binds that exact identity to `cluster-superuser`, whose wildcard rule permits all API groups, resources, and verbs cluster-wide [E]. This example names a proposed object, not one present in the export; it requires an available image and successful Pod admission/scheduling.
 
-A Pod created in `platform` can set `serviceAccountName: controller-admin` and `automountServiceAccountToken: true`. Kubernetes runs the pod under that identity and projects its credential. `cluster-superuser` grants wildcard API groups, resources, and verbs cluster-wide. The existing `platform-controller` Deployment also uses `controller-admin` with token automount enabled (`workloads/platform/daemonsets.yaml`, lines 16–17).
-
-This is the highest-reach path from the foothold: the starting identity's namespaced Pod-create grant becomes code execution as a cluster-wide superuser. The export does not establish control of the worker host or any cloud account; those outcomes are not claimed.
 
 ### 4.3 Legacy namespace: direct Secret and ConfigMap reads
 
-RoleBinding `ci-runner-legacy-secrets` binds the cross-namespace subject `build/ci-runner` to Role `billing-secrets` in `legacy-billing-migration`. That Role grants `get,list` on Secrets and ConfigMaps in that namespace. A RoleBinding applies its grant in its own namespace, so the workload need not move out of `build` or assume another ServiceAccount to make an API request in `legacy-billing-migration`.
+**Exact direct-access path [E].** The mounted identity remains `system:serviceaccount:build:ci-runner`; no Pod or identity switch is needed. RoleBinding `ci-runner-legacy-secrets` is in `legacy-billing-migration`, names ServiceAccount `build/ci-runner`, and refers to Role `billing-secrets`. That Role grants core `secrets` and `configmaps` `get,list` only in `legacy-billing-migration`. Therefore an API `get` or `list` request for a Secret in that namespace, authenticated with the mounted `ci-runner` token, is authorized by this binding and rule. The export does not reveal Secret values.
 
-The export establishes permission to read/list Secret objects in that namespace. It does not include Secret contents or identify which Secret values contain credentials, so no particular credential or downstream access is asserted here.
 
 ### 4.4 Cluster-scoped node metadata
 
-ClusterRoleBinding `ci-runner-nodes` binds `build/ci-runner` to ClusterRole `node-reader`, which grants `get,list` on Nodes across the cluster. This exposes node objects and metadata; it does not itself grant node login, host access, or Secret access.
+**Exact direct-access path [E].** ClusterRoleBinding `ci-runner-nodes` names ServiceAccount `build/ci-runner` and refers to ClusterRole `node-reader`; its rule grants core Nodes `get,list` cluster-wide. A `get` or `list` Nodes request using the mounted `ci-runner` credential is authorized by this binding. The result is node API metadata only.
+
 
 ## 5. Network and namespace boundaries
 
-**NetworkPolicy coverage [E].** The export contains two NetworkPolicies, both outside `build`: `orders-api-ingress` in `prod` and `payments-api-isolation` in `payments`. No policy selects the `ci-runner` pod, so the export imposes no NetworkPolicy egress restriction on it. Under NetworkPolicy semantics, a pod not selected by an egress policy is not isolated for egress; enforcement by a particular CNI is not established by these files.
+**NetworkPolicy coverage [E].** The export contains two NetworkPolicies, both outside `build`: `orders-api-ingress` in `prod` and `payments-api-isolation` in `payments`. No policy selects the `ci-runner` pod. The export therefore contains no egress isolation rule selecting it; actual NetworkPolicy enforcement depends on the CNI, which is not described in the export.
 
 - `orders-api-ingress` selects `app: orders-api` in `prod` and permits ingress only from `app: billing-worker` pods in `prod`. A `build/ci-runner` pod is not an allowed source for pod-network ingress.
-- `payments-api-isolation` selects `app: payments-api` and has empty ingress and egress rules, so it denies pod-network traffic to and from those selected pods.
+- `payments-api-isolation` selects `app: payments-api`, which matches none of the three exported payments pod templates. It selects no exported workload and does not isolate the real payments workloads.
 - No NetworkPolicy is exported for the other namespaces. This does not prove application reachability; services, ports, routing, and live CNI behavior are not part of this snapshot.
 
 **Admission and Pod Security [E].** Namespace `build` is labeled `enforce: baseline` in `podsecurity-labels.yaml`; baseline does not prohibit selecting a ServiceAccount or automounting its token. The `disallow-privileged` ValidatingAdmissionPolicy checks privileged Deployments, but its binding uses `validationActions: [Audit]`, which records violations and does not reject them. No exported admission policy blocks the `serviceAccountName` transitions in Sections 4.1 or 4.2.

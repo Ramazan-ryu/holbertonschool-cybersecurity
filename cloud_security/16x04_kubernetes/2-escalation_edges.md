@@ -73,6 +73,8 @@
 
 **Result.** `deploy-bot` can cause code to run as `prod/billing-reconciler`, whose union includes `get,list` on Secrets only in `legacy-billing-migration`; the identity also has `create` on Jobs in `prod` (E4). This is an offline path analysis, not an executed deployment.
 
+**Token-secret limit [E + K].** The export proves that `billing-reconciler` can read Secret objects in `legacy-billing-migration`. It contains no Secret objects, types, or values, so it does not identify a Secret holding another ServiceAccount's token or establish a target identity that could be assumed from its contents. Treat “read a token-holding Secret, then use its token as another identity” as conditional on finding such a live credential; the present export cannot complete that identity transition. The confirmed path from `billing-reconciler` to `orders-api-sa` is E4 through Job creation.
+
 ---
 
 ### E3. `prod/deploy-bot` becomes `prod/orders-api-sa` and reads `prod` Secrets

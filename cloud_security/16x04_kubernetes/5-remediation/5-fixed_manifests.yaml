@@ -382,8 +382,13 @@ metadata:
   namespace: payments
 spec:
   podSelector:
-    matchLabels:
-      app: payments-api
+    matchExpressions:
+    - key: app
+      operator: In
+      values:
+      - payments-gateway
+      - ledger
+      - payments-app-1
   policyTypes:
   - Ingress
   - Egress
@@ -524,20 +529,6 @@ subjects:
 roleRef:
   kind: Role
   name: ci-build
-  apiGroup: rbac.authorization.k8s.io
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: ci-runner-platform-deploy
-  namespace: platform
-subjects:
-- kind: ServiceAccount
-  name: ci-runner
-  namespace: build
-roleRef:
-  kind: Role
-  name: platform-deployer
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -2244,6 +2235,7 @@ rules:
   - get
   - list
   - watch
+  - create
 - apiGroups:
   - ''
   resources:

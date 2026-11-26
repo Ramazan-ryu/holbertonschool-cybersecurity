@@ -1,13 +1,19 @@
-Kubescape NSA manifest rescan — execution record
+Kubescape NSA manifest scan — commands and status
 
-The fixed manifest input is `~/cloud_security/16x04_kubernetes/5-remediation/5-fixed_manifests.yaml`. On the lab workstation, run from the operator home directory:
+Required comparison: scan the original exported manifests and the corrected manifest snapshot with the same Kubescape version, NSA framework file, and options. Only the input path and output file differ.
 
-cd ~/cloud_security/16x04_kubernetes
+Run from `~/cloud_security/16x04_kubernetes` on the lab workstation:
+
+```sh
 kubescape scan framework nsa \
   --use-from /opt/kubescape/frameworks/nsa.json \
-  5-remediation/ \
-  --format json
+  ~/trellis-cluster-export/ \
+  --format json > 5-remediation/5-before.json
 
-The supplied lab transcript ran Kubescape from `~/trellis-cluster-export` with the target `5-fixed_manifests.yaml`. That path is not the deliverable and produced “no YAML or JSON manifest files found.” The command above points at the directory containing the fixed YAML deliverable. It keeps the same framework, pre-fetched NSA definition, and output format; only the input target changes from the original `~/trellis-cluster-export` directory to the corrected manifest set.
+kubescape scan framework nsa \
+  --use-from /opt/kubescape/frameworks/nsa.json \
+  5-remediation/5-fixed_manifests.yaml \
+  --format json > 5-remediation/5-after.json
+```
 
-I could not produce a Kubescape result in this workspace: the available local environment has no `kubescape` executable (`/bin/bash: kubescape: command not found`), and the lab workstation was unreachable from this session. This file records the exact invocation and the failure to execute it; it does not claim a clean scan. Run the command in the provided workstation and replace this note with the saved JSON output before treating scan validation as complete. The source export and audit log remain unchanged.
+Status: the scans have not run. `kubescape` is not installed in this workspace. SSH to `latchkey@192.168.1.96` was attempted but authentication was rejected (`Permission denied (publickey,password)`). No scan output is claimed. Run the two commands on the workstation and provide `5-before.json` and `5-after.json`; the result can then be checked and committed. The manifest corrections alone do not prove the scan is clean.

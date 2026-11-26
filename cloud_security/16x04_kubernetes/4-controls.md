@@ -180,67 +180,47 @@ No other namespace has a NetworkPolicy in the export, including `media-processin
 
 **Selection confirmed [E].** `workloads/prod/deployments.yaml` defines the `orders-api` Deployment with `labels: &id001` on its metadata (line 6) and `app: orders-api` (line 7). The pod template at line 14 reads `labels: *id001`, which resolves to `app: orders-api`. So the pods of this Deployment carry the label that the policy selects. The `&id001` anchor is local to each YAML document (each Deployment is separated by `---`), so the anchor name reused in the `billing-worker` Deployment does not conflict.
 
-**Peer not yet confirmed [V].** The `billing-worker` Deployment starts at line 24. Its template labels lie past line 35, which was not printed. The policy allows only pods labelled `app: billing-worker`. If the template does not carry that label, no pod matches the peer, and the policy blocks all ingress to `orders-api`, including from `billing-worker`. Section 7 contains the command that settles this.
+**Peer selection confirmed [E].** In the same file, Deployment `billing-worker` has pod-template label `app: billing-worker` (lines 24–37). This matches the policy's peer selector. Both the selected target (`orders-api`) and allowed peer (`billing-worker`) are present in `prod`.
 
 **Effect on the `orders-api` pods, if the peer label matches [K].** Ingress is isolated: only `billing-worker` pods in `prod` may connect. Egress is unrestricted in both directions for those pods. Whether the isolation holds depends on CNI enforcement.
 
 **Non-selected workloads in `prod` [E].** No policy selects `deploy-controller` (line 53) or `prod-app-1` (line 76). They are non-isolated in both directions, like the rest of the cluster.
 
-### 5.3 `payments/payments-api-isolation`: selects nothing [E]
+### 5.3 `payments/payments-api-isolation`: policy selects no workload [E]
 
-- **Namespace:** `payments`.
-- **Pod selector:** `app: payments-api`.
-- **Policy types:** `Ingress` and `Egress`.
-- **Ingress and egress rules:** both empty lists (`ingress: []`, `egress: []`).
+The object `payments-api-isolation` is in namespace `payments` (`networkpolicies.yaml`). Its `spec.podSelector.matchLabels` requires `app: payments-api`. Its `policyTypes` are `Ingress` and `Egress`; both corresponding rule lists are empty. If selected, a pod would have all ingress and egress denied by this policy, subject to CNI enforcement [K].
 
-**Intended effect.** A policy with both types and empty rule lists denies all ingress and all egress for the pods it selects. It reads as strict isolation.
+**Compare against the actual pod-template labels [E]:** `workloads/payments/deployments.yaml` contains three Deployments:
 
-**Actual effect [E].** `grep -r 'app:' workloads/payments/` returns three labels: `payments-gateway`, `ledger`, and `payments-app-1`. None is `payments-api`. The selector matches no pod in the export. The policy isolates nothing.
+| Deployment | Namespace | Pod-template label `app` | Matches `app: payments-api`? |
+|---|---|---|---|
+| `payments-gateway` | `payments` | `payments-gateway` | No |
+| `ledger` | `payments` | `ledger` | No |
+| `payments-app-1` | `payments` | `payments-app-1` | No |
 
-**Consequence.** `payments-gateway`, `ledger`, and `payments-app-1` are selected by no NetworkPolicy. They are non-isolated in both directions. Their connectivity is the same as in a namespace with no policy.
+None of the three pod templates matches the policy's selector. The selector therefore selects zero exported workloads. The empty ingress and egress lists restrict no real workload: these three pods are not isolated by `payments-api-isolation` and remain outside NetworkPolicy isolation in the exported configuration. This is specifically a selector mismatch in a namespace that has a policy object.
 
-This finding is worse than an absent policy. Anyone who reads `payments-api-isolation` will conclude that the payments namespace is isolated.
+### 5.4 Separate case: `analytics` has no NetworkPolicy [E]
 
-### 5.4 Non-isolated area: no policy at all [E]
+There is no NetworkPolicy object for namespace `analytics` in `networkpolicies.yaml`. This differs from `payments`: `analytics` has no policy to select or restrict its pods; in `payments`, a policy exists but its selector matches none of the exported pod templates. Under NetworkPolicy semantics, analytics pods are non-isolated in the export [K]; actual traffic filtering still depends on CNI enforcement.
 
-Every namespace without a NetworkPolicy is non-isolated in both directions. This covers `media-processing`, where `transcoder` runs, and every other namespace in 5.1. Pods there accept traffic from any source and send traffic to any destination on the pod network. In `prod`, `deploy-controller` and `prod-app-1` are in the same position.
-
-The difference from 5.3 is that nothing in these namespaces claims isolation. The exposure is visible in the configuration.
-
-### 5.5 Effective connectivity from the `transcoder` foothold [E + K]
-
-For pod-network traffic from a `transcoder` pod in `media-processing`:
-
-| Destination | Ingress restriction on destination | Result |
-|---|---|---|
-| Pods in `media-processing`, `analytics`, `platform`, `build`, `dev`, `staging`, `monitoring`, `data`, `default`, `kube-system`, `legacy-billing-migration` | None: no policy selects them | Reachable on any port |
-| `deploy-controller`, `prod-app-1` in `prod` | None: no policy selects them | Reachable on any port |
-| `payments-gateway`, `ledger`, `payments-app-1` in `payments` | None: the policy selects none of them | Reachable on any port |
-| `orders-api` pods in `prod` | Ingress isolated: only `billing-worker` pods in `prod` [V: peer labels] | Blocked for `transcoder` [K: CNI enforcement] |
-| Any destination, outbound from `transcoder` | No egress policy selects `transcoder` | Unrestricted |
-
-**Host-network caveat [K].** `transcoder` runs with `hostNetwork: true`, so its traffic originates from the node's address. A `podSelector` matches pod addresses. Whether NetworkPolicy applies to host-network traffic depends on the CNI plugin. The export does not show it. Section 7 includes the test. If it does apply, the `orders-api` row holds only for pod-network traffic; a host-network connection from `transcoder` may reach `orders-api` through the node address, depending on the plugin.
-
-**What this means for spread.** Network reach from `transcoder` is broad. Network reach is not access: the connection reaches a service, and that service's own authentication decides the rest. The RBAC of `media-worker` is empty (`3-pod_foothold.md`), so network reach carries no API access by itself. Combined with node-level access (Section 3.2), it lets an attacker reach services on the node and in other namespaces without any policy in the way.
+These findings establish lack of NetworkPolicy isolation for the named workloads. They do not establish application-level reachability or successful connections, which also depend on routing, listening ports, and CNI behavior.
 
 ## 6. The two findings, compared
 
-| | Area with no policy (5.4) | Ineffective policy (5.3) |
+| | No policy: `analytics` (5.4) | Selector mismatch: `payments` (5.3) |
 |---|---|---|
-| Example | `media-processing`, `analytics`, `platform`, `prod`'s `deploy-controller`, and the rest | `payments` with `payments-api-isolation` |
-| What exists | No NetworkPolicy | A NetworkPolicy declaring full isolation |
-| Why it fails | Nothing was written | Its selector matches none of the namespace's workloads |
-| Effective ingress and egress for the real pods | Unrestricted | Unrestricted |
-| What a reader concludes from the configuration | "This namespace is open" | "This namespace is isolated" (wrong) |
-| Failure mode | Missing control, visible | Control that looks present and misleads |
+| Exported object | None | `payments-api-isolation` exists |
+| Why no isolation results | No policy selects analytics pods | `app: payments-api` matches none of the three payment pod templates |
+| Affected exported workloads | Analytics workloads | `payments-gateway`, `ledger`, `payments-app-1` |
+| Policy types/rules | Not applicable | Ingress and Egress; both rule lists empty, but zero selected pods |
 
-Both leave the affected pods unrestricted in both directions. The second is worse because it hides that fact from anyone who reads the policy set. The `orders-api-ingress` policy in `prod` is a narrow, working control if the peer label is confirmed, and it sits next to unselected `prod` workloads that are unrestricted.
+Both configurations leave the named workloads non-isolated by NetworkPolicy. The `prod/orders-api-ingress` object is a separate narrow ingress control discussed in 5.2.
 
 ## 7. Verification needed
 
 | Check | Command | Resolves |
 |---|---|---|
-| Template labels of `billing-worker` (the policy's peer) | `sed -n '36,50p' workloads/prod/deployments.yaml` | 5.2 [V] |
 | Live admission bindings, all of them | `kubectl get validatingadmissionpolicybindings -o yaml` and `kubectl get validatingwebhookconfigurations,mutatingwebhookconfigurations -o yaml` | 4.2. Confirms no `Deny` or webhook exists live. |
 | Live policy binding action | `kubectl get validatingadmissionpolicybinding disallow-privileged-binding -o yaml` | 4.2 |
 | PodSecurity behavior, labelled namespace | `kubectl apply --dry-run=server -f privileged-pod.yaml -n prod`, expect rejection | 3.4 |
@@ -250,14 +230,13 @@ Both leave the affected pods unrestricted in both directions. The second is wors
 | Audit logging captures violations | Review apiserver audit policy and log destination | 4.3 step 4 |
 | CNI enforces NetworkPolicy | `kubectl get pods -n kube-system` and identify the CNI (for example Calico or Cilium); check whether it enforces policy | 5.1 and every network conclusion |
 | Enforcement of `orders-api-ingress` in practice | From a `billing-worker` pod, and from a `deploy-controller` pod, `kubectl exec` a connection to an `orders-api` pod | 5.2 effect |
-| Host-network traffic under NetworkPolicy | From `transcoder`, `kubectl exec` to an `orders-api` pod and to a `payments-gateway` pod | 5.5 caveat |
 
 These checks need a caller with impersonation rights. Without them, the commands return `forbidden` and prove nothing.
 
 ## 8. Limits
 
-- **Resolved from the export:** no init or ephemeral containers in any manifest (4.4); no webhook, MutatingAdmissionPolicy, or AdmissionConfiguration object in the export (4.2); the `orders-api` pod template carries the selected label (5.2).
-- **Still open:** the `billing-worker` template labels (5.2); the live state of all of the above.
+- **Resolved from the export:** no init or ephemeral containers in any manifest (4.4); no webhook, MutatingAdmissionPolicy, or AdmissionConfiguration object in the export (4.2); the `orders-api` target and `billing-worker` peer labels match their selectors (5.2); none of the payments pod templates matches `payments-api-isolation` (5.3).
+- **Still open:** live admission and CNI behavior, which are outside the supplied export.
 - **Not in the export:** `ls -la` of the export root shows no apiserver configuration, no audit policy, and no CNI configuration. Those files would be needed to establish enforcement, and they are outside this export.
 - Admission and network conclusions combine [E] for configuration with [K] for behavior. Where a conclusion depends on [K] or [V], it is conditional until Section 7 is run.
 - `6-audit_trail.md` was not used.

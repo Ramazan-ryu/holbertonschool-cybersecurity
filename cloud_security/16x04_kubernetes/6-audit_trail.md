@@ -15,7 +15,7 @@
 
 ## 2. Material events: what the record contains
 
-Each row is retrievable from the file by its auditID. The command for each row is in Section 6.
+Each row is retrievable from the file by its auditID. The command for each row is in Section 7.
 
 | Line | auditID | requestReceivedTimestamp | User | Verb | apiGroup | Resource | Namespace | Name | Code | Decision |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -95,11 +95,61 @@ These items are not in the audit file. They are stated here so the findings abov
 |---|---|---|
 | Request scope of row 829 (namespaced `kube-system` or cluster-wide) | Open. Not recorded at `Metadata` level. | An audit record at `Request` level for auditID `a55c4295ef26154`. |
 | Identity-change mechanism (`debug-shell-x7k2` to `controller-admin`) | Open. No token event and no pod spec in the audit. | The pod spec of `debug-shell-x7k2`, or a `Request`-level audit of its creation. |
-| Two-year baseline | Not supported by the supplied materials. | The cluster's audit log store, searched on the cluster. |
+| Two-year baseline | Not supported by the supplied materials; the local record covers seven days only. | The cluster's retained audit archive, searched per full ServiceAccount identity. |
 | Whether `build/ci-runner` created pods outside `build` before 2026-10-19 | Unknown. | The archive, once found. |
 | Fate of `debug-shell-x7k2` after 14:00:00Z | Unknown. No later event in the file. | `kubectl get pod -n platform debug-shell-x7k2` on the cluster, or later audit records. |
 
-## 6. Retrieval commands
+## 6. Detection design: per-identity baseline, ownership, and upkeep
+
+The signal is a **per-identity behavioral change**: `build/ci-runner` moves from its repeated read activity in `build` to its first observed `create pods` in `platform` (row 826). This is earlier than the Secret reads and does not depend on the pod name. The seven-day export supports calling it novel in this file; it cannot establish the requested two-year normal. The two-year claim is a hypothesis from the engagement context until Trellis supplies that history.
+
+### Baseline unit and features
+
+Create a separate profile for each canonical Kubernetes principal, especially each ServiceAccount identity `system:serviceaccount:<namespace>:<name>`. Do not merge accounts because their short names or namespaces look similar. Link each ServiceAccount to all Deployments, Jobs, CronJobs, StatefulSets, and other workload templates that select it, then link those workloads to a named owner. If an account is shared by multiple workloads, record that fact and baseline the distinct workload sources separately where the audit data allows it.
+
+For each identity and workload context, retain the normal distribution of:
+
+- verb, API group, resource and subresource;
+- namespace and target name pattern, including whether access is namespaced or cluster-scoped;
+- allow/deny response, status code, request frequency, time-of-day, day-of-week, and known job/release cadence;
+- source IP and user agent, when the audit policy captures them;
+- workload/controller association and owner, joined from the workload manifests or inventory.
+
+Treat a new write verb, new resource, new namespace, unusual target pattern, or sharp frequency shift as a candidate anomaly. Weight identity-specific novelty: a single `create pods` can be high priority for an account whose established work is read-only. Correlate the sequence across identities (row 826 `ci-runner` Pod creation, row 828 lookup of `controller-admin`, then rows 829–830 Secret requests by `controller-admin`) to raise confidence. The final Secret access remains useful context but is too late to be the first alert.
+
+### Seed profiles visible in this seven-day sample
+
+These are provisional sample profiles, not the two-year baselines described by the engagement context. The owner column identifies the workload that should be linked to an accountable team; team names are not in this export.
+
+| Canonical identity | Workload association to resolve | Observed normal pattern before the chain | Novel behavior in this file |
+|---|---|---|---|
+| `system:serviceaccount:build:ci-runner` | Deployment `ci-runner` in `build` (`workloads/build/deployments.yaml`); owner team must be identified in Trellis' service inventory. | 257 events. 250 (97%) were `get/list` reads of core Pods and ConfigMaps in `build`; other events were limited reads/watches of Services, Endpoints, and Deployments. No Secret access. | First recorded `create pods` in `platform` at row 826, then `get serviceaccounts/controller-admin` in `platform` at row 828. |
+| `system:serviceaccount:platform:controller-admin` | Deployment `platform-controller` in `platform` (`workloads/platform/deployments.yaml`); owner team must be identified in Trellis' service inventory. | Seven pre-chain events, all read/watch requests in `platform` on ConfigMaps, Pods, Services, Deployments, and Endpoints; no Secret event. | First Secret requests and first events outside `platform` are rows 829–830. The scope of row 829 remains unknown from this Metadata export. |
+
+For both profiles, store distributions by verb × API group × resource × namespace, plus target-name class, result/status, time/cadence, source, and workload owner. The export's `obj-*` names do not establish stable application naming patterns, and the omitted source IP/user agent fields prevent source-based comparison. Validate those fields against longer history before enabling automatic suppression.
+
+### Build and validate the baseline
+
+1. Recover the longest retained audit history available, with a target of 24 months so daily, weekly, release, and infrequent maintenance cycles can be represented. The supplied seven-day JSONL is not enough to train or validate a durable profile.
+2. Build profiles retrospectively from that history. Where history is shorter, mark the account **provisional**; collect at least one full business/release cycle and keep alerts in analyst-review mode until owners validate expected activity. Do not label a one-week sample as two years of normal.
+3. Replay known incidents, approved releases, maintenance jobs, and denied requests against the candidate rules. Measure missed events and noisy alerts; tune per identity and workload rather than using one cluster-wide allowlist.
+4. Start alerting with the owner, observed deviation, supporting audit events, and the prior baseline. High-impact new write actions (especially workload creation, RBAC changes, impersonation, and Secret access) can page immediately; lower-confidence shifts go to review.
+
+### Audit data needed
+
+Keep routine audit events at `Metadata` level for the identity, verb, API group, resource, namespace, target name, and result. Ensure the retained record also includes timestamp, source IP, user agent, and request URI; these fields are absent from this supplied sample, limiting retrospective analysis. For sensitive **write** actions—workload create/update/patch, Role/RoleBinding/ClusterRoleBinding changes, ServiceAccount changes, and Secret writes—use `Request` level so the requested object fields (for example `serviceAccountName` or a new binding subject) can be inspected. Avoid `RequestResponse` for Secret reads unless a specific case justifies it, because response bodies can contain secret values. The current Metadata-only export cannot recover request bodies retroactively.
+
+Retain searchable audit data for 24 months, protect it from workload identities, restrict analyst access, and monitor gaps in collection. Storage and review volume are part of the control's operating cost.
+
+### Ownership and maintenance
+
+Assign each profile to the service owner of the workload that uses the identity. Review exceptions with that owner, security, and platform operations; every exception records the identity, exact action/resource/namespace/target, reason, approver, ticket, and expiry date. Expired exceptions stop suppressing alerts automatically. Avoid indefinite allowlists.
+
+Refresh profiles when a workload image/template, ServiceAccount, RoleBinding, owner, or deployment schedule changes. Compare the change to recent history, require owner review for newly added privilege or new target namespaces, and version the approved profile with the deployment change. Review alert quality and profile coverage monthly; review exceptions and owner mappings at least quarterly. Flag profiles with no recent events, deleted accounts, changed workload associations, or data gaps as stale; do not keep silently learning them. New or changed identities return to provisional review until the owner validates their new baseline.
+
+Trellis currently lacks the long audit history and per-identity baseline needed to say that `ci-runner` had done only its routine actions for two years. Establishing that history, joining identities to workload owners, and maintaining reviewed profiles are prerequisites to the detection—not work the present seven-day export can prove has already been done.
+
+## 7. Retrieval commands
 
 Any analyst can run these against the audit file.
 
