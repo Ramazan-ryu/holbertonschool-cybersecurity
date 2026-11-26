@@ -2,7 +2,7 @@
 
 ## 1. Method and limits
 
-**Source.** Every grant below comes from `0-rbac_map.md` (Sections 6 and 7). That map was checked against the export: 117 RoleBindings, 11 ClusterRoleBindings, 62 Roles, 5 ClusterRoles, 86 ServiceAccounts, 2 Users, 0 Groups. Rule IDs (R1, R2, ...) refer to the rules listed in `0-rbac_map.md` Section 6.
+**Source.** Every grant below comes from the supplied RBAC exports, cross-referenced with `0-rbac_map.md` (roles in Section 6; bindings in Section 7). The snapshot contains 117 RoleBindings, 11 ClusterRoleBindings, 62 Roles, 5 ClusterRoles, 86 ServiceAccounts, 2 Users, and no Group subjects. Rule IDs (R1, R2, ...) refer to Section 6 of the map. Each named ServiceAccount is determined in Section 4; the two User subjects are determined in Section 5.
 
 **Semantics applied.**
 - Kubernetes RBAC is additive. A subject's effective permission set is the union of every rule reached through every binding that names it, directly or through a group. No rule subtracts an allowed action.
@@ -16,9 +16,11 @@
 
 **resourceNames and nonResourceURLs.** None recorded in any Role, ClusterRole, RoleBinding, or ClusterRoleBinding in the export (`grep -rn "resourceNames\|nonResourceURLs"` returned no lines).
 
-**Absence method.** Every claim that a subject lacks a permission is backed by a search of all 117 RoleBindings and all 11 ClusterRoleBindings for that subject's name, and of the rules of every Role and ClusterRole the subject could reach. Checks run:
+**Absence method.** A negative determination is limited to the supplied snapshot and follows a review of all 117 RoleBindings, all 11 ClusterRoleBindings, and the rules of every referenced Role and ClusterRole. Checks run:
+- For a ServiceAccount, a direct binding match requires `kind: ServiceAccount` plus the exact `metadata.namespace` and `metadata.name`; a `User` subject would match its canonical username `system:serviceaccount:<namespace>:<name>`; group-derived grants require a matching `Group` subject. I checked all three routes for each ServiceAccount, not only occurrences of its short name.
 - `yq '.subjects[]?.name' rolebindings.yaml clusterrolebindings.yaml | sort | uniq -c`: 128 binding documents, one subject each. Every ServiceAccount named in a binding is listed in Section 4. The nine unbound ServiceAccounts do not appear.
 - `grep -c "kind: Group"` in both binding files: 0. No Group subjects exist.
+- `grep -rn "system:serviceaccount:" rolebindings.yaml clusterrolebindings.yaml`: no User subject matches any ServiceAccount's canonical username. `grep -rn "system:" rolebindings.yaml clusterrolebindings.yaml`: no implicit group subject appears, including `system:serviceaccounts`, `system:serviceaccounts:<namespace>`, and `system:authenticated`.
 - `grep -rn "maya.chen\|sam.okafor" .`: 4 matches, all subject lines in `rolebindings.yaml` (two per user).
 - `grep -rn "addons-legacy" .`: 1 match, in `serviceaccounts.yaml`.
 - `grep -n "secrets\|impersonate\|escalate\|bind\|*" roles.yaml clusterroles.yaml`: `bind` and `escalate` in `migration-operator`; `impersonate` in `billing-migrator`; `secrets` in `billing-secrets` and `orders-api-config` (the map assigns these); the wildcard rule in `cluster-superuser`; `secrets` in `secret-reader-cluster`.
@@ -37,19 +39,21 @@
 - **Live admission mode.** The `Audit` binding is assumed to match the live cluster.
 - **Workload identity.** Only the `serviceAccountName` lines were extracted from `workloads/`, not the full manifests.
 
+**Unbound role objects.** The seven unbound Roles (`prod/prod-role-05`, `build/build-role-04`, `dev/dev-role-01`, `dev/dev-role-03`, `dev/dev-role-05`, `staging/staging-role-01`, and `data/data-role-02`) and unbound ClusterRole `secret-reader-cluster` are not referenced by any of the 128 bindings. Their rule definitions exist in the export, but they contribute no permissions to any subject's effective union in this snapshot. The binding-reference search in `0-rbac_map.md` Section 6.3 identifies them; the full Role and ClusterRole inventory is in Section 6 of that map.
+
 ## 2. Named subjects: summary
 
 | Subject | Kind | Direct effective privilege | Path-based privilege (manifest-derived) | Verdict |
 |---|---|---|---|---|
 | `platform/controller-admin` | ServiceAccount | Cluster-wide wildcard on API groups, resources, and verbs (`platform-controller-admin` → `cluster-superuser` R1). Used by Deployment `platform-controller`. | Already cluster-admin-equivalent. Its pod is reachable from E2. | Over-privileged. Critical (E1). |
-| `build/ci-runner` | ServiceAccount | Build pods and ConfigMap/Job access; pod create in `platform`; Secret read in `legacy-billing-migration`; cluster-wide node read | Cluster-admin-equivalent via pod creation in `platform` as `controller-admin` (E2) | Over-privileged. Critical. |
-| `prod/deploy-bot` | ServiceAccount | Deployment/ReplicaSet write and Pod/ConfigMap read in `prod`; cluster-wide ConfigMap read; role read and role/ClusterRole bind, escalate, create in `legacy-billing-migration` (no `create` on rolebindings, so no effective binding) | Secret read in `legacy-billing-migration` (via `billing-reconciler`, E3) and in `prod` (via `orders-api-sa`, E3) | Over-privileged. High. |
-| `prod/billing-reconciler` | ServiceAccount | ConfigMap read and Job create in `prod`; Secret and ConfigMap read in `legacy-billing-migration` | Secret read in `prod` (via `orders-api-sa`, E4) | Over-privileged. High. |
+| `build/ci-runner` | ServiceAccount | Union of `ci-runner-build` (build), `ci-runner-platform-deploy` (platform), `ci-runner-legacy-secrets` (legacy), and `ci-runner-nodes` (cluster): build ConfigMap/pod/job reads, build pod create, platform pod create and ConfigMap/ServiceAccount reads, legacy Secret/ConfigMap reads, cluster-wide node reads | Can run as any build or platform ServiceAccount when creating a pod there. This includes `build-svc-04`/`build-svc-05` (cluster-wide `view`) and `platform/controller-admin` (cluster superuser); see E2 and E9. | Over-privileged. Critical. |
+| `prod/deploy-bot` | ServiceAccount | Union of `deploy-bot-deployer` (prod), `deploy-bot-cm-read` (cluster), and `legacy-migration-admin` (legacy): Deployment/ReplicaSet write and pod/ConfigMap read in prod; cluster-wide ConfigMap read; legacy role/rolebinding read and namespaced Role create/bind/escalate actions. The binding does not grant cluster-scoped ClusterRole operations or create/update of RoleBindings. | Can deploy under any prod ServiceAccount: `billing-reconciler` or `orders-api-sa` reaches Secrets; `prod-svc-01` reaches cluster-wide `view` (E3, E9). | Over-privileged. High. |
+| `prod/billing-reconciler` | ServiceAccount | Union of `billing-reconciler-prod` (prod) and `billing-reconciler-secrets` (legacy): prod ConfigMap read and Job create; legacy Secret/ConfigMap read | Can create a Job under any prod ServiceAccount, including `orders-api-sa` (prod Secrets), `deploy-bot` (its deployment capability), or `prod-svc-01` (cluster-wide `view`); see E4 and E9. | Over-privileged. High. |
 | `prod/orders-api-sa` | ServiceAccount | get, list, watch on ConfigMaps and Secrets in `prod`; nothing else | None of its own. Its token is reachable through E3 and E4. | **Cleared (RBAC), with caveats.** See Section 6. |
 | `media-processing/media-worker` | ServiceAccount | None. Unbound in RBAC. | Runs privileged `transcoder` with host root filesystem, host network, and SYS_ADMIN (E8) | Over-privileged through the node, not RBAC. Critical. |
 | `maya.chen` | User | Write to Pods, ConfigMaps, Services, Deployments in `dev`; read Pods/ConfigMaps in `legacy-billing-migration` | Impersonation of `legacy-billing-migration` ServiceAccounts (E6) | Over-privileged for a dev editor. Medium. No Secret path found. |
-| `sam.okafor` | User | Read-only: Pods/Services/Endpoints in `monitoring`; Pods/Services/Endpoints/ConfigMaps/Deployments/ReplicaSets read in `legacy-billing-migration` | None found (method in Section 5.2) | Read-only. Low. |
-| All other ServiceAccounts | ServiceAccount | Section 4 | Targets of E2–E4 only if a subject can create pods under them | See Section 4 |
+| `sam.okafor` | User | Union of `sam-metrics-viewer` (monitoring) and `sam-legacy-view` (legacy namespace only): read/watch permissions on the resources in ClusterRole `view`, restricted by the first RoleBinding to monitoring and by the second RoleBinding to `legacy-billing-migration` | No pod/workload creation or impersonation path; no other subject binding or group path in the export | **Cleared as the correctly scoped read-only subject in this snapshot.** See Section 5.2. |
+| Other ServiceAccounts | ServiceAccount | Each of the remaining 80 ServiceAccounts is individually listed in Section 4 with all bindings and the union of its rules, including unbound identities | Workload-creation paths are assessed by namespace in E2–E4 and E9; no path is inferred without an in-namespace create grant | See Section 4 and path analysis. |
 
 ## 3. Escalation and node-access paths
 
@@ -66,18 +70,28 @@
 - Blocked by: nothing in the export.
 - Live check: server-side dry run as `system:serviceaccount:build:ci-runner`, pod naming `controller-admin`. Not performed.
 
-**E3 (high, manifest-derived). `prod/deploy-bot` → `billing-reconciler` or `orders-api-sa` → Secrets.**
+**E3 (high, manifest-derived). `prod/deploy-bot` → a selected prod ServiceAccount → its effective rights.**
 - Source: RoleBinding `deploy-bot-deployer` → Role `deployer` R1 (`apps/deployments`, `apps/replicasets` g,l,w,c,u,p) in `prod`.
-- Path A: create or patch a Deployment in `prod` with `serviceAccountName: billing-reconciler`. Its pods read `legacy-billing-migration` Secrets through RoleBinding `billing-reconciler-secrets` → Role `billing-secrets` R1 (core `secrets` g,l).
-- Path B: same, with `serviceAccountName: orders-api-sa`. Its pods read `prod` Secrets through Role `orders-api-config` R1 (core `secrets` g,l,w).
+- The Deployment controller creates pods for the resulting workload. RBAC does not check whether `deploy-bot` may select a ServiceAccount, and no exported admission rule restricts `serviceAccountName`.
+- With `serviceAccountName: billing-reconciler`, the pod receives `billing-reconciler` rights, including `legacy-billing-migration` Secret read through `billing-reconciler-secrets` → `billing-secrets` R1.
+- With `serviceAccountName: orders-api-sa`, the pod receives `prod` Secret read through `orders-api-config` → `orders-api-config` R1.
+- With `serviceAccountName: prod-svc-01`, the pod receives ClusterRole `view` cluster-wide through `prod-svc-01-view-677` and `prod-svc-01-view-509` (same grant duplicated); see E9.
 - Also reachable: cluster-wide ConfigMap read (CRB `deploy-bot-cm-read`).
 - Blocked by: nothing in the export. Live check not performed.
 
 **E4 (high, manifest-derived). `prod/billing-reconciler` → Job as `orders-api-sa` → `prod` Secrets.**
 - Source: RoleBinding `billing-reconciler-prod` → Role `reconciler` R2 (`batch/jobs` g,l,c) in `prod`.
-- Path: create a Job in `prod` with `serviceAccountName: orders-api-sa`. The Job's pod reads `prod` Secrets through `orders-api-config` R1.
-- Also reachable: a Job running as `deploy-bot` (E3).
+- A Job's pod may use any ServiceAccount in `prod`; RBAC does not separately authorize the `serviceAccountName`, and no exported admission rule restricts it.
+- As `orders-api-sa`, the Job's pod reads `prod` Secrets through RoleBinding `orders-api-config` → Role `orders-api-config` R1.
+- As `deploy-bot`, the Job's pod can use the E3 deployment capability. As `prod-svc-01`, it receives cluster-wide `view`; see E9.
 - Blocked by: nothing in the export. Live check not performed.
+
+**E9 (medium, manifest-derived). Workload creators can select a more privileged ServiceAccount and inherit its grants.**
+- `prod-svc-01` is bound to ClusterRole `view` by ClusterRoleBindings `prod-svc-01-view-677` and `prod-svc-01-view-509`. The effective grant is the union of those identical cluster-wide grants and its namespaced `prod-role-01` grant.
+- `prod/deploy-bot` can create/update Deployments in `prod` (`deploy-bot-deployer` → `deployer` R1). `prod/billing-reconciler` can create Jobs there (`billing-reconciler-prod` → `reconciler` R2). Either workload can specify `serviceAccountName: prod-svc-01`; the pod then receives cluster-wide `view`.
+- `build/ci-runner` can create pods in `build` (`ci-runner-build` → `ci-build` R2) and can select `build-svc-04` or `build-svc-05`; both have cluster-wide `view` ClusterRoleBindings. Its separate platform binding also allows pod creation as `platform/controller-admin` (E2).
+- The view rules allow get/list/watch on pods, services, endpoints, ConfigMaps, Deployments, and ReplicaSets in all namespaces. They do not grant Secret access.
+- `maya.chen` can create pods and Deployments in `dev`, but no ServiceAccount in `dev` has a binding to a Secret-reading or cluster-wide role in this snapshot. The export's Audit-only admission policy and Pod Security labels do not constrain `serviceAccountName`; these are manifest-derived conclusions, not live authorization tests.
 
 **E5 (medium, direct). Secret read in `legacy-billing-migration` by two cross-namespace subjects.**
 - `build/ci-runner` via RoleBinding `ci-runner-legacy-secrets` → Role `billing-secrets` R1.
@@ -128,17 +142,17 @@ Notation: `RB` RoleBinding, `CRB` ClusterRoleBinding. "Union" lists the capabili
 |---|---|---|
 | kubesystem-svc-01 | RB `kubesystem-svc-01-kubesystem-role-03` → R1 | `core configmaps, services g,l` |
 | kubesystem-svc-02 | RB `kubesystem-svc-02-kubesystem-role-02` → R1, R2; RB `kubesystem-svc-02-kubesystem-role-03` → R1 | `core configmaps, services g,l,w`; `apps/statefulsets, apps/replicasets g,l,w` |
-| kubesystem-svc-03 | RB `kubesystem-svc-03-kubesystem-role-02` → R1, R2; RB `kubesystem-svc-03-kubesystem-role-03` → R1 | Same as kubesystem-svc-02 |
+| kubesystem-svc-03 | RB `kubesystem-svc-03-kubesystem-role-02` → R1, R2; RB `kubesystem-svc-03-kubesystem-role-03` → R1 | `core configmaps, services g,l,w`; `apps/statefulsets, apps/replicasets g,l,w` |
 | kubesystem-svc-04 | RB `kubesystem-svc-04-kubesystem-role-02` → R1, R2; CRB `kubesystem-svc-04-view-363` → ClusterRole `view` R1, R2 | Namespace: `core configmaps, services g,l,w`; `apps/statefulsets, apps/replicasets g,l,w`. Cluster-wide: `core pods, services, endpoints, configmaps g,l,w`; `apps/deployments, apps/replicasets g,l,w` |
 | kubesystem-svc-05 | RB `kubesystem-svc-05-kubesystem-role-01` → R1; RB `kubesystem-svc-05-kubesystem-role-02` → R1, R2 | `core configmaps, services g,l,w,u,p`; `apps/statefulsets, apps/replicasets g,l,w` |
-| kubesystem-svc-06 | RB `kubesystem-svc-06-kubesystem-role-02` → R1, R2; RB `kubesystem-svc-06-kubesystem-role-03` → R1 | Same as kubesystem-svc-02 |
+| kubesystem-svc-06 | RB `kubesystem-svc-06-kubesystem-role-02` → R1, R2; RB `kubesystem-svc-06-kubesystem-role-03` → R1 | `core configmaps, services g,l,w`; `apps/statefulsets, apps/replicasets g,l,w` |
 | kubesystem-svc-07 | RB `kubesystem-svc-07-kubesystem-role-03` → R1 | `core configmaps, services g,l` |
 
 ### 4.3 Namespace `prod` (active)
 
 | ServiceAccount | Bindings (Role rules) | Effective union |
 |---|---|---|
-| deploy-bot | RB `deploy-bot-deployer` → `deployer` R1, R2 (prod); CRB `deploy-bot-cm-read` → `configmap-reader` R1 (cluster); RB `legacy-migration-admin` → `migration-operator` R1, R2 (legacy) | **prod:** `apps/deployments, apps/replicasets g,l,w,c,u,p`; `core pods, configmaps g,l`. **cluster:** `core configmaps g,l`. **legacy:** `rbac/roles, rbac/rolebindings g,l`; `rbac/roles, rbac/clusterroles b,e,c`. No `create` on rolebindings, so no binding can be created. See E3. |
+| deploy-bot | RB `deploy-bot-deployer` → `deployer` R1, R2 (prod); CRB `deploy-bot-cm-read` → `configmap-reader` R1 (cluster); RB `legacy-migration-admin` → `migration-operator` R1, R2 (legacy) | **prod:** `apps/deployments, apps/replicasets g,l,w,c,u,p`; `core pods, configmaps g,l`. **cluster:** `core configmaps g,l`. **legacy:** `rbac/roles, rbac/rolebindings g,l`; `rbac/roles c,b,e` within the RoleBinding's namespace. It cannot create/update RoleBindings; the `clusterroles` rule entry does not grant cluster-scoped operations through a RoleBinding. See E3. |
 | billing-reconciler | RB `billing-reconciler-prod` → `reconciler` R1, R2 (prod); RB `billing-reconciler-secrets` → `billing-secrets` R1, R2 (legacy) | **prod:** `core configmaps g,l,w`; `batch/jobs g,l,c`. **legacy:** `core secrets g,l`; `core configmaps g,l`. See E4, E5. |
 | orders-api-sa | RB `orders-api-config` → `orders-api-config` R1 | `core configmaps, secrets g,l,w`. Nothing else. See Section 6. |
 | prod-svc-01 | RB `prod-svc-01-prod-role-01` → R1; CRB `prod-svc-01-view-677` → `view` R1, R2; CRB `prod-svc-01-view-509` → `view` R1, R2 | **prod:** `core pods, services g,l`. **cluster:** view rules as in kubesystem-svc-04. The two CRBs grant the same rules (cleanup). |
@@ -157,7 +171,7 @@ Notation: `RB` RoleBinding, `CRB` ClusterRoleBinding. "Union" lists the capabili
 | build-svc-03 | RB `build-svc-03-build-role-03` → R1, R2 | `core services, configmaps, pods g,l`; `apps/statefulsets, apps/replicasets g,l,w` |
 | build-svc-04 | RB `build-svc-04-build-role-01` → R1; CRB `build-svc-04-view-139` → `view` R1, R2 | **build:** `core endpoints g,l,w`. **cluster:** view rules as in kubesystem-svc-04 |
 | build-svc-05 | RB `build-svc-05-build-role-01` → R1; RB `build-svc-05-build-role-03` → R1, R2; CRB `build-svc-05-view-692` → `view` R1, R2 | **build:** `core endpoints g,l,w`; `core services, configmaps, pods g,l`; `apps/statefulsets, apps/replicasets g,l,w`. **cluster:** view rules as in kubesystem-svc-04 |
-| build-svc-06 | RB `build-svc-06-build-role-03` → R1, R2 | Same as build-svc-03 |
+| build-svc-06 | RB `build-svc-06-build-role-03` → R1, R2 | `core services, configmaps, pods g,l`; `apps/statefulsets, apps/replicasets g,l,w` |
 
 ### 4.5 Namespace `platform` (active)
 
@@ -189,7 +203,7 @@ Notation: `RB` RoleBinding, `CRB` ClusterRoleBinding. "Union" lists the capabili
 | staging-svc-01 | RB `staging-svc-01-staging-role-04` → R1, R2; CRB `staging-svc-01-view-163` → `view` R1, R2 | **staging:** `core endpoints, pods g,l,w`; `apps/replicasets, apps/deployments g,l,w`. **cluster:** view rules as in kubesystem-svc-04 |
 | staging-svc-02 | RB `staging-svc-02-staging-role-04` → R1, R2 | `core endpoints, pods g,l,w`; `apps/replicasets, apps/deployments g,l,w` |
 | staging-svc-03 | RB `staging-svc-03-staging-role-02` → R1, R2; RB `staging-svc-03-staging-role-04` → R1, R2 | `core configmaps g,l,w,u,p`; `core endpoints, pods g,l,w`; `apps/statefulsets, apps/replicasets, apps/deployments g,l,w` |
-| staging-svc-04 | RB `staging-svc-04-staging-role-04` → R1, R2; RB `staging-svc-04-staging-role-02` → R1, R2 | Same as staging-svc-03 |
+| staging-svc-04 | RB `staging-svc-04-staging-role-04` → R1, R2; RB `staging-svc-04-staging-role-02` → R1, R2 | `core configmaps g,l,w,u,p`; `core endpoints, pods g,l,w`; `apps/replicasets, apps/deployments g,l,w` |
 | staging-svc-05 | RB `staging-svc-05-staging-role-04` → R1, R2; RB `staging-svc-05-staging-role-03` → R1, R2 | `core endpoints, pods g,l,w`; `core services g,l,w`; `apps/replicasets, apps/deployments, apps/statefulsets g,l,w` |
 
 ### 4.8 Namespace `analytics` (active)
@@ -199,10 +213,10 @@ Notation: `RB` RoleBinding, `CRB` ClusterRoleBinding. "Union" lists the capabili
 | analytics-worker | None | No RBAC grant (unbound). Token mounted by its workload. See E7. |
 | analytics-svc-01 | RB `analytics-svc-01-analytics-role-02` → R1, R2 | `core pods g,l,w,u,p`; `apps/deployments, apps/replicasets g,l,w` |
 | analytics-svc-02 | RB `analytics-svc-02-analytics-role-03` → R1, R2 | `core pods, endpoints g,l`; `apps/statefulsets, apps/replicasets g,l,w` |
-| analytics-svc-03 | RB `analytics-svc-03-analytics-role-02` → R1, R2 | Same as analytics-svc-01 |
+| analytics-svc-03 | RB `analytics-svc-03-analytics-role-02` → R1, R2 | `core pods g,l,w,u,p`; `apps/deployments, apps/replicasets g,l,w` |
 | analytics-svc-04 | RB `analytics-svc-04-analytics-role-01` → R1, R2; RB `analytics-svc-04-analytics-role-02` → R1, R2 | `core endpoints, pods g,l,w,u,p`; `apps/deployments, apps/replicasets g,l,w` |
 | analytics-svc-05 | RB `analytics-svc-05-analytics-role-02` → R1, R2; RB `analytics-svc-05-analytics-role-03` → R1, R2 | `core pods g,l,w,u,p`; `core endpoints g,l`; `apps/deployments, apps/replicasets, apps/statefulsets g,l,w` |
-| analytics-svc-06 | RB `analytics-svc-06-analytics-role-02` → R1, R2; RB `analytics-svc-06-analytics-role-03` → R1, R2 | Same as analytics-svc-05 |
+| analytics-svc-06 | RB `analytics-svc-06-analytics-role-02` → R1, R2; RB `analytics-svc-06-analytics-role-03` → R1, R2 | `core pods g,l,w,u,p`; `core endpoints g,l`; `apps/deployments, apps/replicasets, apps/statefulsets g,l,w` |
 
 ### 4.9 Namespace `payments` (active)
 
@@ -222,7 +236,7 @@ Notation: `RB` RoleBinding, `CRB` ClusterRoleBinding. "Union" lists the capabili
 |---|---|---|
 | media-worker | None | No RBAC grant (unbound). **Runs privileged, host-network, host-root pod `transcoder`. See E8.** Token mounted. |
 | mediaproce-svc-01 | RB `mediaproce-svc-01-mediaproce-role-01` → R1, R2; RB `mediaproce-svc-01-mediaproce-role-03` → R1, R2 | `core configmaps, pods, endpoints g,l,w,u,p`; `core services g,l`; `apps/statefulsets, apps/replicasets, apps/deployments g,l,w` |
-| mediaproce-svc-02 | RB `mediaproce-svc-02-mediaproce-role-01` → R1, R2; RB `mediaproce-svc-02-mediaproce-role-03` → R1, R2; CRB `mediaproce-svc-02-view-114` → `view` R1, R2 | **media-processing:** as mediaproce-svc-01. **cluster:** view rules as in kubesystem-svc-04 |
+| mediaproce-svc-02 | RB `mediaproce-svc-02-mediaproce-role-01` → R1, R2; RB `mediaproce-svc-02-mediaproce-role-03` → R1, R2; CRB `mediaproce-svc-02-view-114` → `view` R1, R2 | **media-processing:** `core configmaps, pods, endpoints g,l,w,u,p`; `core services g,l`; `apps/statefulsets, apps/replicasets, apps/deployments g,l,w`. **cluster:** `core pods, services, endpoints, configmaps g,l,w`; `apps/deployments, apps/replicasets g,l,w` |
 | mediaproce-svc-03 | RB `mediaproce-svc-03-mediaproce-role-01` → R1, R2 | `core configmaps, pods, endpoints g,l,w,u,p`; `apps/statefulsets, apps/replicasets g,l,w` |
 | mediaproce-svc-04 | RB `mediaproce-svc-04-mediaproce-role-02` → R1, R2 | `core endpoints, configmaps, services g,l,w,u,p`; `apps/replicasets, apps/deployments g,l,w` |
 
@@ -258,8 +272,8 @@ Notation: `RB` RoleBinding, `CRB` ClusterRoleBinding. "Union" lists the capabili
 | legacybill-svc-03 | RB `legacybill-svc-03-legacybill-role-01` → R1, R2; RB `legacybill-svc-03-legacybill-role-03` → R1, R2 | `core pods g,l,w`; `apps/replicasets, apps/deployments g,l,w`; `core configmaps, services g,l,w,u,p`; `apps/deployments, apps/statefulsets g,l,w` |
 | legacybill-svc-04 | RB `legacybill-svc-04-legacybill-role-02` → R1 | `core pods, configmaps, services g,l` |
 | legacybill-svc-05 | RB `legacybill-svc-05-legacybill-role-02` → R1 | `core pods, configmaps, services g,l` |
-| legacybill-svc-06 | RB `legacybill-svc-06-legacybill-role-03` → R1, R2; RB `legacybill-svc-06-legacybill-role-01` → R1, R2 | Same as legacybill-svc-03 |
-| legacybill-svc-07 | RB `legacybill-svc-07-legacybill-role-03` → R1, R2 | Same as legacybill-svc-02 |
+| legacybill-svc-06 | RB `legacybill-svc-06-legacybill-role-03` → R1, R2; RB `legacybill-svc-06-legacybill-role-01` → R1, R2 | `core pods g,l,w`; `apps/replicasets, apps/deployments g,l,w`; `core configmaps, services g,l,w,u,p`; `apps/deployments, apps/statefulsets g,l,w` |
+| legacybill-svc-07 | RB `legacybill-svc-07-legacybill-role-03` → R1, R2 | `core configmaps, services g,l,w,u,p`; `apps/deployments, apps/statefulsets g,l,w` |
 
 None of these ServiceAccounts reads Secrets. They are the targets of E6.
 
@@ -300,36 +314,27 @@ Subject references in the export: 2, both in `rolebindings.yaml` (lines 106 and 
 | Direct | RB `sam-metrics-viewer` → `metrics-viewer` R1 | `monitoring` | `core pods, services, endpoints g,l,w` |
 | Direct | RB `sam-legacy-view` → ClusterRole `view` R1, R2 | `legacy-billing-migration` only | `core pods, services, endpoints, configmaps g,l,w`; `apps/deployments, apps/replicasets g,l,w` |
 
-**Path analysis.** Checked against all 128 bindings. Neither binding grants a create, update, patch, delete, impersonate, bind, or escalate verb. No ClusterRoleBinding references `sam.okafor`. No Role or ClusterRole reached by these bindings grants `secrets`. No pod-creation path exists, because the subject holds no pod-create verb.
+**Path analysis and clearance.** The union of the two bindings is read/watch only: `metrics-viewer` applies in `monitoring`; the ClusterRole `view` rules referenced by `sam-legacy-view` apply only in `legacy-billing-migration`. The full binding export contains no other `sam.okafor` subject, and no Group subjects exist. Neither grant allows creating pods or workloads, changing resources, impersonating identities, or reading Secrets. The user therefore has no workload-selection path to another ServiceAccount in this export. **Determination:** `sam.okafor` is the correctly scoped read-only subject in the supplied snapshot; the extra legacy namespace grant is explicit and remains namespace-limited, not hidden cluster-wide privilege.
 
-**Determination.** Read-only. The ConfigMap read in `legacy-billing-migration` is broader than a monitoring role would need. Confirm the intent of `sam-legacy-view`.
+**Determination.** Correctly scoped as read-only in this snapshot. The legacy ConfigMap read is broader than the monitoring binding's purpose might suggest, but it is an explicit, namespace-limited `view` binding; it adds no write, Secret, impersonation, or cluster-wide grant. This is the subject cleared as having no hidden privilege beyond its two listed read-only bindings.
 
 ## 6. The subject that holds exactly what it appears to hold
+
+`sam.okafor` is the clearest correctly scoped read-only subject: the two bindings and their full read-only union are listed in Section 5.2, and the complete binding export shows no additional or group-derived grant.
 
 **`prod/orders-api-sa`.**
 - **Direct grant.** RoleBinding `orders-api-config` (prod) → Role `orders-api-config` R1 (core `configmaps, secrets` g,l,w). Scope: `prod` only.
 - **Search for other grants.** The export's RBAC objects were reviewed for this ServiceAccount: no other RoleBinding or ClusterRoleBinding names `prod/orders-api-sa`, and no Group path exists. The `yq` subject count confirms one binding for it. The workload reference is `workloads/prod/deployments.yaml` (line 16).
 - **Determination.** Its RBAC privilege is exactly get, list, and watch on ConfigMaps and Secrets in `prod`. Nothing else, nothing cluster-wide.
-- **Caveat about intent.** The name suggests configuration access, but the Role also grants Secret read. Confirm with the owner that Secret read is intended. This is the reason the verdict is "cleared, with caveats" and not an unconditional clearance.
+- **Purpose boundary.** The `orders-api` Deployment in `workloads/prod/deployments.yaml` uses this ServiceAccount and mounts its token. The export proves the single RoleBinding and exact `prod`-only ConfigMap/Secret read grant; it does not establish whether every application permission is required. This is an exact-inventory determination, not a claim that the owner has confirmed the permission need.
 - **Caveat about reachability.** E3 and E4 let `deploy-bot` and `billing-reconciler` run pods under this identity and read `prod` Secrets. That is a finding about those subjects, not about this grant.
 - **Caveat about the node.** The verdict covers RBAC only. If `orders-api` pods share a node with `transcoder` (E8), the token is readable from the host. Node placement is unverified.
 
-## 7. Corrections to `0-rbac_map.md`
-
-1. **Section 9, item 2 (`legacy-migration-admin`) is wrong.** `deploy-bot` cannot take over `legacy-billing-migration`. `migration-operator` has no `create` on `rolebindings`, so `deploy-bot` cannot create a binding that applies any Role. `bind` and `escalate` do not substitute for that. `deploy-bot` also has no Secret access there. Its real risk is E3.
-2. **Section 9, item 7 miscounts.** The cluster-wide `view` grant reaches **seven** ServiceAccounts: `kubesystem-svc-04`, `prod-svc-01` (two bindings), `build-svc-04`, `build-svc-05`, `staging-svc-01`, `mediaproce-svc-02`, and `monitoring-svc-04`.
-3. **E2 is missing from the map.** `ci-runner` → `controller-admin` through pod creation in `platform` should rank 1 or 2.
-4. **E3, E4, E6 are missing from the map.** Workload-creation paths and the impersonation scope belong in the risk section.
-5. **E8 is missing from the map.** The privileged, host-network, host-root `transcoder` pod under `media-worker` is among the most serious findings and belongs in the top two.
-6. **Admission is misdescribed in earlier versions.** `disallow-privileged` runs in Audit mode and checks only Deployments. It blocks nothing.
-7. **E1 is active, not latent.** `platform-controller` runs with `controller-admin` now. The file `workloads/platform/daemonsets.yaml` holds a Deployment.
-8. **Section 8 (cross-namespace bindings) is correct.** Each cross-namespace grant applies only in the binding's namespace.
-
-## 8. Verification still needed
+## 7. Verification still needed
 
 | Check | Command or method | Resolves |
 |---|---|---|
-| Subject references across all bindings | `yq '.subjects[]?.name' rolebindings.yaml clusterrolebindings.yaml \| sort \| uniq -c` (run: 128 documents, subjects match Sections 4 and 7, the nine unbound ServiceAccounts do not appear) | Done for the export. Live bootstrap bindings still open. |
+| Subject references across all bindings | Review all 128 RoleBinding/ClusterRoleBinding documents; one subject each. Every referenced subject appears in Sections 4 and 5; the nine unbound ServiceAccounts have no binding. | Done for the export. Live bootstrap bindings remain outside the snapshot. |
 | Bootstrap bindings | `kubectl get clusterrolebindings,rolebindings -A -o yaml` on a live cluster, compared with the export | Any `system:` grants missing from the export. The main open limit. |
 | Node placement | `kubectl get pods -A -o wide` | Whether E8 reaches E1, and whether `orders-api` shares a node with `transcoder` |
 | Namespace enforcement | `kubectl get ns media-processing --show-labels` | Whether PSA is absent live |
@@ -337,6 +342,6 @@ Subject references in the export: 2, both in `rolebindings.yaml` (lines 106 and 
 | E2 | Server dry run of a Pod in `platform` with `serviceAccountName: controller-admin`, as `system:serviceaccount:build:ci-runner` | E2 |
 | E3, E4 | Server dry run of a Deployment in `prod` as `deploy-bot`, and of a Job as `billing-reconciler`, naming `billing-reconciler` or `orders-api-sa` | E3, E4 |
 | E6 | `kubectl auth can-i impersonate serviceaccounts --as=maya.chen -n legacy-billing-migration`; same for `users` and `groups` | E6 scope |
-| Full permission listing | `kubectl auth can-i --list --as=system:serviceaccount:<ns>:<name>` for each named subject | Confirms Sections 3 to 5 live |
+| Full permission listing | `kubectl auth can-i --list --as=system:serviceaccount:<ns>:<name>` for each named subject | Would compare the manifest-derived determinations with live authorization |
 
 The caller running these checks needs impersonation rights. Without them, the commands return `forbidden` and prove nothing.

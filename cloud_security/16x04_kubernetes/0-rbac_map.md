@@ -50,6 +50,8 @@ The namespace names below are copied from `namespaces.yaml`. Counts are object c
 | staging | 5 | 4 | 8 |
 | **Total** | **86** | **62** | **117** |
 
+**Brief-to-export discrepancy:** the task brief mentions a test namespace containing three objects. The supplied `namespaces.yaml` contains exactly the 14 namespaces listed above and has no `test` Namespace object. This map records the complete supplied export and does not add an unexported namespace or objects to it.
+
 ## 4. ServiceAccount subjects
 
 Every ServiceAccount object from `serviceaccounts.yaml` is listed below with its namespace. Binding relationships for subjects are enumerated individually in Section 7.
