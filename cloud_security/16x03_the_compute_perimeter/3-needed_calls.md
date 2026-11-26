@@ -4,6 +4,19 @@
 
 I read `~/marlowe-package/order_processor/handler.py` before comparing its calls with any role policy. The entries below are the provider SDK operations explicitly invoked by `handler(event, context)`. The operation names and locations come from executable statements, not the function's description or the role configuration.
 
+```python
+def handler(event, context):
+    signing = sm.get_secret_value(SecretId=SECRET)                         # line 22
+    msg = sqs.receive_message(QueueUrl=QUEUE_URL, MaxNumberOfMessages=1)  # line 25
+    for m in msg.get("Messages", []):
+        order = json.loads(m["Body"])
+        doc = s3.get_object(Bucket=ORDERS_BUCKET, Key=f"orders/{order['id']}.json")["Body"].read()  # line 30
+        existing = ddb.get_item(TableName=TABLE, Key={"id": {"S": order["id"]}})                  # line 33
+        ddb.put_item(TableName=TABLE, Item={"id": {"S": order["id"]}, "status": {"S": "processed"}})  # line 36
+        s3.put_object(Bucket=ORDERS_BUCKET, Key=f"processed/{order['id']}.json", Body=doc)        # line 39
+        sqs.delete_message(QueueUrl=QUEUE_URL, ReceiptHandle=m["ReceiptHandle"])                   # line 42
+```
+
 The function retrieves the signing secret and receives a queue message before entering the message loop. The five remaining calls are reached only when `receive_message` returns at least one message. No provider call is made for an empty `Messages` list by the loop body.
 
 ## Calls observed
