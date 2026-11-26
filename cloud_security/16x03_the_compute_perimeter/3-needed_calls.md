@@ -2,7 +2,7 @@
 
 ## Method
 
-I read `~/marlowe-package/order_processor/handler.py` before comparing its calls with any role policy. The entries below are the provider SDK operations explicitly invoked by `handler(event, context)`. The operation names and locations come from executable statements, not the function's description or the role configuration.
+I read `~/marlowe-package/order_processor/handler.py` before comparing its calls with any role policy. The excerpt below reproduces each provider SDK call from the executable body of `handler(event, context)`; the inline line numbers are the source line numbers reported by `grep -n` on that file. Each row then maps that exact expression to its provider operation and execution condition. The operation names and locations come from executable statements, not the function's description or the role configuration.
 
 ```python
 def handler(event, context):
@@ -21,7 +21,7 @@ The function retrieves the signing secret and receives a queue message before en
 
 ## Calls observed
 
-| Source location | Executable expression | Provider operation | Control-flow condition |
+| Exact source locator | Executable expression | Provider operation | Execution path |
 |---|---|---|---|
 | `handler.py:22`, `handler` | `sm.get_secret_value(SecretId=SECRET)` | Secrets Manager `GetSecretValue` | Every invocation reaches this statement before queue receive. |
 | `handler.py:25`, `handler` | `sqs.receive_message(QueueUrl=QUEUE_URL, MaxNumberOfMessages=1)` | SQS `ReceiveMessage` | Every invocation reaches this statement after the secret read. |

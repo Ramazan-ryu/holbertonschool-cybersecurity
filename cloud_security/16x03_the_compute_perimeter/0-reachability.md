@@ -2,9 +2,9 @@
 
 ## Evidence and rule model
 
-The judgments below use `~/marlowe-handover/network-configuration.json` (the JSON printed during this review). It defines one security group, one network ACL, two VPC peerings, one S3 gateway endpoint, and the supplied sound question. It does not define subnet-to-ACL or subnet-to-security-group associations, route tables, internet gateways, or NAT gateways. I do not treat an omitted association or route as an explicit deny, and I do not use the separate account API results as a substitute for this handover configuration.
+The judgments below use `~/marlowe-handover/network-configuration.json` (the JSON printed during this review). It defines one security group, one network ACL, two VPC peerings, one S3 gateway endpoint, and the supplied S3 path question. It does not define subnet-to-ACL or subnet-to-security-group associations, route tables, internet gateways, or NAT gateways. I do not treat an omitted association or route as an explicit deny, and I do not use the separate account API results as a substitute for this handover configuration.
 
-As a separate scope check, the read-only EC2 API in `eu-west-1` returned account `500100200300` and one VPC, `vpc-c3acb8fce8058fe62` with CIDR `172.31.0.0/16`; its subnets are within that CIDR and its route table contains only the local route. This is not the handover's `vpc-app` / `10.0.1.0/24` network. The live result therefore cannot be used to fill in missing handover associations or routes, or to overturn the handover's stated sound S3 question. It only records that the read-only API view in this region describes a different network.
+As a separate scope check, the read-only EC2 API in `eu-west-1` returned account `500100200300` and one VPC, `vpc-c3acb8fce8058fe62` with CIDR `172.31.0.0/16`; its subnets are within that CIDR and its route table contains only the local route. This is not the handover's `vpc-app` / `10.0.1.0/24` network. The live result therefore cannot be used to fill in missing handover associations or routes, or to alter the supplied S3 question. It only records that the read-only API view in this region describes a different network.
 
 The configured controls are:
 
@@ -29,11 +29,11 @@ For any forwarded path, the subnet also needs a route to the target. The handove
 
 ## The two directionality checks
 
-For path 3, the ACL's inbound TCP/8080 rule admits the request from `10.0.1.0/24`. That rule says nothing about the return packet. The stateless ACL separately evaluates the app server's reply, whose destination is the client's ephemeral port; the listed outbound TCP/443 rule does not match. An allowed inbound request is therefore not equivalent to a working two-way connection.
+For path 3, the ACL's inbound TCP/8080 rule admits the request from `10.0.1.0/24`. That rule says nothing about the return packet. If this ACL is associated with the server subnet, it separately evaluates the reply, whose destination is the client's ephemeral port; the listed outbound TCP/443 rule does not match. An allowed inbound request is therefore not equivalent to a working two-way connection. Because the association is missing, the end-to-end result remains conditional.
 
 For path 4, `sg-web-public` has broad egress, but egress is the direction in which a workload initiates a callback or sends data outward. The app ACL's outbound allow is limited to `10.0.1.0/24`; it does not authorize a public collector if associated with the source subnet. This is the material security-group/ACL asymmetry. Route and association evidence is still needed to settle end-to-end public reachability.
 
-## Sound result
+## S3 endpoint policy and end-to-end uncertainty
 
 For path 7, the endpoint policy itself is permissive and is not a finding. The complete host-to-endpoint path is **unknown from the available evidence**: the handover does not identify which security group or ACL governs the host, whether the endpoint route is associated with its subnet, or whether a stateless ACL permits the reply direction. `sound_question` is the label for the supplied question; it does not fill those configuration gaps. I therefore cannot certify the entire path as working or blocked from this JSON alone.
 

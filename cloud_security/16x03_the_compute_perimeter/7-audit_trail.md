@@ -6,6 +6,8 @@ The supplied `evidence/audit-export.json` is a lab-generated, 93-event export fo
 
 The bundle contains several record types: storefront `FetchUrl` events, IMDS credential events, STS events, and cloud API calls. It is the lab's activity record, not independently verified provider-side CloudTrail. Reviewer CloudTrail lookup was denied, and the HMAC cannot be independently checked without its signing key. The event IDs and request IDs below locate the cited records within this supplied export.
 
+For the records in Chain A and Chain B, the export's `eventSource` distinguishes `marlowe-web.amazonaws.com` (`FetchUrl`), `imds.amazonaws.com` (`GetInstanceCredentials`), `sts.amazonaws.com` (STS calls), and each named AWS service (downstream calls). The `sourceIPAddress` is `127.0.0.1` for the storefront, STS, and downstream service records; the IMDS records show `169.254.169.254`. Event-specific times, identifiers, targets and results are listed below. Each downstream table inherits the principal/session and source context stated in its preceding STS identity row, while retaining its own event and request IDs.
+
 ## Chain A — storefront SSRF to instance-role use
 
 This chain begins with the storefront `image-import` feature. The application fetch events (`marlowe-web.amazonaws.com`) are distinct from the IMDS credential events and subsequent STS/cloud API calls.
