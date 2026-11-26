@@ -1,17 +1,11 @@
 # 8 — Severity Assessment
 
-## Finding 1: instance identity exposed through the storefront fetch
+## Finding: storefront request reaches a cloud workload identity
 
-**Severity: High.** A request to the catalog image-import feature returned an instance metadata credential document. STS confirmed the principal as `marlowe-web-instance-role`. Calls using that identity successfully read an order document, received a customer-events message, and retrieved the Stripe webhook-signing secret. This rating is based on the exposed identity and proven data reach, not on the URL-fetch weakness in isolation. `iam:ListUsers` was denied, and no write or account-administration capability was demonstrated for this identity.
+A **medium** rating last year was reasonable for the evidence then available: an application URL-fetch issue, without evidence about metadata settings, the resulting identity, its permissions, or the resources it could reach. Request forgery does not receive a critical rating by name alone. The missing information was held across the application feature owner, the platform or cloud owner of IMDS and the instance role, and the owners of the bucket, queue, secret, and function role. The review process did not join those inventories into one impact assessment.
 
-The exposure depended on the metadata service accepting the tokenless metadata path. The exact same forged request was replayed after `imds-mode strong`; it returned HTTP 502 with no credential fields. This validates the hardened posture for that request. The SSRF primitive remains and requires application-level remediation (see `6-remediation/README.md`).
+The current evidence supports **High** severity. The image-import request reached the tokenless metadata path and returned credentials for `marlowe-web-instance-role`. STS confirmed that identity. Calls with those credentials read `orders/2026-Q1.json` from `marlowe-orders-mc4e21`, received a message from `marlowe-customer-events`, and retrieved `marlowe/stripe-webhook-signing`. The instance identity also assumed `marlowe-order-processor-role`; a separate confirmed session of that role made inventory calls. `iam:ListUsers` was denied to the instance identity, and no write access was demonstrated. These results show meaningful access to order data, a customer event, and a signing secret; they do not show account administration.
 
-## Finding 2: function execution role broader than the handler's API needs
+The metadata service accepted the original request without an IMDSv2 token. Replaying that request after strong mode returned HTTP 502 without credential fields. This validates the metadata control for the tested request; the attacker-controlled image-import destination remains an application issue.
 
-**Severity: High.** The handler has seven code-observed API actions across four services. Under a tested function-role session, six additional actions outside that set succeeded: `s3:ListAllMyBuckets`, `secretsmanager:ListSecrets`, `sqs:ListQueues`, `iam:ListUsers`, `iam:GetAccountAuthorizationDetails`, and `dynamodb:ListTables`. The last returned an empty list; the successful response still demonstrates acceptance of that action. These six actions span five service families. This measured set is not a complete inventory of effective permissions; untested policy grants are not counted as demonstrated reach.
-
-The demonstrated reach is from manual `fn-review` inventory calls, not from a Lambda invocation. If the deployed function is attached to `marlowe-order-processor-role`, code executing in it could use that role's temporary credentials; the attachment remains unverified because Lambda configuration retrieval failed. The proposed narrowing policy exists in the repository, but it was not applied or verified; the current severity therefore receives no remediation credit.
-
-## Rating limits
-
-No CVSS score is assigned because the supplied evidence does not establish all scoring inputs, including external authentication boundaries and full business impact. Revisit the ratings after the policy update and its paired negative/positive tests, and after owner confirmation of the audit baseline.
+**Reusable severity rule: follow each reachable identity and trust boundary, then rate the demonstrated authority, assets reached, and likely business consequences.**

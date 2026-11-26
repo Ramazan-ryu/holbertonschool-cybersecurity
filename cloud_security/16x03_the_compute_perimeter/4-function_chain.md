@@ -17,14 +17,7 @@ The saved STS identity response `71-fn-identity.json` reports:
 
 The STS session record for this assumption was removed during cleanup. The identity basis available for these tests is the saved `71-fn-identity.json` response. The Lambda configuration could not be retrieved successfully, so the deployed function-to-role attachment is not independently confirmed.
 
-### Session separation
-
-| Evidence set | Identity evidence | Permission-call evidence used here | Treatment |
-|---|---|---|---|
-| `fn-review` | `71-fn-identity.json`: `GetCallerIdentity` identifies the assumed role session shown above. | `72-s3-buckets.json` through `77-ddb.json`: the six manual inventory requests in section 2. | Sole basis for the six measured excess actions. No handler invocation is claimed. |
-| `fn-review2` | `92-fn2-identity.json` and `93-id-80.txt` both identify `arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/fn-review2`; the JSON also reports account `500100200300` and `UserId AROAXI4CLO5WGP5N66UQA:fn-review2`. | No permission-call response from this session is included in the evidence supplied for this report. | Identity context only; it adds no demonstrated action to the measured set and is not merged with `fn-review`. |
-
-The source-only handler operations in section 1 form a third, distinct evidence category: source inspection, not an executed session. None of the records listed above proves a Lambda invocation or independently confirms the deployed execution-role attachment.
+The source-only handler operations in section 1 are a separate evidence category: source inspection, not an executed session. The `fn-review` session is the only session used for the permission results in this report. No Lambda invocation is evidenced here.
 
 ## 1. Source-only baseline
 
@@ -63,10 +56,8 @@ The handler source contains **7** distinct provider operations across **4** serv
 
 No write operation was tested. In particular, there is no result here for `s3:PutObject`, `dynamodb:PutItem`, or `sqs:DeleteMessage`; their presence in the handler source does not prove this session successfully executed them. Likewise, the successful list operations do not establish administrator access or any untested permission.
 
-## 4. Identity and conditional runtime impact
+## 4. Identity and access boundary
 
-`fn-review` is an assumed-role session whose STS identity names `marlowe-order-processor-role`. The six results above prove only that this specific session was accepted for those six inventory calls at the configured lab endpoint. The separate `fn-review2` identity response names the same role but has no permission-call result included here. Neither identity response is proof that the handler was invoked or that either session was issued by a live Lambda runtime.
+The STS response identifies the credentials used for the six manual tests as `arn:aws:sts::500100200300:assumed-role/marlowe-order-processor-role/fn-review` in account `500100200300`. The six results prove that this specific assumed-role session was accepted for those exact inventory calls at `http://127.0.0.1:4566`, the configured lab account endpoint. They do not establish access to any untested action or resource.
 
-If the deployed order-processing function is configured with `marlowe-order-processor-role`, arbitrary code executing in that function can use the function's temporary execution-role credentials. In that conditional scenario, the tested role identity indicates a demonstrated reach of the six inventory actions in section 2. The attachment remains unverified because Lambda configuration retrieval returned `SignatureDoesNotMatch` before returning configuration. The report therefore does not assert that the deployed function configuration was confirmed or that a code execution event occurred.
-
-The provider calls made by the handler remain the separate seven-operation source baseline in section 1. The manual inventory probes remain the separate six-action session test in section 2. No other session's results are used to increase either count.
+The Lambda configuration could not be retrieved because the API returned `SignatureDoesNotMatch`. The deployed function's role attachment is therefore unverified. This report does not claim that the `fn-review` credentials came from a Lambda invocation, that handler code executed with them, or that the deployed function has the demonstrated session's reach. The seven handler calls in section 1 remain source observations; the six calls in section 2 remain manual tests under `fn-review`.
