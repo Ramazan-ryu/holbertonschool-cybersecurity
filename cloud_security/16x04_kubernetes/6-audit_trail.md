@@ -133,7 +133,7 @@ For both profiles, store distributions by verb × API group × resource × names
 1. Recover the longest retained audit history available, with a target of 24 months so daily, weekly, release, and infrequent maintenance cycles can be represented. The supplied seven-day JSONL is not enough to train or validate a durable profile.
 2. Build profiles retrospectively from that history. Where history is shorter, mark the account **provisional**; collect at least one full business/release cycle and keep alerts in analyst-review mode until owners validate expected activity. Do not label a one-week sample as two years of normal.
 3. Replay known incidents, approved releases, maintenance jobs, and denied requests against the candidate rules. Measure missed events and noisy alerts; tune per identity and workload rather than using one cluster-wide allowlist.
-4. Start alerting with the owner, observed deviation, supporting audit events, and the prior baseline. High-impact new write actions (especially workload creation, RBAC changes, impersonation, and Secret access) can page immediately; lower-confidence shifts go to review.
+4. Start alerting with the owner, observed deviation, supporting audit events, and the prior baseline. High-risk deviations—new workload writes, RBAC changes, impersonation, and Secret reads—can page immediately; lower-confidence shifts go to review.
 
 ### Audit data needed
 
