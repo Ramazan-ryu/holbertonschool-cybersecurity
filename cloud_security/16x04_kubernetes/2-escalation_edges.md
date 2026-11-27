@@ -26,9 +26,9 @@
 | E2 | `prod/deploy-bot` | Deployment create/update in `prod` | `prod/billing-reconciler` | Legacy `billing-secrets` read; Job create in `prod` | Behavior-derived (1 [K] step) |
 | E3 | `prod/deploy-bot` | Deployment create/update in `prod` | `prod/orders-api-sa` | `prod` ConfigMaps and Secrets read | Behavior-derived (1 [K] step) |
 | E4 | `prod/billing-reconciler` | `create` on Jobs in `prod` | Pod created from a Job template selecting `prod/orders-api-sa` | `orders-api-config`: read/watch Secrets and ConfigMaps in `prod` | Conditional, behavior-derived |
-| E5 | `media-processing/mediaproce-svc-01`, `-02`, `-03` | Pod update/patch in `media-processing` | Existing `transcoder` Pod with its configured `media-worker` identity | Its declared privileged container context and read-write `/` hostPath mount | Conditional on accepted image change and successful pull |
+| E5 | `media-processing/mediaproce-svc-01`, `-02`, `-03` | Pod update/patch in `media-processing` | A Pod created from the `transcoder` Deployment template, if present | `media-worker` identity and the template's declared privileged context | Conditional on Pod existence, accepted image update, and successful pull |
 | E6 | `maya.chen` | `impersonate` on ServiceAccounts through RoleBinding `maya-billing-migrator` → Role `billing-migrator` R2 | `reconcile-job` and `legacybill-svc-01` through `legacybill-svc-07` in `legacy-billing-migration` | Per-target grants enumerated below; `reconcile-job` has none, others have namespace-scoped grants, none has Secret access | Behavior-derived (2 [K] scope steps) |
-| N1 | `prod/deploy-bot` | `bind`, `escalate`, `create` on roles/clusterroles | None active | Inert: no subject holds RoleBinding write | Dead end |
+| N1 | `prod/deploy-bot` | `migration-operator` has role creation/delegation verbs but only `get,list` on RoleBindings | No added grant | Cannot create or modify a RoleBinding; namespaced scope only | Dead end |
 
 ---
 
@@ -93,17 +93,17 @@
 
 ---
 
-### E5. The media-processing ServiceAccounts can change the `transcoder` Pod image
+### E5. The media-processing ServiceAccounts can conditionally run a replacement image in a Pod from the `transcoder` template
 
 **Step 1 [E]: exact Pod-update grant.** RoleBindings `mediaproce-svc-01-mediaproce-role-01`, `mediaproce-svc-02-mediaproce-role-01`, and `mediaproce-svc-03-mediaproce-role-01` in namespace `media-processing` bind those ServiceAccounts to Role `mediaproce-role-01`. Its R1 grants `update,patch` on core Pods in `media-processing` (`rolebindings.yaml`; `roles.yaml`).
 
-**Step 2 [E]: existing Pod configuration.** Deployment `transcoder` in `workloads/media-processing/deployments.yaml` selects `media-worker` and enables token automount (lines 16–17). Its container is `privileged: true`, adds `SYS_ADMIN`, uses host networking, and mounts host path `/` read-write at `/host` (lines 22–33). The corresponding ServiceAccount `media-worker` is in `media-processing` (`serviceaccounts.yaml`).
+**Step 2 [E]: exported Deployment template, not a live Pod.** The `transcoder` Deployment template in `workloads/media-processing/deployments.yaml` selects `media-worker` and enables token automount (lines 16–17). The template's container is `privileged: true`, adds `SYS_ADMIN`, uses host networking, and mounts host path `/` read-write at `/host` (lines 22–33). ServiceAccount `media-worker` exists in `media-processing` (`serviceaccounts.yaml`). The export does not prove that a Pod currently exists.
 
-**Step 3 [K]: conditional image replacement.** If one of these ServiceAccounts submits an accepted update/patch changing the container image on an existing `transcoder` Pod, and the node can pull that image, Kubernetes runs the replacement image in that Pod. The update targets the Pod's image; it does not select a different ServiceAccount or alter the other listed Pod settings. The exported `disallow-privileged` policy targets Deployments, not direct Pod updates, and its binding is Audit-only; namespace `media-processing` has no PSA labels (`admission/`; `podsecurity-labels.yaml`). No such patch or image pull is recorded in this offline export.
+**Step 3 [K]: conditional creation and direct Pod image update.** If the Deployment controller has created a Pod from this template, one of the authorized ServiceAccounts can submit a direct update/patch to that Pod's mutable container `image` field. This is a Pod update, not a Deployment-template update; Kubernetes does not copy a later Deployment change into an already-running Pod. If the direct Pod update is accepted and its node can pull the replacement image, the kubelet starts that image in the Pod. The exported `disallow-privileged` policy targets Deployments, not direct Pod updates, and its binding is Audit-only; namespace `media-processing` has no PSA labels (`admission/`; `podsecurity-labels.yaml`). The export records neither an existing Pod nor an image update or pull.
 
-**Step 4 [E]: inherited context.** The changed container remains in the existing Pod, whose ServiceAccount is `media-worker` with token automount enabled. It also retains the declared privileged setting, `SYS_ADMIN`, host networking, and read-write mount of host `/` at `/host`. These are the target Pod's exported settings, not extra RBAC permissions granted to the three starting ServiceAccounts.
+**Step 4 [K]: conditional inherited context.** A Pod created from the exported template uses `media-processing/media-worker` and the listed Pod settings. If the direct patch changes only the image field, that same Pod keeps its ServiceAccount identity, token-automount setting, privileged setting, `SYS_ADMIN`, host networking, and read-write hostPath mount. Those are template-derived consequences, not facts about a live Pod or an observed patch.
 
-**Result.** Conditional on an accepted image update and successful image pull, code in the replacement image would run in the existing `transcoder` Pod as `media-processing/media-worker`, with that Pod's declared privileged/`SYS_ADMIN` context and read-write host-root mount. This is behavior-derived from the Pod update grant and manifest, not a claim that code ran. The export does not establish node placement or impact on other workloads, so no cluster-wide or multi-node effect is claimed.
+**Result.** The export establishes Pod update/patch rights and a Deployment template. Under the stated conditions—controller-created Pod, accepted direct Pod image update, and successful image pull—the replacement image runs in that Pod as `media-processing/media-worker` with the template-derived privileged and hostPath settings. The export does not establish that any of these runtime steps occurred, nor the node placement or effect on other workloads.
 
 ---
 
@@ -111,7 +111,7 @@
 
 **Step 1 [E]: starting identity and enabling grant.** RoleBinding `maya-billing-migrator` in `legacy-billing-migration` binds User `maya.chen` to Role `billing-migrator`. Rule R2 in `roles.yaml` grants `impersonate` on core `serviceaccounts`, `users`, and `groups`. Its R1 additionally grants core Pod and ConfigMap `get,list` in that namespace.
 
-**Step 2 [K]: namespace-scoped impersonation.** Kubernetes authorizes impersonation of a ServiceAccount in that ServiceAccount's namespace. The namespaced RoleBinding therefore lets `maya.chen` make API requests as ServiceAccounts in `legacy-billing-migration`, but not ServiceAccounts in other namespaces. This is API impersonation authority; it does not give Maya a ServiceAccount token. The exercise provides exported state and no live API.
+**Step 2 [K]: conditional namespace-scoped impersonation.** If this exported RoleBinding is effective, Kubernetes permits `maya.chen` to make API requests with a ServiceAccount identity in `legacy-billing-migration`, the binding's namespace. The grant does not cover ServiceAccounts in other namespaces and does not give Maya their bearer tokens. This is the standard API impersonation behavior derived from the namespaced grant; no live impersonation was performed.
 
 **Step 3 [E]: enumerate every target identity and its exported grants.** The identity objects are in `serviceaccounts.yaml`; each binding and Role below is in `rolebindings.yaml` and `roles.yaml`, respectively. These are the full set of ServiceAccounts in the target namespace.
 
@@ -128,9 +128,9 @@
 
 **Step 4 [E]: exported user/group bindings.** The R2 rule includes core resources `users` and `groups`, but none of the 11 ClusterRoleBindings names `maya.chen`, and the only RoleBinding for that subject in the target namespace is `maya-billing-migrator` [E].
 
-**Step 5 [K]: user/group scope.** Kubernetes evaluates impersonation of users and groups at cluster scope; a namespaced RoleBinding does not supply that cluster-scoped grant. The edge is therefore limited to the enumerated ServiceAccounts in the supplied export.
+**Step 5 [K]: conditional user/group scope.** Under Kubernetes authorization semantics, impersonation of users and groups is cluster-scoped. This RoleBinding is namespaced and no ClusterRoleBinding names `maya.chen`, so the exported state does not grant her that cluster-scoped impersonation. The target set supported here is limited to the eight ServiceAccounts listed above.
 
-**Result.** `maya.chen` can act as each of the seven listed `legacybill-svc-*` identities with exactly the per-identity rights above, or as `reconcile-job` with no exported RBAC rights. No target has Secret permissions in the export. The write-capable identities can update/patch ConfigMaps and Services and read/watch Deployments/StatefulSets; `legacybill-svc-01` and `-03`/`-06` also read Pods and ReplicaSets. This is one namespace-scoped identity-transition path with eight explicitly enumerated targets.
+**Result.** Conditional on the exported RoleBinding being applied, `maya.chen` can send API requests as each of the seven `legacybill-svc-*` identities and `reconcile-job`, with exactly the per-identity RBAC grants in the table. This is impersonation, not receipt of the ServiceAccounts' tokens. No listed target has Secret permissions in the export; the effective grants remain limited to `legacy-billing-migration`.
 
 ---
 
@@ -140,10 +140,10 @@
 
 RoleBinding `legacy-migration-admin` in `legacy-billing-migration` binds `prod/deploy-bot` to namespaced Role `migration-operator`.
 
-- Role `migration-operator`, bound by `legacy-migration-admin` in `legacy-billing-migration`, grants `get,list` on `roles,rolebindings` and `create,bind,escalate` on `roles,clusterroles` (`roles.yaml`; `rolebindings.yaml`). `deploy-bot` therefore lacks `create`, `update`, or `patch` on `rolebindings`; it cannot attach a newly created Role to any subject.
-- `escalate` can permit creation of a namespaced Role with rules beyond the creator's own grants, but that Role remains unbound. The `clusterroles` entries in a namespaced Role do not create cluster-scoped authority. No active path from these rules to an additional subject grant is established.
+- Role `migration-operator`, bound to `prod/deploy-bot` by `legacy-migration-admin` in `legacy-billing-migration`, grants only `get,list` on `roles,rolebindings` and grants `create,bind,escalate` on `roles,clusterroles` (`rolebindings.yaml`; `roles.yaml`). The decisive blocker is that `get,list` do not include `create`, `update`, or `patch` on `rolebindings`; the subject cannot add or change a binding to attach a Role to itself or another subject.
+- Because `legacy-migration-admin` is a namespaced RoleBinding, its `clusterroles` rule does not grant cluster-scoped access to ClusterRole objects. `escalate` may allow creating an elevated namespaced Role, but without RoleBinding write permission that Role remains unattached and grants no new subject access.
 
-**Result.** `bind` and `escalate` do not make `deploy-bot` an administrator here. The missing RoleBinding write permission stops the escalation; the export supports a dead end, not current namespace takeover or cluster-wide reach.
+**Result.** `bind` and `escalate` do not make `deploy-bot` an administrator here. The export shows only RoleBinding reads, so the subject cannot attach a Role; the namespaced binding also cannot provide cluster-scoped ClusterRole authority. This is a dead end, not a current namespace takeover or cluster-wide reach.
 
 ## 5. Evidence boundary
 
