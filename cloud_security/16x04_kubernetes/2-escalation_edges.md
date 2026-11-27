@@ -12,7 +12,7 @@
 - **Export-established** describes a step directly visible in the files.
 - **Behavior-derived** describes the transition that follows when the exported permissions are exercised under the stated Kubernetes behavior. It is not reported as a live test result.
 
-**Delegation rule.** `bind` and `escalate` do not create a grant by themselves. A subject also needs `create`, `update`, or `patch` on `rolebindings` to attach a Role to a subject. In this export, `migration-operator` has only `get,list` on `rolebindings`; its `create`, `bind`, and `escalate` rules are scoped through a RoleBinding in `legacy-billing-migration`. That RoleBinding does not give it cluster-scoped authority over ClusterRoles.
+**Delegation rule.** `bind` and `escalate` do not attach a Role to a subject. Attaching or changing a RoleBinding requires `create`, `update`, or `patch` on `rolebindings`. In this export, `migration-operator` has only `get,list` on `rolebindings`, so it cannot attach a Role to any subject. Its namespaced RoleBinding in `legacy-billing-migration` also does not grant cluster-scoped access to ClusterRoles.
 
 **Admission and Pod Security** (verified from files, see `1-effective_privilege.md` Section 1). `disallow-privileged` checks only Deployments and its binding uses Audit, so it does not reject a matching request. PSA `enforce: baseline` is set in namespaces including `platform` and `prod`; `media-processing`, `kube-system`, and `kube-addons-old` have no PSA labels. The export contains no admission rule that restricts `serviceAccountName`; hostPath must still be assessed against the namespace's PSA setting.
 
@@ -107,9 +107,9 @@
 
 ---
 
-### E6. `maya.chen` becomes each impersonated ServiceAccount in `legacy-billing-migration`
+### E6. `maya.chen` can conditionally impersonate ServiceAccounts in `legacy-billing-migration`
 
-**Step 1 [E]: starting identity and enabling grant.** RoleBinding `maya-billing-migrator` in `legacy-billing-migration` binds User `maya.chen` to Role `billing-migrator`. Rule R2 in `roles.yaml` grants `impersonate` on core `serviceaccounts`, `users`, and `groups`. Its R1 additionally grants core Pod and ConfigMap `get,list` in that namespace.
+**Step 1 [E]: starting identity and enabling grant.** RoleBinding `maya-billing-migrator` in `legacy-billing-migration` binds User `maya.chen` to Role `billing-migrator`. Its R2 includes `impersonate` on core ServiceAccounts (`roles.yaml`, Role `billing-migrator`). For this edge, the authorized target set is limited to ServiceAccounts in `legacy-billing-migration`. R1 additionally grants core Pod and ConfigMap `get,list` in the namespace.
 
 **Step 2 [K]: conditional namespace-scoped impersonation.** If this exported RoleBinding is effective, Kubernetes permits `maya.chen` to make API requests with a ServiceAccount identity in `legacy-billing-migration`, the binding's namespace. The grant does not cover ServiceAccounts in other namespaces and does not give Maya their bearer tokens. This is the standard API impersonation behavior derived from the namespaced grant; no live impersonation was performed.
 
@@ -126,11 +126,11 @@
 | `legacybill-svc-06` | `legacybill-svc-06-legacybill-role-03` → `legacybill-role-03` R1,R2; `legacybill-svc-06-legacybill-role-01` → `legacybill-role-01` R1,R2 | Union: core Pods `get,list,watch`; Apps ReplicaSets and Deployments `get,list,watch`; core ConfigMaps and Services `get,list,watch,update,patch`; Apps Deployments and StatefulSets `get,list,watch`. |
 | `legacybill-svc-07` | `legacybill-svc-07-legacybill-role-03` → `legacybill-role-03` R1,R2 | Core ConfigMaps and Services `get,list,watch,update,patch`; Apps Deployments and StatefulSets `get,list,watch`. |
 
-**Step 4 [E]: exported user/group bindings.** The R2 rule includes core resources `users` and `groups`, but none of the 11 ClusterRoleBindings names `maya.chen`, and the only RoleBinding for that subject in the target namespace is `maya-billing-migrator` [E].
+**Step 4 [E]: no exported cluster-scoped grant.** The export has no ClusterRoleBinding for `maya.chen`; her only RoleBinding in this namespace is `maya-billing-migrator` (`clusterrolebindings.yaml`; `rolebindings.yaml`).
 
-**Step 5 [K]: conditional user/group scope.** Under Kubernetes authorization semantics, impersonation of users and groups is cluster-scoped. This RoleBinding is namespaced and no ClusterRoleBinding names `maya.chen`, so the exported state does not grant her that cluster-scoped impersonation. The target set supported here is limited to the eight ServiceAccounts listed above.
+**Step 5 [K]: scope boundary.** The Role also lists user and group impersonation resources, but those targets require cluster-scoped authorization. This namespaced RoleBinding cannot grant that scope, and the export contains no ClusterRoleBinding for `maya.chen`. Therefore users and groups are not reachable targets; only the eight ServiceAccounts listed above are in scope.
 
-**Result.** Conditional on the exported RoleBinding being applied, `maya.chen` can send API requests as each of the seven `legacybill-svc-*` identities and `reconcile-job`, with exactly the per-identity RBAC grants in the table. This is impersonation, not receipt of the ServiceAccounts' tokens. No listed target has Secret permissions in the export; the effective grants remain limited to `legacy-billing-migration`.
+**Result.** The behavior-derived edge is limited to conditional API requests as the seven `legacybill-svc-*` identities or `reconcile-job`, all in `legacy-billing-migration`. The export does not establish a live impersonation request or provide ServiceAccount tokens. No listed target has Secret permissions in the export.
 
 ---
 
